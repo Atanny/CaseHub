@@ -302,24 +302,27 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 /* Right panel */
 .right-panel{background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius);overflow:hidden;backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);box-shadow:var(--glass-shadow);}
 .right-panel-header{
-  padding:14px 16px;border-bottom:1px solid var(--border);
-  font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;
-  background:linear-gradient(135deg,rgba(245,148,92,.08),rgba(212,114,74,.08));
+  padding:16px 18px;border-bottom:1px solid var(--border);
+  font-size:15px;font-weight:800;display:flex;align-items:center;gap:10px;
+  background:linear-gradient(135deg,rgba(245,148,92,.1),rgba(212,114,74,.08));
+  font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-.2px;
 }
-.meta-stack{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:7px;background:var(--card2);}
-.meta-row{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--muted);font-family:'Poppins',sans-serif;}
-.meta-row .meta-val{color:var(--text);font-weight:600;}
-.meta-row .timer-val{color:var(--amber);font-weight:700;font-variant-numeric:tabular-nums;font-family:'Poppins',sans-serif;}
+.meta-stack{padding:0;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:0;background:transparent;}
+.meta-row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;color:var(--muted);font-family:'Poppins',sans-serif;padding:11px 16px;border-bottom:1px solid var(--border);}
+.meta-row:last-child{border-bottom:none;}
+.meta-row .meta-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);}
+.meta-row .meta-val{color:var(--text);font-weight:700;font-size:15px;font-family:'Plus Jakarta Sans',sans-serif;}
+.meta-row .timer-val{color:var(--accent);font-weight:800;font-size:20px;font-variant-numeric:tabular-nums;font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-.5px;}
 .summary-panel{padding:14px 16px;}
 .summary-locked{text-align:center;padding:24px 0;}
 .summary-locked-icon{font-size:32px;margin-bottom:8px;}
 
 /* Copy row */
-.copy-row-wrap{margin-bottom:10px;background:var(--sum-bg);border:1px solid var(--border);border-radius:0;padding:10px 12px;transition:.15s;}
+.copy-row-wrap{margin-bottom:10px;background:var(--sum-bg);border:1px solid var(--border);border-radius:0;padding:12px 14px;transition:.15s;}
 .copy-row-wrap:hover{border-color:var(--accent);}
-.copy-row-label{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px;font-family:'Poppins',sans-serif;}
+.copy-row-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;font-family:'Poppins',sans-serif;}
 .copy-row-inner{display:flex;align-items:flex-start;gap:8px;}
-.copy-row-val{flex:1;font-size:11px;color:var(--text);line-height:1.6;word-break:break-word;white-space:pre-wrap;font-family:'Poppins',sans-serif;}
+.copy-row-val{flex:1;font-size:13px;color:var(--text);line-height:1.65;word-break:break-word;white-space:pre-wrap;font-family:'Poppins',sans-serif;font-weight:500;}
 .copy-row-btn{
   flex-shrink:0;background:var(--btn-save-bg);color:#fff;border:none;
   border-radius:0;padding:4px 10px;font-size:11px;font-weight:600;
@@ -636,6 +639,18 @@ select.inp{cursor:pointer;}
 .break-bar.ended .break-progress-fill{background:linear-gradient(90deg,var(--green),#059669);}
 .break-stop{background:none;border:1.5px solid var(--border);color:var(--muted);padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;transition:.15s;font-family:'Poppins',sans-serif;}
 .break-stop:hover{border-color:var(--red);color:var(--red);}
+/* Alarm overlay */
+@keyframes alarmPulse{0%,100%{box-shadow:0 0 0 0 rgba(245,148,92,.6)}50%{box-shadow:0 0 0 18px rgba(245,148,92,0)}}
+.alarm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1100;display:flex;align-items:center;justify-content:center;animation:fadeIn .2s ease;backdrop-filter:blur(12px);}
+.alarm-modal{background:var(--glass-bg);border:2px solid var(--accent);border-radius:0;padding:40px 44px;text-align:center;max-width:420px;width:90%;backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);box-shadow:0 0 60px rgba(245,148,92,.35),var(--glass-shadow);animation:popIn .25s ease,alarmPulse 1.4s ease-in-out infinite;}
+.alarm-icon{font-size:56px;display:block;margin-bottom:16px;animation:float 1s ease-in-out infinite;}
+.alarm-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:24px;font-weight:800;margin-bottom:8px;color:var(--accent);}
+.alarm-sub{font-size:14px;color:var(--muted);margin-bottom:28px;line-height:1.6;}
+.alarm-btns{display:flex;gap:12px;justify-content:center;}
+.alarm-snooze{background:var(--btn-draft-bg);border:1.5px solid var(--btn-draft-border);color:var(--btn-draft-text);padding:12px 24px;font-size:14px;font-weight:700;font-family:'Poppins',sans-serif;cursor:pointer;transition:.15s;}
+.alarm-snooze:hover{filter:brightness(1.15);}
+.alarm-dismiss{background:var(--btn-save-bg);border:none;color:#fff;padding:12px 28px;font-size:14px;font-weight:700;font-family:'Poppins',sans-serif;cursor:pointer;transition:.15s;box-shadow:0 3px 14px rgba(245,148,92,.4);}
+.alarm-dismiss:hover{filter:brightness(1.1);}
 /* Break buttons in sidebar */
 .break-btns{display:flex;flex-direction:column;gap:4px;padding:8px 0 4px;}
 .break-btn{display:flex;align-items:center;gap:8px;padding:8px 12px;font-size:12px;font-weight:600;color:var(--muted);background:none;border:1px solid var(--border);cursor:pointer;transition:.18s;width:100%;text-align:left;font-family:'Poppins',sans-serif;}
@@ -954,12 +969,12 @@ function CopyRow({ label, value }) {
 function StickyPanel({ startTimeRef, formRef, isSC, buildEntriesText, buildEmailText, onTimerEnd }) {
   const [elapsed,setElapsed]=useState(0);
   const [now,setNow]=useState(new Date());
+  const [,forceUpdate]=useState(0);
   const firedRef=useRef(false);
   useEffect(()=>{
     const t=setInterval(()=>{
       const secs=Math.floor((Date.now()-startTimeRef.current)/1000);
-      setElapsed(secs); setNow(new Date());
-      // Ring at 30 minutes milestone once
+      setElapsed(secs); setNow(new Date()); forceUpdate(n=>n+1);
       if(!firedRef.current && secs>=1800){ firedRef.current=true; onTimerEnd&&onTimerEnd(); }
     },1000);
     return()=>clearInterval(t);
@@ -971,9 +986,18 @@ function StickyPanel({ startTimeRef, formRef, isSC, buildEntriesText, buildEmail
     <div className="right-panel">
       <div className="right-panel-header">📋 Live Summary</div>
       <div className="meta-stack">
-        <div className="meta-row">📅 <span>Started:</span> <span className="meta-val">{fmtDT(new Date(startTimeRef.current))}</span></div>
-        <div className="meta-row">⏱ <span>Elapsed:</span> <span className="timer-val">{fmtElapsed(elapsed)}</span></div>
-        <div className="meta-row">🕐 <span>Now:</span> <span className="meta-val">{fmtDT(now)}</span></div>
+        <div className="meta-row">
+          <span className="meta-label">📅 Started</span>
+          <span className="meta-val">{fmtDT(new Date(startTimeRef.current))}</span>
+        </div>
+        <div className="meta-row" style={{background:"rgba(245,148,92,.06)"}}>
+          <span className="meta-label">⏱ Elapsed</span>
+          <span className="timer-val">{fmtElapsed(elapsed)}</span>
+        </div>
+        <div className="meta-row">
+          <span className="meta-label">🕐 Now</span>
+          <span className="meta-val">{fmtDT(now)}</span>
+        </div>
       </div>
       <div className="summary-panel">
         <CopyRow label="Case #" value={f.caseNum}/>
@@ -1084,16 +1108,24 @@ function PostLiveForm({ mode, onSave, onBack, onDraft, draftData, user, onTimerE
   };
 
   const saveDraft = async(silent=false) => {
+    if(!silent){ setModal("draft"); return; } // manual click → show confirm modal first
+    // auto-save path (silent=true): save directly
     const elapsed = Math.floor((Date.now() - startTimeRef.current)/1000);
     const stripFile=(imgs)=>(imgs||[]).map(({_file,url,name,id,path,_inDB})=>({url,name,id,path:path||id,_inDB:_inDB||false}));
     const cleanForm={...formRef.current,images:stripFile(formRef.current.images),backupImages:stripFile(formRef.current.backupImages),_elapsedAtSave:elapsed};
-    // Show toast IMMEDIATELY (before async work) so it survives any re-renders
-    if(!silent) showToast("📝 Draft saved! You can resume anytime.","info");
-    if(!silent) setAutoSaved(new Date().toLocaleTimeString());
+    try{ if(onDraft) await onDraft(cleanForm, true); setAutoSaved(new Date().toLocaleTimeString()); }catch(e){}
+  };
+
+  const confirmSaveDraft = async() => {
+    const elapsed = Math.floor((Date.now() - startTimeRef.current)/1000);
+    const stripFile=(imgs)=>(imgs||[]).map(({_file,url,name,id,path,_inDB})=>({url,name,id,path:path||id,_inDB:_inDB||false}));
+    const cleanForm={...formRef.current,images:stripFile(formRef.current.images),backupImages:stripFile(formRef.current.backupImages),_elapsedAtSave:elapsed};
+    setModal(null);
     try{
-      if(onDraft) await onDraft(cleanForm, true); // always silent to onDraft — we handle toast here
+      if(onDraft) await onDraft(cleanForm, true);
+      onBack&&onBack(); // go back to Post-Live Amends list
     }catch(e){
-      if(!silent) showToast("❌ Failed to save draft — check connection","error");
+      showToast("❌ Failed to save draft — check connection","error");
     }
   };
 
@@ -1175,6 +1207,22 @@ function PostLiveForm({ mode, onSave, onBack, onDraft, draftData, user, onTimerE
         {modal==="cancel"&&(<div className="modal-bg"><div className="modal"><div style={{fontSize:36,marginBottom:10}}>⚠️</div><h3>Discard Form?</h3><p>Going back will delete all entered data.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Keep Editing</button><button className="btn btn-danger" onClick={()=>{setModal(null);onBack();}}>Yes, Discard</button></div></div></div>)}
         {modal==="clear"&&(<div className="modal-bg"><div className="modal"><div style={{fontSize:36,marginBottom:10}}>🧹</div><h3>Clear All Fields?</h3><p>This resets every field. Cannot be undone.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Cancel</button><button className="btn btn-danger" onClick={()=>{setForm(emptyBase());setModal(null);showToast("Cleared","info");}}>Clear</button></div></div></div>)}
         {modal==="save"&&(<div className="modal-bg"><div className="modal"><div style={{fontSize:36,marginBottom:10}}>💾</div><h3>Save Case?</h3><p>Case <strong style={{color:"var(--text)"}}>#{form.caseNum}</strong> — confirm everything is complete.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Go Back</button><button className="btn btn-primary" onClick={()=>{setModal(null);showToast("Case saved! ✅");onSave&&onSave(formRef.current);}}>Confirm Save</button></div></div></div>)}
+        {modal==="draft"&&(<div className="modal-bg"><div className="modal">
+          <div style={{fontSize:40,marginBottom:10}}>📝</div>
+          <h3 style={{marginBottom:8}}>Save as Draft?</h3>
+          <p style={{color:"var(--muted)",fontSize:13,marginBottom:8,lineHeight:1.6}}>
+            Your progress will be saved and you can resume anytime from Post-Live Amends.
+          </p>
+          <div style={{background:"var(--entry-accent-bg)",border:"1.5px solid var(--accent)",borderRadius:0,padding:"12px 16px",marginBottom:18,display:"flex",flexDirection:"column",gap:6}}>
+            {form.caseNum&&<div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>Case #{form.caseNum}</div>}
+            <div style={{fontSize:12,color:"var(--muted)"}}>⏱ Time on case: <strong style={{color:"var(--accent)",fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:15}}>{fmtElapsed(Math.floor((Date.now()-startTimeRef.current)/1000))}</strong></div>
+            <div style={{fontSize:11,color:"var(--muted)"}}>This time will be restored when you resume.</div>
+          </div>
+          <div className="modal-btns">
+            <button className="btn btn-ghost" onClick={()=>setModal(null)}>Keep Editing</button>
+            <button className="btn btn-draft" onClick={confirmSaveDraft}>💾 Save & Go Back</button>
+          </div>
+        </div></div>)}
         <Toast msg={toast.msg} type={toast.type}/>
       </div>
       <div className="form-right">
@@ -2444,7 +2492,58 @@ function App() {
 
   useEffect(()=>{document.body.classList.toggle("light",lightMode);if(typeof window!=="undefined") localStorage.setItem("ch_theme",lightMode?"light":"dark");},[lightMode]);
 
-  // ── Break timer tick + alarm ──
+  // ── Alarm state: null | "warn" | "end" | "case" ──
+  const [activeAlarm,setActiveAlarm]=useState(null);
+  const alarmLoopRef=useRef(null);
+  const alarmCtxRef=useRef(null);
+
+  // ── Web Audio looping alarm ──
+  function startAlarmLoop(type){
+    stopAlarmLoop();
+    const loop=()=>{
+      try{
+        const ctx=new (window.AudioContext||window.webkitAudioContext)();
+        alarmCtxRef.current=ctx;
+        const isWarn=type==="warn";
+        const beeps=isWarn?2:3;
+        const freq=isWarn?880:1046;
+        const gap=isWarn?0.45:0.35;
+        const totalDur=beeps*gap+0.6;
+        for(let i=0;i<beeps;i++){
+          const o=ctx.createOscillator();
+          const g=ctx.createGain();
+          o.connect(g); g.connect(ctx.destination);
+          o.frequency.value=freq;
+          o.type=isWarn?"triangle":"square";
+          g.gain.setValueAtTime(0,ctx.currentTime+i*gap);
+          g.gain.linearRampToValueAtTime(0.45,ctx.currentTime+i*gap+0.04);
+          g.gain.linearRampToValueAtTime(0.45,ctx.currentTime+i*gap+0.22);
+          g.gain.linearRampToValueAtTime(0,ctx.currentTime+i*gap+0.28);
+          o.start(ctx.currentTime+i*gap);
+          o.stop(ctx.currentTime+i*gap+0.3);
+        }
+        // schedule next loop
+        alarmLoopRef.current=setTimeout(()=>{ ctx.close(); loop(); },totalDur*1000);
+      }catch(e){console.warn("Audio error",e);}
+    };
+    loop();
+    setActiveAlarm(type);
+  }
+
+  function stopAlarmLoop(){
+    if(alarmLoopRef.current){clearTimeout(alarmLoopRef.current);alarmLoopRef.current=null;}
+    try{alarmCtxRef.current?.close();}catch(e){}
+    alarmCtxRef.current=null;
+  }
+
+  function dismissAlarm(){ stopAlarmLoop(); setActiveAlarm(null); }
+  function snoozeAlarm(){
+    stopAlarmLoop(); setActiveAlarm(null);
+    // re-trigger in 5 minutes
+    setTimeout(()=>startAlarmLoop("end"),5*60*1000);
+  }
+
+  // ── Break timer tick ──
   useEffect(()=>{
     if(!breakTimer)return;
     const tick=setInterval(()=>{
@@ -2452,14 +2551,12 @@ function App() {
       setBreakTimer(bt=>{
         if(!bt)return null;
         const secsLeft=Math.ceil((bt.endsAt-now)/1000);
-        // 5-min warning
         if(!bt.warned && now>=bt.warnAt){
-          playAlarm("warn");
+          startAlarmLoop("warn");
           return {...bt,warned:true};
         }
-        // Timer ended
         if(!bt.ended && secsLeft<=0){
-          playAlarm("end");
+          startAlarmLoop("end");
           return {...bt,ended:true,secsLeft:0};
         }
         return {...bt,secsLeft:Math.max(0,secsLeft)};
@@ -2468,35 +2565,17 @@ function App() {
     return()=>clearInterval(tick);
   },[breakTimer]);
 
-  function playAlarm(type){
-    try{
-      const ctx=new (window.AudioContext||window.webkitAudioContext)();
-      const beeps=type==="warn"?2:4;
-      for(let i=0;i<beeps;i++){
-        const o=ctx.createOscillator();
-        const g=ctx.createGain();
-        o.connect(g); g.connect(ctx.destination);
-        o.frequency.value=type==="warn"?880:1046;
-        o.type="sine";
-        g.gain.setValueAtTime(0,ctx.currentTime+i*0.4);
-        g.gain.linearRampToValueAtTime(0.4,ctx.currentTime+i*0.4+0.05);
-        g.gain.linearRampToValueAtTime(0,ctx.currentTime+i*0.4+0.3);
-        o.start(ctx.currentTime+i*0.4);
-        o.stop(ctx.currentTime+i*0.4+0.35);
-      }
-    }catch(e){console.warn("Audio error",e);}
-  }
-
   function startBreak(label,mins){
     const now=Date.now();
     const endsAt=now+mins*60*1000;
-    const warnAt=endsAt-5*60*1000;
-    setBreakTimer({label,mins,endsAt,warnAt,warned:warnAt<=now,ended:false,secsLeft:mins*60});
+    // warnAt = 5 min before end, but never in the past
+    const warnAt=Math.max(now+1000, endsAt-5*60*1000);
+    setBreakTimer({label,mins,endsAt,warnAt,warned:false,ended:false,secsLeft:mins*60});
   }
-  function stopBreak(){setBreakTimer(null);}
+  function stopBreak(){ setBreakTimer(null); stopAlarmLoop(); setActiveAlarm(null); }
 
-  // ── Play alarm when case timer hits 0 (passed as prop to PostLiveForm) ──
-  const playEndAlarm=useCallback(()=>playAlarm("end"),[]);
+  // ── Case 30-min alarm (passed as prop to PostLiveForm) ──
+  const playEndAlarm=useCallback(()=>startAlarmLoop("case"),[]);
 
   // ── On mount: restore session from localStorage ──
   useEffect(()=>{
@@ -2822,6 +2901,27 @@ function App() {
           </div>
         );
       })()}
+
+      {/* ── Alarm Overlay ── */}
+      {activeAlarm&&(
+        <div className="alarm-overlay">
+          <div className="alarm-modal">
+            <span className="alarm-icon">{activeAlarm==="warn"?"⏰":activeAlarm==="case"?"⏱️":"🔔"}</span>
+            <div className="alarm-title">
+              {activeAlarm==="warn"?"5 Minutes Left!":activeAlarm==="case"?"30 Minutes on Case!":"Break Over!"}
+            </div>
+            <div className="alarm-sub">
+              {activeAlarm==="warn"?"Your break is almost up — wrap it up!"
+               :activeAlarm==="case"?"You've been on this case for 30 minutes."
+               :"Your break has ended. Time to get back to work!"}
+            </div>
+            <div className="alarm-btns">
+              {activeAlarm!=="warn"&&<button className="alarm-snooze" onClick={snoozeAlarm}>😴 Snooze 5 min</button>}
+              <button className="alarm-dismiss" onClick={dismissAlarm}>✅ {activeAlarm==="warn"?"Got it!":"I'm Aware"}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {navConfirm&&(<div className="modal-bg"><div className="modal"><div style={{fontSize:36,marginBottom:10}}>⚠️</div><h3>Leave Page?</h3><p>You have an unsaved form open. Leaving will discard all changes.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>{setNavConfirm(false);setPendingPage(null);}}>Stay</button><button className="btn btn-danger" onClick={()=>{setPage(pendingPage);setPendingPage(null);setNavConfirm(false);setFormActive(false);}}>Leave</button></div></div></div>)}
     </>
