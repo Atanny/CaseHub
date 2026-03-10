@@ -514,7 +514,11 @@ select.inp{cursor:pointer;}
 
 /* Profile */
 .profile-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:28px;margin-bottom:20px;}
-.profile-avatar-large{width:80px;height:80px;border-radius:50%;background:var(--btn-save-bg);display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;color:#fff;margin-bottom:16px;box-shadow:var(--glow);}
+.profile-avatar-large{width:80px;height:80px;border-radius:50%;background:var(--btn-save-bg);display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;color:#fff;margin-bottom:0;box-shadow:var(--glow);flex-shrink:0;overflow:hidden;position:relative;cursor:pointer;}
+.profile-avatar-large img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
+.profile-avatar-overlay{position:absolute;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;opacity:0;transition:.2s;border-radius:50%;font-size:18px;}
+.profile-avatar-large:hover .profile-avatar-overlay{opacity:1;}
+.profile-avatar-large input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
 
 /* Announcements */
 .announcement-card{background:var(--card);border:1px solid var(--border);border-radius:0;padding:20px;margin-bottom:12px;transition:.2s;}
@@ -590,6 +594,35 @@ select.inp{cursor:pointer;}
 
 /* No border for active nav custom link */
 .nav-custom-active{color:var(--accent) !important;background:var(--nav-active-bg) !important;border:1px solid var(--nav-active-border) !important;}
+
+/* Break timer */
+.break-bar{
+  position:fixed;bottom:0;left:0;right:0;z-index:900;
+  display:flex;align-items:center;gap:14px;
+  padding:10px 20px;
+  background:var(--surface);border-top:2px solid var(--accent);
+  box-shadow:0 -4px 24px rgba(0,0,0,.4);
+  font-family:'Poppins',sans-serif;font-size:13px;
+  animation:slideUp .3s ease;
+}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.break-bar.warn{border-top-color:var(--amber);}
+.break-bar.ended{border-top-color:var(--green);}
+.break-label{font-weight:700;color:var(--text);}
+.break-time{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--accent);min-width:60px;}
+.break-bar.warn .break-time{color:var(--amber);}
+.break-bar.ended .break-time{color:var(--green);}
+.break-progress{flex:1;height:6px;background:var(--border);}
+.break-progress-fill{height:100%;background:var(--btn-save-bg);transition:width .5s linear;}
+.break-bar.warn .break-progress-fill{background:linear-gradient(90deg,var(--amber),#d97706);}
+.break-bar.ended .break-progress-fill{background:linear-gradient(90deg,var(--green),#059669);}
+.break-stop{background:none;border:1.5px solid var(--border);color:var(--muted);padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;transition:.15s;font-family:'Poppins',sans-serif;}
+.break-stop:hover{border-color:var(--red);color:var(--red);}
+/* Break buttons in sidebar */
+.break-btns{display:flex;flex-direction:column;gap:4px;padding:8px 0 4px;}
+.break-btn{display:flex;align-items:center;gap:8px;padding:8px 12px;font-size:12px;font-weight:600;color:var(--muted);background:none;border:1px solid var(--border);cursor:pointer;transition:.18s;width:100%;text-align:left;font-family:'Poppins',sans-serif;}
+.break-btn:hover{background:var(--card2);color:var(--text);border-color:var(--accent);}
+.break-btn.active{background:var(--entry-accent-bg);color:var(--accent);border-color:var(--accent);}
 
 /* DB status bar */
 .db-status{
@@ -760,12 +793,19 @@ async function uploadPendingImages(images) {
 
 // immediateUpload=true  → upload to Storage right away (editing an already-saved case)
 // immediateUpload=false → keep in RAM as blob (new unsaved form — upload on case save)
-function ImageUpload({ baseName, multiple, onImages, immediateUpload=false }) {
-  const [images,setImages] = useState([]);
+function ImageUpload({ baseName, multiple, onImages, immediateUpload=false, initialImages=[] }) {
+  const [images,setImages] = useState(()=>initialImages||[]);
   const [drag,setDrag] = useState(false);
   const [uploading,setUploading] = useState(false);
   const ref = useRef(); const imgRef = useRef(images);
   useEffect(()=>{imgRef.current=images;},[images]);
+  // Sync if parent passes new initialImages (e.g. draft restore)
+  const prevInit = useRef(initialImages);
+  useEffect(()=>{
+    if(initialImages.length>0 && prevInit.current !== initialImages && images.length===0){
+      setImages(initialImages); imgRef.current=initialImages; prevInit.current=initialImages;
+    }
+  },[initialImages]);
 
   const addFiles = useCallback(async(files) => {
     const cur = imgRef.current;
@@ -800,8 +840,11 @@ function ImageUpload({ baseName, multiple, onImages, immediateUpload=false }) {
   const remove = (id) => { const n = imgRef.current.filter(i => i.id !== id); setImages(n); onImages && onImages(n); };
 
   const dl = async(img) => {
-    const ext = (img.name || "screenshot").split(".").pop() || "png";
-    const fileName = `${img.name}.${ext}`;
+    // Determine safe extension from URL or default to png
+    const urlExt = (img.url||"").split("?")[0].split(".").pop().toLowerCase();
+    const safeExt = ["jpg","jpeg","png","gif","webp"].includes(urlExt) ? urlExt : "png";
+    const baseName = (img.name||"screenshot").replace(/\.[^/.]+$/,""); // strip any existing ext
+    const fileName = `${baseName}.${safeExt}`;
     if (window.showDirectoryPicker) {
       try {
         const dir = await window.showDirectoryPicker({ mode:"readwrite", startIn:"downloads" });
@@ -886,13 +929,19 @@ function CopyRow({ label, value }) {
   );
 }
 
-function StickyPanel({ startTimeRef, formRef, isSC, step4Done, buildEntriesText, buildEmailText }) {
+function StickyPanel({ startTimeRef, formRef, isSC, step4Done, buildEntriesText, buildEmailText, onTimerEnd }) {
   const [elapsed,setElapsed]=useState(0);
   const [now,setNow]=useState(new Date());
+  const firedRef=useRef(false);
   useEffect(()=>{
-    const t=setInterval(()=>{ setElapsed(Math.floor((Date.now()-startTimeRef.current)/1000)); setNow(new Date()); },1000);
+    const t=setInterval(()=>{
+      const secs=Math.floor((Date.now()-startTimeRef.current)/1000);
+      setElapsed(secs); setNow(new Date());
+      // Ring at 30 minutes milestone once
+      if(!firedRef.current && secs>=1800){ firedRef.current=true; onTimerEnd&&onTimerEnd(); }
+    },1000);
     return()=>clearInterval(t);
-  },[startTimeRef]);
+  },[startTimeRef,onTimerEnd]);
   const f=formRef.current;
   const emailTypeLabel=f.emailType==="clarification"?"Clarification":"Completed";
   const allImages=[...(f.images||[]),...(f.backupImages||[])];
@@ -935,7 +984,7 @@ const emptyBase  = ()=>({
   _startTime: Date.now(), _elapsedAtSave: 0
 });
 
-function PostLiveForm({ mode, onSave, onBack, onDraft, draftData, user }) {
+function PostLiveForm({ mode, onSave, onBack, onDraft, draftData, user, onTimerEnd }) {
   const isSC = mode==="siteComment";
   const entryLabel = isSC?"Site Comment":"Assumption";
   const rawName = user?.name || "User";
@@ -1076,12 +1125,12 @@ function PostLiveForm({ mode, onSave, onBack, onDraft, draftData, user }) {
         <StepCard num={6} title="Before/After Backup" done={false} locked={!step4Done} {...stepProps}>
           <p style={{fontSize:13,color:"var(--muted)",marginBottom:9}}>Upload screenshot — renamed automatically on download.</p>
           <CopyName name={screenshotName}/>
-          <div style={{marginTop:12}}><ImageUpload baseName={screenshotName} multiple={false} onImages={imgs=>setF({images:imgs})} immediateUpload={false}/></div>
+          <div style={{marginTop:12}}><ImageUpload baseName={screenshotName} multiple={false} onImages={imgs=>setF({images:imgs})} immediateUpload={false} initialImages={form.images||[]}/></div>
         </StepCard>
 
         <StepCard num="6b" title="Additional Backup Screenshots" done={false} locked={!step4Done} {...stepProps}>
           <p style={{fontSize:13,color:"var(--muted)",marginBottom:11}}>Each renamed <span style={{color:"var(--accent)",fontWeight:600}}>backup-screenshot-N</span> on download.</p>
-          <ImageUpload baseName="backup-screenshot" multiple onImages={imgs=>setF({backupImages:imgs})} immediateUpload={false}/>
+          <ImageUpload baseName="backup-screenshot" multiple onImages={imgs=>setF({backupImages:imgs})} immediateUpload={false} initialImages={form.backupImages||[]}/>
         </StepCard>
 
         <StepCard num={7} title="Final Checklist" done={step7Done} locked={!step4Done} {...stepProps}>
@@ -1106,7 +1155,7 @@ function PostLiveForm({ mode, onSave, onBack, onDraft, draftData, user }) {
         <Toast msg={toast.msg} type={toast.type}/>
       </div>
       <div className="form-right">
-        <StickyPanel startTimeRef={startTimeRef} formRef={formRef} isSC={isSC} step4Done={step4Done} buildEntriesText={buildEntriesText} buildEmailText={buildEmailText}/>
+        <StickyPanel startTimeRef={startTimeRef} formRef={formRef} isSC={isSC} step4Done={step4Done} buildEntriesText={buildEntriesText} buildEmailText={buildEmailText} onTimerEnd={onTimerEnd}/>
       </div>
     </div>
   );
@@ -1296,13 +1345,13 @@ function Dashboard({ savedCases, setPage, specialRequestors, addRequestor, remov
 // ─────────────────────────────────────────────────────────────────────────────
 // SavedCaseCard (mini dropdown for PostLive page)
 // ─────────────────────────────────────────────────────────────────────────────
-function SavedCaseCard({ c }) {
-  const [open,setOpen]=useState(false);
+function SavedCaseCard({ c, openId, setOpenId }) {
+  const open = openId === c._id;
   const isSC=c._mode==="siteComment";
   const allImages=[...(c.images||[]),...(c.backupImages||[])];
   return (
     <div style={{background:"var(--card)",border:"1.5px solid var(--border)",borderRadius:0,marginBottom:10,overflow:"hidden",transition:".2s",boxShadow:"var(--shadow-sm)"}}>
-      <div style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",cursor:"pointer"}} onClick={()=>setOpen(o=>!o)}>
+      <div style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",cursor:"pointer"}} onClick={()=>setOpenId(open ? null : c._id)}>
         <div className="saved-dot"/>
         <div className="saved-info">
           <div className="saved-case">Case #{c.caseNum} — {c.accountNum}</div>
@@ -1331,9 +1380,10 @@ function SavedCaseCard({ c }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // POST LIVE PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function PostLivePage({ onSaveCase, onFormActive, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, user }) {
+function PostLivePage({ onSaveCase, onFormActive, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, user, onTimerEnd }) {
   const [mode,setMode]=useState(null);
   const [backConfirm,setBackConfirm]=useState(false);
+  const [openSavedId,setOpenSavedId]=useState(null);
 
   const enterMode=(m)=>{setMode(m);onFormActive&&onFormActive(true);};
   const exitMode=()=>{setMode(null);onFormActive&&onFormActive(false);};
@@ -1349,7 +1399,7 @@ function PostLivePage({ onSaveCase, onFormActive, allSavedCases, dbDrafts, onSav
           <div className="page-title">{mode==="siteComment"?"Post-Live — Site Comment":"Post-Live — Inbound Email"}</div>
           <div className="page-sub">{mode==="siteComment"?"Fill in each step. Steps unlock as you progress.":"Assumption-based format with email details."}</div>
         </div>
-        <PostLiveForm mode={mode} draftData={currentDraft} user={user}
+        <PostLiveForm mode={mode} draftData={currentDraft} user={user} onTimerEnd={onTimerEnd}
           onSave={f=>{
             // Keep _file refs intact — addCase will upload them to Storage
             const rec={...f,_mode:mode,savedAt:new Date().toLocaleString()};
@@ -1359,9 +1409,8 @@ function PostLivePage({ onSaveCase, onFormActive, allSavedCases, dbDrafts, onSav
             exitMode();
           }}
           onDraft={(f,silent=false)=>{
-            // Save draft to DB
+            // Save draft to DB — never exit the form (silent or not)
             onSaveDraft&&onSaveDraft(mode,{...f,_mode:mode});
-            if(!silent)exitMode(); // don't exit on auto-save
           }}
           onBack={exitMode}/>
         {backConfirm&&(<div className="modal-bg"><div className="modal"><div style={{fontSize:36,marginBottom:10}}>⚠️</div><h3>Go Back?</h3><p>Going back will discard unsaved changes.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setBackConfirm(false)}>Keep Editing</button><button className="btn btn-danger" onClick={()=>{setBackConfirm(false);exitMode();}}>Discard</button></div></div></div>)}
@@ -1387,7 +1436,7 @@ function PostLivePage({ onSaveCase, onFormActive, allSavedCases, dbDrafts, onSav
       {recentAll.length>0&&(
         <div>
           <div className="section-title">🕒 Recently Saved Cases</div>
-          {recentAll.map((c,i)=>(<SavedCaseCard key={c._id||i} c={c}/>))}
+          {recentAll.map((c,i)=>(<SavedCaseCard key={c._id||i} c={c} openId={openSavedId} setOpenId={setOpenSavedId}/>))}
         </div>
       )}
     </div>
@@ -1452,9 +1501,10 @@ const CHECKLIST_LABELS={backup:"Before/After Backup",caseComment:"Case Comment",
 const emptyEditEntry=()=>({id:Date.now()+Math.random(),number:"",note:"",clarification:""});
 
 // A single editable case card (extracted so it has its own state)
-function EditableCaseCard({ c, onUpdate, onDelete, onLightbox }) {
+function EditableCaseCard({ c, onUpdate, onDelete, onLightbox, openId, setOpenId }) {
   const isSC = c._mode==="siteComment";
-  const [isOpen,setIsOpen]=useState(false);
+  const isOpen = openId === c._id;
+  const setIsOpen = (val) => setOpenId(val ? c._id : null);
   const [editMode,setEditMode]=useState(false);
   const [draft,setDraft]=useState(null); // local edit draft
   const [deleteConfirm,setDeleteConfirm]=useState(false);
@@ -1774,6 +1824,7 @@ function CaseHistory({ cases, onUpdate, onDelete }) {
   const [search,setSearch]=useState("");
   const [filterMode,setFilterMode]=useState("all");
   const [filterDate,setFilterDate]=useState("");
+  const [openCaseId,setOpenCaseId]=useState(null);
 
   // Filter
   const filtered = [...cases].reverse().filter(c=>{
@@ -1809,7 +1860,7 @@ function CaseHistory({ cases, onUpdate, onDelete }) {
         </div>
       ):(
         filtered.map((c,i)=>(
-          <EditableCaseCard key={c._id||i} c={c} onUpdate={onUpdate} onDelete={onDelete} onLightbox={setLightboxImg}/>
+          <EditableCaseCard key={c._id||i} c={c} onUpdate={onUpdate} onDelete={onDelete} onLightbox={setLightboxImg} openId={openCaseId} setOpenId={setOpenCaseId}/>
         ))
       )}
 
@@ -1963,16 +2014,41 @@ function LinksPage({ links, addLink, removeLink }) {
 // ─────────────────────────────────────────────────────────────────────────────
 function ProfilePage({ user, setUser, onLogout }) {
   const [editing,setEditing]=useState(false);
+  const [avatarUrl,setAvatarUrl]=useState(user.avatarUrl||null);
+  const avatarInputRef=useRef();
+
+  const handleAvatarChange=async(e)=>{
+    const file=e.target.files?.[0]; if(!file)return;
+    // Show preview immediately
+    const localUrl=URL.createObjectURL(file);
+    setAvatarUrl(localUrl);
+    // Upload to Supabase Storage
+    try{
+      const reader=new FileReader();
+      reader.onload=async(ev)=>{
+        const res=await fetch("/api/images/upload",{method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({fileBase64:ev.target.result,fileName:`avatar_${user.id}`,mimeType:file.type||"image/jpeg"})});
+        const data=await res.json();
+        if(res.ok){
+          const updated={...user,avatarUrl:data.url};
+          localStorage.setItem("ch_user",JSON.stringify(updated));
+          setUser(updated); setAvatarUrl(data.url);
+        }
+      };
+      reader.readAsDataURL(file);
+    }catch(e){console.warn("Avatar upload failed",e);}
+  };
   const defaultNames=(name)=>{const n=(name||"User").trim().replace(/\s+/g,"_");return{beforeName:`Post_Live_Amend_Before_${n}_Amends`,afterName:`Post_Live_Amend_After_${n}_Amends`,screenshotName:`Post_Live_Amend_Screenshot_${n}_Amends`};};
-  const [form,setForm]=useState({name:user.name,email:user.email,role:user.role||"",...(user.fileNames||defaultNames(user.name))});
+  // File names stored separately in user.fileNames — never auto-derived from profile name
+  const storedFileNames = user.fileNames || user.beforeName ? {beforeName:user.beforeName,afterName:user.afterName,screenshotName:user.screenshotName} : defaultNames(user.name);
+  const [form,setForm]=useState({name:user.name,email:user.email,role:user.role||"",...storedFileNames});
   const [pwForm,setPwForm]=useState({current:"",next:"",confirm:""});
   const [saving,setSaving]=useState(false);
   const [toast,showToast]=useToast();
 
-  // When name changes, auto-update filenames only if they still match the auto-generated pattern
+  // Name and file names are fully independent — changing name never touches file names
   const handleNameChange=(newName)=>{
-    const wasAuto=form.beforeName===defaultNames(form.name).beforeName;
-    setForm(f=>({...f,name:newName,...(wasAuto?defaultNames(newName):{})}) );
+    setForm(f=>({...f,name:newName}));
   };
 
   const saveProfile=async()=>{
@@ -2010,7 +2086,11 @@ function ProfilePage({ user, setUser, onLogout }) {
       {/* ── Info card ── */}
       <div className="profile-card">
         <div style={{display:"flex",alignItems:"center",gap:20,marginBottom:20}}>
-          <div className="profile-avatar-large">{initials}</div>
+          <div className="profile-avatar-large" title="Click to change photo" onClick={()=>avatarInputRef.current?.click()}>
+            {avatarUrl?<img src={avatarUrl} alt="Profile"/>:<span>{initials}</span>}
+            <div className="profile-avatar-overlay">📷</div>
+            <input ref={avatarInputRef} type="file" accept="image/*" onChange={handleAvatarChange} style={{display:"none"}}/>
+          </div>
           <div><h3 style={{fontSize:20,fontWeight:800}}>{user.name}</h3><p style={{color:"var(--muted)",fontSize:13,marginTop:3}}>{user.email}</p>{user.role&&<p style={{fontSize:12,color:"var(--accent)",marginTop:3,fontWeight:600}}>{user.role}</p>}</div>
           <div style={{marginLeft:"auto"}}><button className="btn btn-ghost" onClick={()=>setEditing(e=>!e)}>{editing?"Cancel":"✏️ Edit Profile"}</button></div>
         </div>
@@ -2171,13 +2251,71 @@ function App() {
   const [allCases,setAllCases]=useState([]);
   const [drafts,setDrafts]=useState([]);
   const [formActive,setFormActive]=useState(false);
-  const [lightMode,setLightMode]=useState(false);
+  const [lightMode,setLightMode]=useState(()=>{
+    if(typeof window!=="undefined"){return localStorage.getItem("ch_theme")==="light";}
+    return false;
+  });
   const [specialRequestors,setSpecialRequestors]=useState([]);
   const [announcements,setAnnouncements]=useState([]); // always loaded from DB
   const [links,setLinks]=useState([]);
   const [dataLoading,setDataLoading]=useState(false);
+  const [breakTimer,setBreakTimer]=useState(null); // {label,endsAt,warnAt,warned,ended}
 
-  useEffect(()=>{document.body.classList.toggle("light",lightMode);},[lightMode]);
+  useEffect(()=>{document.body.classList.toggle("light",lightMode);if(typeof window!=="undefined") localStorage.setItem("ch_theme",lightMode?"light":"dark");},[lightMode]);
+
+  // ── Break timer tick + alarm ──
+  useEffect(()=>{
+    if(!breakTimer)return;
+    const tick=setInterval(()=>{
+      const now=Date.now();
+      setBreakTimer(bt=>{
+        if(!bt)return null;
+        const secsLeft=Math.ceil((bt.endsAt-now)/1000);
+        // 5-min warning
+        if(!bt.warned && now>=bt.warnAt){
+          playAlarm("warn");
+          return {...bt,warned:true};
+        }
+        // Timer ended
+        if(!bt.ended && secsLeft<=0){
+          playAlarm("end");
+          return {...bt,ended:true,secsLeft:0};
+        }
+        return {...bt,secsLeft:Math.max(0,secsLeft)};
+      });
+    },500);
+    return()=>clearInterval(tick);
+  },[breakTimer]);
+
+  function playAlarm(type){
+    try{
+      const ctx=new (window.AudioContext||window.webkitAudioContext)();
+      const beeps=type==="warn"?2:4;
+      for(let i=0;i<beeps;i++){
+        const o=ctx.createOscillator();
+        const g=ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.frequency.value=type==="warn"?880:1046;
+        o.type="sine";
+        g.gain.setValueAtTime(0,ctx.currentTime+i*0.4);
+        g.gain.linearRampToValueAtTime(0.4,ctx.currentTime+i*0.4+0.05);
+        g.gain.linearRampToValueAtTime(0,ctx.currentTime+i*0.4+0.3);
+        o.start(ctx.currentTime+i*0.4);
+        o.stop(ctx.currentTime+i*0.4+0.35);
+      }
+    }catch(e){console.warn("Audio error",e);}
+  }
+
+  function startBreak(label,mins){
+    const now=Date.now();
+    const endsAt=now+mins*60*1000;
+    const warnAt=endsAt-5*60*1000;
+    setBreakTimer({label,mins,endsAt,warnAt,warned:warnAt<=now,ended:false,secsLeft:mins*60});
+  }
+  function stopBreak(){setBreakTimer(null);}
+
+  // ── Play alarm when case timer hits 0 (passed as prop to PostLiveForm) ──
+  const playEndAlarm=useCallback(()=>playAlarm("end"),[]);
 
   // ── On mount: restore session from localStorage ──
   useEffect(()=>{
@@ -2405,8 +2543,22 @@ function App() {
           </>)}
 
           <div style={{height:1,background:"var(--border)",margin:"12px 0 10px"}}/>
+          {/* Break Timers */}
+          <div className="nav-group">☕ Breaks</div>
+          <div className="break-btns">
+            {[{label:"☕ 15 min break",mins:15},{label:"🧘 30 min break",mins:30},{label:"🍱 Lunch 1h",mins:60}].map(({label,mins})=>(
+              <button key={mins} className={cls("break-btn",breakTimer&&breakTimer.mins===mins&&"active")} onClick={()=>breakTimer?.mins===mins?stopBreak():startBreak(label,mins)}>
+                <span>{label.split(" ")[0]}</span>
+                <span style={{flex:1}}>{label.split(" ").slice(1).join(" ")}</span>
+                {breakTimer?.mins===mins&&<span style={{fontSize:10,color:"var(--accent)"}}>▶</span>}
+              </button>
+            ))}
+          </div>
+          <div style={{height:1,background:"var(--border)",margin:"4px 0 10px"}}/>
           <div className="sidebar-profile" onClick={()=>handleNav("profile")}>
-            <div className="profile-avatar">{initials}</div>
+            <div className="profile-avatar" style={{overflow:"hidden",padding:0}}>
+              {user.avatarUrl?<img src={user.avatarUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover",borderRadius:"50%"}}/>:<span>{initials}</span>}
+            </div>
             <div><div className="profile-name">{user.name}</div><div className="profile-role">{user.role||"User"}</div></div>
           </div>
           <button className="theme-toggle" onClick={()=>setLightMode(l=>!l)}>
@@ -2428,18 +2580,42 @@ function App() {
           </div>
         </aside>
 
-        <main className="main-area">
+        <main className="main-area" style={{paddingBottom:breakTimer?80:32}}>
           {dataLoading&&<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"80vh",flexDirection:"column",gap:16}}><div style={{fontSize:48,animation:"float 1.5s ease-in-out infinite"}}>⚡</div><div style={{color:"var(--muted)",fontSize:13,fontFamily:"Poppins,sans-serif"}}>Loading your workspace...</div></div>}
           {!dataLoading&&page==="dashboard"&&<Dashboard savedCases={allCases} setPage={setPage} specialRequestors={specialRequestors} addRequestor={addRequestor} removeRequestor={removeRequestor} user={user}/>}
           {!dataLoading&&page==="build"&&<div className="soon-wrap"><div className="soon-badge">🏗️</div><div className="soon-title">Build</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&page==="prelive"&&<div className="soon-wrap"><div className="soon-badge">🔧</div><div className="soon-title">Pre-Live Amends</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
-          {!dataLoading&&page==="postlive"&&<PostLivePage onSaveCase={addCase} onFormActive={setFormActive} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} user={user}/>}
+          {!dataLoading&&page==="postlive"&&<PostLivePage onSaveCase={addCase} onFormActive={setFormActive} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} user={user} onTimerEnd={playEndAlarm}/>}
           {!dataLoading&&page==="history"&&<CaseHistory cases={allCases} onUpdate={updateCase} onDelete={deleteCase}/>}
           {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
           {!dataLoading&&page==="links"&&<LinksPage links={links} addLink={addLink} removeLink={removeLink}/>}
           {!dataLoading&&page==="profile"&&<ProfilePage user={user} setUser={setUser} onLogout={logout}/>}
         </main>
       </div>
+
+      {/* ── Break Timer Bar ── */}
+      {breakTimer&&(()=>{
+        const pct=breakTimer.ended?100:Math.round((1-(breakTimer.secsLeft/(breakTimer.mins*60)))*100);
+        const st=breakTimer.ended?"ended":breakTimer.warned?"warn":"";
+        const mm=Math.floor((breakTimer.secsLeft||0)/60);
+        const ss=String((breakTimer.secsLeft||0)%60).padStart(2,"0");
+        return (
+          <div className={cls("break-bar",st)}>
+            <span style={{fontSize:18}}>{breakTimer.label.split(" ")[0]}</span>
+            <div>
+              <div className="break-label">{breakTimer.label.split(" ").slice(1).join(" ")}</div>
+              <div style={{fontSize:10,color:"var(--muted)"}}>
+                {breakTimer.ended?"✅ Break over!":breakTimer.warned?"⚠️ 5 min warning!":"On break"}
+              </div>
+            </div>
+            <div className="break-time">{breakTimer.ended?"Done!":mm+":"+ss}</div>
+            <div className="break-progress" style={{flex:1}}>
+              <div className="break-progress-fill" style={{width:pct+"%"}}/>
+            </div>
+            <button className="break-stop" onClick={stopBreak}>✕ End</button>
+          </div>
+        );
+      })()}
 
       {navConfirm&&(<div className="modal-bg"><div className="modal"><div style={{fontSize:36,marginBottom:10}}>⚠️</div><h3>Leave Page?</h3><p>You have an unsaved form open. Leaving will discard all changes.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>{setNavConfirm(false);setPendingPage(null);}}>Stay</button><button className="btn btn-danger" onClick={()=>{setPage(pendingPage);setPendingPage(null);setNavConfirm(false);setFormActive(false);}}>Leave</button></div></div></div>)}
     </>
