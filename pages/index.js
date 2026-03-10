@@ -297,7 +297,7 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 /* Form layout */
 .form-cols{display:flex;gap:20px;align-items:flex-start;}
 .form-left{flex:1;min-width:0;}
-.form-right{width:272px;flex-shrink:0;position:sticky;top:0;align-self:flex-start;max-height:calc(100vh - 64px);overflow-y:auto;}
+.form-right{width:300px;flex-shrink:0;position:sticky;top:0;align-self:flex-start;max-height:calc(100vh - 64px);overflow-y:auto;}
 
 /* Right panel */
 .right-panel{background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius);overflow:hidden;backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);box-shadow:var(--glass-shadow);}
@@ -307,12 +307,12 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
   background:linear-gradient(135deg,rgba(245,148,92,.1),rgba(212,114,74,.08));
   font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-.2px;
 }
-.meta-stack{padding:0;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:0;background:transparent;}
-.meta-row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;color:var(--muted);font-family:'Poppins',sans-serif;padding:11px 16px;border-bottom:1px solid var(--border);}
-.meta-row:last-child{border-bottom:none;}
-.meta-row .meta-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);}
-.meta-row .meta-val{color:var(--text);font-weight:700;font-size:15px;font-family:'Plus Jakarta Sans',sans-serif;}
-.meta-row .timer-val{color:var(--accent);font-weight:800;font-size:20px;font-variant-numeric:tabular-nums;font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-.5px;}
+.meta-stack{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;border-bottom:1px solid var(--border);}
+.meta-row{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px 10px;gap:5px;text-align:center;border-right:1px solid var(--border);}
+.meta-row:last-child{border-right:none;}
+.meta-row .meta-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);white-space:nowrap;}
+.meta-row .meta-val{color:var(--text);font-weight:700;font-size:11px;font-family:'Poppins',sans-serif;line-height:1.3;text-align:center;}
+.meta-row .timer-val{color:var(--accent);font-weight:800;font-size:22px;font-variant-numeric:tabular-nums;font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-.5px;line-height:1.1;}
 .summary-panel{padding:14px 16px;}
 .summary-locked{text-align:center;padding:24px 0;}
 .summary-locked-icon{font-size:32px;margin-bottom:8px;}
@@ -728,7 +728,7 @@ function fallbackCopy(text) {
   document.body.removeChild(ta);
 }
 function fmtDT(d) {
-  return d.toLocaleString("en-US",{month:"short",day:"numeric",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  return d.toLocaleString("en-US",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
 }
 function fmtElapsed(s) {
   const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;
@@ -966,20 +966,20 @@ function CopyRow({ label, value }) {
   );
 }
 
-function StickyPanel({ startTimeRef, formRef, isSC, buildEntriesText, buildEmailText, onTimerEnd }) {
+function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailText, onTimerEnd }) {
   const [elapsed,setElapsed]=useState(0);
   const [now,setNow]=useState(new Date());
-  const [,forceUpdate]=useState(0);
   const firedRef=useRef(false);
   useEffect(()=>{
     const t=setInterval(()=>{
       const secs=Math.floor((Date.now()-startTimeRef.current)/1000);
-      setElapsed(secs); setNow(new Date()); forceUpdate(n=>n+1);
+      setElapsed(secs); setNow(new Date());
       if(!firedRef.current && secs>=1800){ firedRef.current=true; onTimerEnd&&onTimerEnd(); }
     },1000);
     return()=>clearInterval(t);
   },[startTimeRef,onTimerEnd]);
-  const f=formRef.current;
+  // form is real React state — re-renders on every form change, images update instantly
+  const f=form;
   const emailTypeLabel=f.emailType==="clarification"?"Clarification":"Completed";
   const allImages=[...(f.images||[]),...(f.backupImages||[])];
   return (
@@ -990,7 +990,7 @@ function StickyPanel({ startTimeRef, formRef, isSC, buildEntriesText, buildEmail
           <span className="meta-label">📅 Started</span>
           <span className="meta-val">{fmtDT(new Date(startTimeRef.current))}</span>
         </div>
-        <div className="meta-row" style={{background:"rgba(245,148,92,.06)"}}>
+        <div className="meta-row">
           <span className="meta-label">⏱ Elapsed</span>
           <span className="timer-val">{fmtElapsed(elapsed)}</span>
         </div>
@@ -1026,22 +1026,19 @@ const emptyBase  = ()=>({
   _startTime: Date.now(), _elapsedAtSave: 0
 });
 
-function PostLiveForm({ mode, onSave, onBack, onDraft, draftData, user, onTimerEnd }) {
+function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user, onTimerEnd }) {
   const isSC = mode==="siteComment";
   const entryLabel = isSC?"Site Comment":"Assumption";
   const rawName = user?.name || "User";
   const userName = rawName.trim().replace(/\s+/g,"_");
-  // Use custom filenames from profile if set
   const beforeName    = user?.beforeName  || `Post_Live_Amend_Before_${userName}_Amends`;
   const afterName     = user?.afterName   || `Post_Live_Amend_After_${userName}_Amends`;
   const screenshotName= user?.screenshotName || `Post_Live_Amend_Screenshot_${userName}_Amends`;
 
-  // Restore form from draft or fresh
   const [form,setForm] = useState(()=> draftData ? {...emptyBase(),...draftData} : emptyBase());
   const formRef = useRef(form);
   useEffect(()=>{formRef.current=form;},[form]);
 
-  // Timer: if draft, resume from where it left off
   const startTimeRef = useRef(
     draftData ? Date.now() - (draftData._elapsedAtSave||0)*1000 : Date.now()
   );
@@ -1050,23 +1047,22 @@ function PostLiveForm({ mode, onSave, onBack, onDraft, draftData, user, onTimerE
   const [modal,setModal] = useState(null);
   const [toast,showToast] = useToast();
   const [copiedAll,setCopiedAll] = useState(false);
-  const [autoSaved,setAutoSaved] = useState(null); // last auto-save timestamp
+  const [autoSaved,setAutoSaved] = useState(null);
+  const [draftSaving,setDraftSaving] = useState(false);
 
-  // ── Auto-save to DB every 30 seconds ──
+  // ── Auto-save every 30s ──
   useEffect(()=>{
-    if(!onDraft)return;
+    if(!onSaveDraftDirect)return;
     const interval=setInterval(()=>{
       const f=formRef.current;
-      // Only auto-save if user has started filling in data
       if(!f.caseNum&&!f.accountNum&&!f.entries?.some(e=>e.note||e.clarification||e.number))return;
       const elapsed=Math.floor((Date.now()-startTimeRef.current)/1000);
       const clean=(imgs)=>(imgs||[]).map(({_file,url,name,id,path,_inDB})=>({url,name,id,path:path||id,_inDB:_inDB||false}));
       const cleanForm={...f,images:clean(f.images),backupImages:clean(f.backupImages),_elapsedAtSave:elapsed};
-      onDraft(cleanForm,true); // true = silent (no toast)
-      setAutoSaved(new Date().toLocaleTimeString());
+      onSaveDraftDirect(cleanForm).then(()=>setAutoSaved(new Date().toLocaleTimeString())).catch(()=>{});
     },30000);
     return()=>clearInterval(interval);
-  },[onDraft]);
+  },[onSaveDraftDirect]);
 
   const setF=(patch)=>setForm(f=>({...f,...patch}));
 
@@ -1107,24 +1103,23 @@ function PostLiveForm({ mode, onSave, onBack, onDraft, draftData, user, onTimerE
     setModal("save");
   };
 
-  const saveDraft = async(silent=false) => {
-    if(!silent){ setModal("draft"); return; } // manual click → show confirm modal first
-    // auto-save path (silent=true): save directly
+  const getCleanForm = () => {
     const elapsed = Math.floor((Date.now() - startTimeRef.current)/1000);
-    const stripFile=(imgs)=>(imgs||[]).map(({_file,url,name,id,path,_inDB})=>({url,name,id,path:path||id,_inDB:_inDB||false}));
-    const cleanForm={...formRef.current,images:stripFile(formRef.current.images),backupImages:stripFile(formRef.current.backupImages),_elapsedAtSave:elapsed};
-    try{ if(onDraft) await onDraft(cleanForm, true); setAutoSaved(new Date().toLocaleTimeString()); }catch(e){}
+    const strip=(imgs)=>(imgs||[]).map(({_file,url,name,id,path,_inDB})=>({url,name,id,path:path||id,_inDB:_inDB||false}));
+    return {...formRef.current,images:strip(formRef.current.images),backupImages:strip(formRef.current.backupImages),_elapsedAtSave:elapsed};
   };
 
+  const openDraftModal = () => setModal("draft");
+
   const confirmSaveDraft = async() => {
-    const elapsed = Math.floor((Date.now() - startTimeRef.current)/1000);
-    const stripFile=(imgs)=>(imgs||[]).map(({_file,url,name,id,path,_inDB})=>({url,name,id,path:path||id,_inDB:_inDB||false}));
-    const cleanForm={...formRef.current,images:stripFile(formRef.current.images),backupImages:stripFile(formRef.current.backupImages),_elapsedAtSave:elapsed};
-    setModal(null);
+    if(draftSaving) return;
+    setDraftSaving(true);
     try{
-      if(onDraft) await onDraft(cleanForm, true);
-      onBack&&onBack(); // go back to Post-Live Amends list
+      await onSaveDraftDirect(getCleanForm());
+      setModal(null);
+      onBack(); // go back to Post-Live Amends list
     }catch(e){
+      setDraftSaving(false);
       showToast("❌ Failed to save draft — check connection","error");
     }
   };
@@ -1199,7 +1194,7 @@ function PostLiveForm({ mode, onSave, onBack, onDraft, draftData, user, onTimerE
           <button className="btn btn-cancel" onClick={()=>setModal("cancel")}>✕ Cancel</button>
           <button className="btn btn-ghost" onClick={()=>setModal("clear")}>🧹 Clear</button>
           <div className="spacer"/>
-          <button className="btn btn-draft" onClick={saveDraft}>📝 Save Draft</button>
+          <button className="btn btn-draft" onClick={openDraftModal}>📝 Save Draft</button>
           {autoSaved&&<span style={{fontSize:11,color:"var(--muted)",alignSelf:"center",marginLeft:4}}>✓ Auto-saved {autoSaved}</span>}
           <button className="btn btn-save" onClick={handleSave}>💾 Save Case</button>
         </div>
@@ -1220,13 +1215,13 @@ function PostLiveForm({ mode, onSave, onBack, onDraft, draftData, user, onTimerE
           </div>
           <div className="modal-btns">
             <button className="btn btn-ghost" onClick={()=>setModal(null)}>Keep Editing</button>
-            <button className="btn btn-draft" onClick={confirmSaveDraft}>💾 Save & Go Back</button>
+            <button className="btn btn-draft" onClick={confirmSaveDraft} disabled={draftSaving} style={{opacity:draftSaving?.6:1}}>{draftSaving?"Saving…":"💾 Save & Go Back"}</button>
           </div>
         </div></div>)}
         <Toast msg={toast.msg} type={toast.type}/>
       </div>
       <div className="form-right">
-        <StickyPanel startTimeRef={startTimeRef} formRef={formRef} isSC={isSC} buildEntriesText={buildEntriesText} buildEmailText={buildEmailText} onTimerEnd={onTimerEnd}/>
+        <StickyPanel startTimeRef={startTimeRef} form={form} isSC={isSC} buildEntriesText={buildEntriesText} buildEmailText={buildEmailText} onTimerEnd={onTimerEnd}/>
       </div>
     </div>
   );
@@ -1460,20 +1455,13 @@ function PostLivePage({ onSaveCase, onFormActive, allSavedCases, dbDrafts, onSav
   const enterMode=(m)=>{setMode(m);onFormActive&&onFormActive(true);};
   const exitMode=()=>{setMode(null);onFormActive&&onFormActive(false);};
 
-  // Stable ref so onDraft callback never changes identity and doesn't reset useEffect intervals
-  const onSaveDraftRef = useRef(onSaveDraft);
-  useEffect(()=>{ onSaveDraftRef.current=onSaveDraft; },[onSaveDraft]);
-  const modeRef = useRef(mode);
-  useEffect(()=>{ modeRef.current=mode; },[mode]);
-
-  const stableOnDraft = useCallback(async(f,silent=false)=>{
-    await onSaveDraftRef.current?.(modeRef.current,{...f,_mode:modeRef.current});
-  },[]);
-
-  // Current draft for this mode (from DB)
   const currentDraft=dbDrafts?.find(d=>d._mode===mode)||null;
 
   if(mode==="siteComment"||mode==="inbound"){
+    const handleSaveDraft=async(formData)=>{
+      const elapsed=formData._elapsedAtSave||0;
+      await onSaveDraft(mode,{...formData,_mode:mode});
+    };
     return (
       <div>
         <div className="page-header">
@@ -1483,14 +1471,12 @@ function PostLivePage({ onSaveCase, onFormActive, allSavedCases, dbDrafts, onSav
         </div>
         <PostLiveForm mode={mode} draftData={currentDraft} user={user} onTimerEnd={onTimerEnd}
           onSave={f=>{
-            // Keep _file refs intact — addCase will upload them to Storage
             const rec={...f,_mode:mode,savedAt:new Date().toLocaleString()};
-            // Delete draft from DB — it's now a saved case
             if(currentDraft?._id) onDeleteDraft&&onDeleteDraft(currentDraft._id,mode);
             onSaveCase&&onSaveCase(rec);
             exitMode();
           }}
-          onDraft={stableOnDraft}
+          onSaveDraftDirect={handleSaveDraft}
           onBack={exitMode}/>
         {backConfirm&&(<div className="modal-bg"><div className="modal"><div style={{fontSize:36,marginBottom:10}}>⚠️</div><h3>Go Back?</h3><p>Going back will discard unsaved changes.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setBackConfirm(false)}>Keep Editing</button><button className="btn btn-danger" onClick={()=>{setBackConfirm(false);exitMode();}}>Discard</button></div></div></div>)}
       </div>
