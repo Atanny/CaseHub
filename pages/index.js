@@ -1087,8 +1087,13 @@ function PostLiveForm({ mode, onSave, onBack, onDraft, draftData, user, onTimerE
     const elapsed = Math.floor((Date.now() - startTimeRef.current)/1000);
     const stripFile=(imgs)=>(imgs||[]).map(({_file,url,name,id,path,_inDB})=>({url,name,id,path:path||id,_inDB:_inDB||false}));
     const cleanForm={...formRef.current,images:stripFile(formRef.current.images),backupImages:stripFile(formRef.current.backupImages),_elapsedAtSave:elapsed};
-    onDraft&&onDraft(cleanForm,silent);
-    // Toast shown in PostLivePage after redirect (manual save), or silent for auto-save
+    try{
+      await onDraft(cleanForm,silent); // wait for DB save
+      if(!silent) showToast("📝 Draft saved! You can resume anytime.","info");
+      if(!silent) setAutoSaved(new Date().toLocaleTimeString());
+    }catch(e){
+      if(!silent) showToast("❌ Failed to save draft — check connection","error");
+    }
   };
 
   const stepProps = {openStep, setOpenStep};
@@ -1426,13 +1431,9 @@ function PostLivePage({ onSaveCase, onFormActive, allSavedCases, dbDrafts, onSav
             onSaveCase&&onSaveCase(rec);
             exitMode();
           }}
-          onDraft={(f,silent=false)=>{
-            // Save draft to DB
-            onSaveDraft&&onSaveDraft(mode,{...f,_mode:mode});
-            if(!silent){
-              showToast("📝 Draft saved! You can resume it anytime.","info");
-              exitMode(); // go back to postlive list where the toast renders
-            }
+          onDraft={async(f,silent=false)=>{
+            // Save draft to DB — always stay on form (never exit)
+            await onSaveDraft?.(mode,{...f,_mode:mode});
           }}
           onBack={exitMode}/>
         {backConfirm&&(<div className="modal-bg"><div className="modal"><div style={{fontSize:36,marginBottom:10}}>⚠️</div><h3>Go Back?</h3><p>Going back will discard unsaved changes.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setBackConfirm(false)}>Keep Editing</button><button className="btn btn-danger" onClick={()=>{setBackConfirm(false);exitMode();}}>Discard</button></div></div></div>)}
@@ -1895,17 +1896,21 @@ function CaseHistory({ cases, onUpdate, onDelete }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // ANNOUNCEMENTS
 // ─────────────────────────────────────────────────────────────────────────────
-function AnnouncementsPage({ announcements, addAnnouncement, removeAnnouncement, user }) {
+function AnnouncementsPage({ announcements, addAnnouncement, updateAnnouncement, removeAnnouncement, user }) {
   const [adding,setAdding]=useState(false);
   const [confirming,setConfirming]=useState(false);
   const [saving,setSaving]=useState(false);
   const [deleteTarget,setDeleteTarget]=useState(null);
+  const [editTarget,setEditTarget]=useState(null); // announcement being edited
+  const [editForm,setEditForm]=useState({title:"",body:"",badge:"info"});
   const [form,setForm]=useState({title:"",body:"",badge:"info"});
   const [toast,showToast]=useToast();
 
+  const BADGE_OPTS=[["info","ℹ️ Info"],["update","✅ Update"],["urgent","🚨 Urgent"]];
+
   const startPost=()=>{
     if(!form.title.trim())return showToast("Title required","error");
-    setConfirming(true); // show confirm dialog first
+    setConfirming(true);
   };
 
   const confirmPost=async()=>{
@@ -1914,9 +1919,26 @@ function AnnouncementsPage({ announcements, addAnnouncement, removeAnnouncement,
       await addAnnouncement({...form,author:user.name,createdAt:new Date().toLocaleString()});
       setForm({title:"",body:"",badge:"info"});
       setAdding(false);setConfirming(false);
-      showToast("✅ Announcement saved to database!");
+      showToast("✅ Announcement posted!");
     }catch(e){
       showToast("❌ Failed to save — check connection","error");
+    }finally{setSaving(false);}
+  };
+
+  const startEdit=(a)=>{
+    setEditTarget(a);
+    setEditForm({title:a.title,body:a.body||"",badge:a.badge||"info"});
+  };
+
+  const saveEdit=async()=>{
+    if(!editForm.title.trim())return showToast("Title required","error");
+    setSaving(true);
+    try{
+      await updateAnnouncement(editTarget.id,{title:editForm.title,body:editForm.body,badge:editForm.badge});
+      setEditTarget(null);
+      showToast("✅ Announcement updated!");
+    }catch(e){
+      showToast("❌ Failed to update","error");
     }finally{setSaving(false);}
   };
 
@@ -1928,6 +1950,18 @@ function AnnouncementsPage({ announcements, addAnnouncement, removeAnnouncement,
     }catch(e){showToast("❌ Failed to delete","error");}
     setDeleteTarget(null);
   };
+
+  const isAuthor=(a)=> a.author && user?.name && a.author===user.name;
+
+  const badgePicker=(val,onChange)=>(
+    <div className="radio-group">
+      {BADGE_OPTS.map(([v,l])=>(
+        <label key={v} className={cls("radio-label",val===v&&"selected-clarif")}>
+          <input type="radio" checked={val===v} onChange={()=>onChange(v)}/>{l}
+        </label>
+      ))}
+    </div>
+  );
 
   return (
     <div>
@@ -1941,20 +1975,33 @@ function AnnouncementsPage({ announcements, addAnnouncement, removeAnnouncement,
         <h3 style={{marginBottom:16}}>📢 New Announcement</h3>
         <div className="field"><label>Title <span className="req">*</span></label><input className="inp" value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} placeholder="Announcement title" autoFocus/></div>
         <div className="field"><label>Message</label><textarea className="inp" rows={4} value={form.body} onChange={e=>setForm(f=>({...f,body:e.target.value}))} placeholder="Write your message..."/></div>
-        <div className="field"><label>Type</label><div className="radio-group">{[["info","ℹ️ Info"],["update","✅ Update"],["urgent","🚨 Urgent"]].map(([v,l])=>(<label key={v} className={cls("radio-label",form.badge===v&&"selected-clarif")}><input type="radio" checked={form.badge===v} onChange={()=>setForm(f=>({...f,badge:v}))}/>{l}</label>))}</div></div>
+        <div className="field"><label>Type</label>{badgePicker(form.badge,v=>setForm(f=>({...f,badge:v})))}</div>
         <div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setAdding(false)}>Cancel</button><button className="btn btn-primary" onClick={startPost}>Review & Post →</button></div>
       </div></div>)}
 
-      {/* ── Confirm before saving to DB ── */}
+      {/* ── Confirm before posting ── */}
       {confirming&&(<div className="modal-bg"><div className="modal">
         <div style={{fontSize:36,marginBottom:10}}>📢</div>
         <h3>Post Announcement?</h3>
         <p style={{color:"var(--muted)",fontSize:13,margin:"10px 0 4px"}}>Title: <strong style={{color:"var(--text)"}}>{form.title}</strong></p>
-        {form.body&&<p style={{color:"var(--muted)",fontSize:12,marginBottom:4,maxHeight:80,overflow:"hidden",textOverflow:"ellipsis"}}>{form.body}</p>}
-        <p style={{fontSize:12,color:"var(--muted)",marginBottom:16}}>This will be saved to the database and visible to your team.</p>
+        {form.body&&<p style={{color:"var(--muted)",fontSize:12,marginBottom:4,maxHeight:80,overflow:"hidden"}}>{form.body}</p>}
+        <p style={{fontSize:12,color:"var(--muted)",marginBottom:16}}>Visible to your whole team.</p>
         <div className="modal-btns">
           <button className="btn btn-ghost" onClick={()=>setConfirming(false)} disabled={saving}>← Go Back</button>
-          <button className="btn btn-primary" onClick={confirmPost} disabled={saving}>{saving?"Saving to DB…":"✅ Confirm & Post"}</button>
+          <button className="btn btn-primary" onClick={confirmPost} disabled={saving}>{saving?"Saving…":"✅ Confirm & Post"}</button>
+        </div>
+      </div></div>)}
+
+      {/* ── Edit modal (author only) ── */}
+      {editTarget&&(<div className="modal-bg"><div className="edit-modal">
+        <h3 style={{marginBottom:16}}>✏️ Edit Announcement</h3>
+        <div className="field"><label>Title <span className="req">*</span></label><input className="inp" value={editForm.title} onChange={e=>setEditForm(f=>({...f,title:e.target.value}))} autoFocus/></div>
+        <div className="field"><label>Message</label><textarea className="inp" rows={4} value={editForm.body} onChange={e=>setEditForm(f=>({...f,body:e.target.value}))}/></div>
+        <div className="field"><label>Type</label>{badgePicker(editForm.badge,v=>setEditForm(f=>({...f,badge:v})))}</div>
+        <div style={{fontSize:11,color:"var(--muted)",marginBottom:14}}>Only you can edit this — posted by {editTarget.author}</div>
+        <div className="modal-btns">
+          <button className="btn btn-ghost" onClick={()=>setEditTarget(null)} disabled={saving}>Cancel</button>
+          <button className="btn btn-save" onClick={saveEdit} disabled={saving}>{saving?"Saving…":"💾 Save Changes"}</button>
         </div>
       </div></div>)}
 
@@ -1962,7 +2009,7 @@ function AnnouncementsPage({ announcements, addAnnouncement, removeAnnouncement,
       {deleteTarget&&(<div className="modal-bg"><div className="modal">
         <div style={{fontSize:36,marginBottom:10}}>🗑️</div>
         <h3>Delete Announcement?</h3>
-        <p style={{color:"var(--muted)",fontSize:13,marginBottom:16}}>This will be permanently removed from the database.</p>
+        <p style={{color:"var(--muted)",fontSize:13,marginBottom:16}}>This will be permanently removed.</p>
         <div className="modal-btns">
           <button className="btn btn-ghost" onClick={()=>setDeleteTarget(null)}>Cancel</button>
           <button className="btn btn-danger" onClick={confirmDelete}>Delete</button>
@@ -1970,13 +2017,22 @@ function AnnouncementsPage({ announcements, addAnnouncement, removeAnnouncement,
       </div></div>)}
 
       {announcements.length===0&&(<div className="empty-history"><div style={{fontSize:52,marginBottom:14}}>📭</div><div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:18,fontWeight:800,marginBottom:6}}>No announcements</div><div>Post one to inform your team!</div></div>)}
+
       {announcements.map(a=>(
         <div key={a.id} className="announcement-card">
           <div className="ann-header">
-            <div><div className="ann-title">{a.title}</div><div className="ann-meta">By {a.author} · {a.createdAt}</div></div>
-            <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <div style={{flex:1,minWidth:0}}>
+              <div className="ann-title">{a.title}</div>
+              <div className="ann-meta">By {a.author} · {a.createdAt}</div>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
               <span className={cls("ann-badge",a.badge||"info")}>{a.badge==="urgent"?"🚨 Urgent":a.badge==="update"?"✅ Update":"ℹ️ Info"}</span>
-              <button className="entry-del" onClick={()=>setDeleteTarget(a.id)}>🗑</button>
+              {isAuthor(a)&&(
+                <button className="h-btn" style={{borderColor:"var(--accent)",color:"var(--accent)",padding:"4px 10px",fontSize:11}} onClick={()=>startEdit(a)}>✏️ Edit</button>
+              )}
+              {isAuthor(a)&&(
+                <button className="entry-del" onClick={()=>setDeleteTarget(a.id)}>🗑</button>
+              )}
             </div>
           </div>
           {a.body&&<div className="ann-body">{a.body}</div>}
@@ -2551,14 +2607,12 @@ function App() {
 
   // ── Drafts ──
   const saveDraft=async(mode,draftData)=>{
-    // Strip File objects before saving
     const clean=(imgs)=>(imgs||[]).map(({file,url,name,id,path,type})=>({url,name,id,path:path||id||name,type}));
-    const cleanData={...draftData,images:clean(draftData.images),backupImages:clean(draftData.backupImages)};
-    try{
-      const res=await fetch("/api/drafts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({userEmail:user.email,mode,draftData:cleanData})});
-      const saved=await res.json();
-      if(res.ok){setDrafts(ds=>[...ds.filter(d=>d._mode!==mode),saved]);}
-    }catch(e){console.error("saveDraft error:",e);}
+    const cleanData={...draftData,images:clean(draftData.images||[]),backupImages:clean(draftData.backupImages||[])};
+    const res=await fetch("/api/drafts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({userEmail:user.email,mode,draftData:cleanData})});
+    const saved=await res.json();
+    if(!res.ok) throw new Error(saved.error||"Failed to save draft");
+    setDrafts(ds=>[...ds.filter(d=>d._mode!==mode),saved]);
   };
   const deleteDraft=async(id,mode)=>{
     try{await fetch(`/api/drafts/${id}`,{method:"DELETE"});}catch(e){console.error(e);}
@@ -2570,12 +2624,18 @@ function App() {
     const res=await fetch("/api/announcements",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(a)});
     const saved=await res.json();
     if(!res.ok)throw new Error(saved.error||"Failed to save announcement");
-    setAnnouncements(p=>[saved,...p]); // only update state after DB confirms
+    setAnnouncements(p=>[saved,...p]);
+  };
+  const updateAnnouncement=async(id,updates)=>{
+    const res=await fetch(`/api/announcements/${id}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(updates)});
+    const saved=await res.json();
+    if(!res.ok)throw new Error(saved.error||"Failed to update announcement");
+    setAnnouncements(a=>a.map(x=>x.id===id?saved:x));
   };
   const removeAnnouncement=async(id)=>{
     const res=await fetch(`/api/announcements/${id}`,{method:"DELETE"});
     if(!res.ok){const d=await res.json().catch(()=>({}));throw new Error(d.error||"Failed to delete");}
-    setAnnouncements(a=>a.filter(x=>x.id!==id)); // only remove after DB confirms
+    setAnnouncements(a=>a.filter(x=>x.id!==id));
   };
 
   // ── Links ──
@@ -2725,7 +2785,7 @@ function App() {
           {!dataLoading&&page==="prelive"&&<div className="soon-wrap"><div className="soon-badge">🔧</div><div className="soon-title">Pre-Live Amends</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&page==="postlive"&&<PostLivePage onSaveCase={addCase} onFormActive={setFormActive} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} user={user} onTimerEnd={playEndAlarm}/>}
           {!dataLoading&&page==="history"&&<CaseHistory cases={allCases} onUpdate={updateCase} onDelete={deleteCase}/>}
-          {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
+          {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} updateAnnouncement={updateAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
           {!dataLoading&&page==="links"&&<LinksPage links={links} addLink={addLink} updateLink={updateLink} removeLink={removeLink}/>}
           {!dataLoading&&page==="profile"&&<ProfilePage user={user} setUser={setUser} onLogout={logout}/>}
         </main>
