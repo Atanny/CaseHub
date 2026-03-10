@@ -935,19 +935,23 @@ function EntryCard({ entry, label, index, onChange, onDelete, showNumber }) {
 
 function CopyRow({ label, value }) {
   const [c,setC]=useState(false);
-  if(!value) return null;
+  const empty = !value || !value.trim();
   return (
     <div className="copy-row-wrap">
       <div className="copy-row-label">{label}</div>
-      <div className="copy-row-inner">
-        <div className="copy-row-val">{value}</div>
-        <button className={cls("copy-row-btn",c&&"done")} onClick={()=>copyToClipboard(value).then(()=>{setC(true);setTimeout(()=>setC(false),1800);})}>{c?"✓":"📋"}</button>
-      </div>
+      {empty ? (
+        <div style={{fontSize:12,color:"var(--muted)",fontStyle:"italic",padding:"3px 0"}}>—</div>
+      ) : (
+        <div className="copy-row-inner">
+          <div className="copy-row-val">{value}</div>
+          <button className={cls("copy-row-btn",c&&"done")} onClick={()=>copyToClipboard(value).then(()=>{setC(true);setTimeout(()=>setC(false),1800);})}>{c?"✓":"📋"}</button>
+        </div>
+      )}
     </div>
   );
 }
 
-function StickyPanel({ startTimeRef, formRef, isSC, step4Done, buildEntriesText, buildEmailText, onTimerEnd }) {
+function StickyPanel({ startTimeRef, formRef, isSC, buildEntriesText, buildEmailText, onTimerEnd }) {
   const [elapsed,setElapsed]=useState(0);
   const [now,setNow]=useState(new Date());
   const firedRef=useRef(false);
@@ -972,18 +976,14 @@ function StickyPanel({ startTimeRef, formRef, isSC, step4Done, buildEntriesText,
         <div className="meta-row">🕐 <span>Now:</span> <span className="meta-val">{fmtDT(now)}</span></div>
       </div>
       <div className="summary-panel">
-        {!step4Done?(<div className="summary-locked"><div className="summary-locked-icon">🔒</div><div style={{fontSize:12,color:"var(--muted)",marginTop:4}}>Unlocks after Device Check</div></div>):(
-          <>
-            <CopyRow label="Case #" value={f.caseNum}/>
-            <CopyRow label="Account #" value={f.accountNum}/>
-            {!isSC&&<CopyRow label="Inbound #" value={f.inboundNum}/>}
-            <CopyRow label="Amend Type" value={f.amendType}/>
-            <CopyRow label={isSC?"Site Comments":"Assumptions"} value={isSC?buildEntriesText():buildEmailText()}/>
-            {!isSC&&<CopyRow label="Email Type" value={emailTypeLabel}/>}
-            {!isSC&&<CopyRow label="Email Address" value={f.emailAddress}/>}
-            {allImages.length>0&&(<div className="copy-row-wrap"><div className="copy-row-label">Screenshots ({allImages.length})</div><div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>{allImages.map(img=>(<div key={img.id} style={{width:68,height:52,borderRadius:0,overflow:"hidden",border:"1.5px solid var(--border)"}}><img src={img.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>))}</div></div>)}
-          </>
-        )}
+        <CopyRow label="Case #" value={f.caseNum}/>
+        <CopyRow label="Account #" value={f.accountNum}/>
+        {!isSC&&<CopyRow label="Inbound #" value={f.inboundNum}/>}
+        <CopyRow label="Amend Type" value={f.amendType}/>
+        <CopyRow label={isSC?"Site Comments":"Assumptions"} value={isSC?buildEntriesText():buildEmailText()}/>
+        {!isSC&&<CopyRow label="Email Type" value={emailTypeLabel}/>}
+        {!isSC&&<CopyRow label="Email Address" value={f.emailAddress}/>}
+        {allImages.length>0&&(<div className="copy-row-wrap"><div className="copy-row-label">Screenshots ({allImages.length})</div><div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>{allImages.map(img=>(<div key={img.id} style={{width:68,height:52,borderRadius:0,overflow:"hidden",border:"1.5px solid var(--border)"}}><img src={img.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>))}</div></div>)}
       </div>
     </div>
   );
@@ -1087,10 +1087,11 @@ function PostLiveForm({ mode, onSave, onBack, onDraft, draftData, user, onTimerE
     const elapsed = Math.floor((Date.now() - startTimeRef.current)/1000);
     const stripFile=(imgs)=>(imgs||[]).map(({_file,url,name,id,path,_inDB})=>({url,name,id,path:path||id,_inDB:_inDB||false}));
     const cleanForm={...formRef.current,images:stripFile(formRef.current.images),backupImages:stripFile(formRef.current.backupImages),_elapsedAtSave:elapsed};
+    // Show toast IMMEDIATELY (before async work) so it survives any re-renders
+    if(!silent) showToast("📝 Draft saved! You can resume anytime.","info");
+    if(!silent) setAutoSaved(new Date().toLocaleTimeString());
     try{
-      await onDraft(cleanForm,silent); // wait for DB save
-      if(!silent) showToast("📝 Draft saved! You can resume anytime.","info");
-      if(!silent) setAutoSaved(new Date().toLocaleTimeString());
+      if(onDraft) await onDraft(cleanForm, true); // always silent to onDraft — we handle toast here
     }catch(e){
       if(!silent) showToast("❌ Failed to save draft — check connection","error");
     }
@@ -1177,7 +1178,7 @@ function PostLiveForm({ mode, onSave, onBack, onDraft, draftData, user, onTimerE
         <Toast msg={toast.msg} type={toast.type}/>
       </div>
       <div className="form-right">
-        <StickyPanel startTimeRef={startTimeRef} formRef={formRef} isSC={isSC} step4Done={step4Done} buildEntriesText={buildEntriesText} buildEmailText={buildEmailText} onTimerEnd={onTimerEnd}/>
+        <StickyPanel startTimeRef={startTimeRef} formRef={formRef} isSC={isSC} buildEntriesText={buildEntriesText} buildEmailText={buildEmailText} onTimerEnd={onTimerEnd}/>
       </div>
     </div>
   );
@@ -1411,6 +1412,16 @@ function PostLivePage({ onSaveCase, onFormActive, allSavedCases, dbDrafts, onSav
   const enterMode=(m)=>{setMode(m);onFormActive&&onFormActive(true);};
   const exitMode=()=>{setMode(null);onFormActive&&onFormActive(false);};
 
+  // Stable ref so onDraft callback never changes identity and doesn't reset useEffect intervals
+  const onSaveDraftRef = useRef(onSaveDraft);
+  useEffect(()=>{ onSaveDraftRef.current=onSaveDraft; },[onSaveDraft]);
+  const modeRef = useRef(mode);
+  useEffect(()=>{ modeRef.current=mode; },[mode]);
+
+  const stableOnDraft = useCallback(async(f,silent=false)=>{
+    await onSaveDraftRef.current?.(modeRef.current,{...f,_mode:modeRef.current});
+  },[]);
+
   // Current draft for this mode (from DB)
   const currentDraft=dbDrafts?.find(d=>d._mode===mode)||null;
 
@@ -1431,10 +1442,7 @@ function PostLivePage({ onSaveCase, onFormActive, allSavedCases, dbDrafts, onSav
             onSaveCase&&onSaveCase(rec);
             exitMode();
           }}
-          onDraft={async(f,silent=false)=>{
-            // Save draft to DB — always stay on form (never exit)
-            await onSaveDraft?.(mode,{...f,_mode:mode});
-          }}
+          onDraft={stableOnDraft}
           onBack={exitMode}/>
         {backConfirm&&(<div className="modal-bg"><div className="modal"><div style={{fontSize:36,marginBottom:10}}>⚠️</div><h3>Go Back?</h3><p>Going back will discard unsaved changes.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setBackConfirm(false)}>Keep Editing</button><button className="btn btn-danger" onClick={()=>{setBackConfirm(false);exitMode();}}>Discard</button></div></div></div>)}
       </div>
