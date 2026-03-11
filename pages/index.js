@@ -83,15 +83,13 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
   box-shadow:var(--glass-shadow);
 }
 .logo{
-  font-size:20px;font-weight:800;color:var(--text);
-  padding:4px 10px 20px;letter-spacing:-.4px;
-  display:flex;align-items:center;gap:10px;
+  font-size:18px;font-weight:800;color:var(--text);
+  padding:4px 10px 20px;letter-spacing:-.5px;
+  display:flex;align-items:center;gap:9px;
 }
 .logo-icon{
-  width:34px;height:34px;border-radius:0;
-  background:var(--btn-save-bg);
+  width:30px;height:30px;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;
-  font-size:16px;flex-shrink:0;box-shadow:var(--glass-shadow);
 }
 .logo-text span{color:var(--accent);}
 .nav-group{
@@ -521,7 +519,7 @@ select.inp{cursor:pointer;}
 .auth-page::after{content:'';position:absolute;width:500px;height:500px;border-radius:50%;background:radial-gradient(circle,rgba(245,148,92,.07),transparent 70%);bottom:-80px;left:-80px;pointer-events:none;}
 .auth-card{background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:0;padding:40px;width:100%;max-width:420px;backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);box-shadow:var(--glass-shadow);position:relative;z-index:1;}
 .auth-logo{display:flex;align-items:center;gap:12px;margin-bottom:32px;justify-content:center;}
-.auth-logo-icon{width:44px;height:44px;border-radius:0;background:var(--btn-save-bg);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:var(--glass-shadow);}
+.auth-logo-icon{width:40px;height:40px;display:flex;align-items:center;justify-content:center;}
 .auth-logo-text{font-size:24px;font-weight:800;letter-spacing:-.5px;}
 .auth-logo-text span{color:var(--accent);}
 .auth-title{font-size:22px;font-weight:800;text-align:center;margin-bottom:6px;}
@@ -966,7 +964,7 @@ function CopyRow({ label, value }) {
   );
 }
 
-function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailText, onTimerEnd }) {
+function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailText, onTimerEnd, specialRequestors, timerLimitSecs }) {
   const [elapsed,setElapsed]=useState(0);
   const [now,setNow]=useState(new Date());
   const firedRef=useRef(false);
@@ -974,7 +972,8 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
     const t=setInterval(()=>{
       const secs=Math.floor((Date.now()-startTimeRef.current)/1000);
       setElapsed(secs); setNow(new Date());
-      if(!firedRef.current && secs>=1800){ firedRef.current=true; onTimerEnd&&onTimerEnd(); }
+      const limit=timerLimitSecs||1800;
+      if(!firedRef.current && secs>=limit){ firedRef.current=true; onTimerEnd&&onTimerEnd(); }
     },1000);
     return()=>clearInterval(t);
   },[startTimeRef,onTimerEnd]);
@@ -1009,6 +1008,21 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
         {!isSC&&<CopyRow label="Email Address" value={f.emailAddress}/>}
         {allImages.length>0&&(<div className="copy-row-wrap"><div className="copy-row-label">Screenshots ({allImages.length})</div><div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>{allImages.map(img=>(<div key={img.id} style={{width:68,height:52,borderRadius:0,overflow:"hidden",border:"1.5px solid var(--border)"}}><img src={img.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>))}</div></div>)}
       </div>
+      {specialRequestors&&specialRequestors.length>0&&(
+        <div style={{borderTop:"1px solid var(--border)",padding:"14px 16px"}}>
+          <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:10,fontFamily:"'Poppins',sans-serif"}}>⭐ Special Requestors</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            {specialRequestors.map((name,i)=>(
+              <div key={i} style={{display:"flex",alignItems:"center",gap:6,background:"var(--entry-accent-bg)",border:"1px solid rgba(245,148,92,.25)",padding:"5px 10px",fontSize:12,fontWeight:600,color:"var(--accent)",fontFamily:"'Poppins',sans-serif"}}>
+                <span style={{width:20,height:20,borderRadius:"50%",background:"var(--btn-save-bg)",display:"inline-flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:9,fontWeight:700,flexShrink:0}}>
+                  {name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
+                </span>
+                {name}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1026,7 +1040,7 @@ const emptyBase  = ()=>({
   _startTime: Date.now(), _elapsedAtSave: 0
 });
 
-function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user, onTimerEnd }) {
+function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user, onTimerEnd, specialRequestors, timerLimitSecs }) {
   const isSC = mode==="siteComment";
   const entryLabel = isSC?"Site Comment":"Assumption";
   const rawName = user?.name || "User";
@@ -1063,6 +1077,23 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
     },30000);
     return()=>clearInterval(interval);
   },[onSaveDraftDirect]);
+
+  // ── Save draft on page refresh/close ──
+  useEffect(()=>{
+    const handleUnload=()=>{
+      const f=formRef.current;
+      // Only save if there's something worth saving
+      if(!f.caseNum&&!f.accountNum&&!f.entries?.some(e=>e.note||e.clarification||e.number))return;
+      const elapsed=Math.floor((Date.now()-startTimeRef.current)/1000);
+      const clean=(imgs)=>(imgs||[]).map(({_file,url,name,id,path,_inDB})=>({url,name,id,path:path||id,_inDB:_inDB||false}));
+      const cleanForm={...f,images:clean(f.images),backupImages:clean(f.backupImages),_elapsedAtSave:elapsed,_mode:mode};
+      // sendBeacon is the only reliable way to fire a request on page unload
+      const payload=JSON.stringify({userEmail:user?.email,mode,draftData:cleanForm});
+      navigator.sendBeacon("/api/drafts",new Blob([payload],{type:"application/json"}));
+    };
+    window.addEventListener("beforeunload",handleUnload);
+    return()=>window.removeEventListener("beforeunload",handleUnload);
+  },[mode,user]);
 
   const setF=(patch)=>setForm(f=>({...f,...patch}));
 
@@ -1138,12 +1169,12 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
           <label className={cls("check-label",form.inProgress&&"checked")} style={{marginTop:4,width:"fit-content"}}><input type="checkbox" checked={form.inProgress} onChange={e=>setF({inProgress:e.target.checked})}/>In-Progress Salesforce</label>
         </StepCard>
 
-        <StepCard num={2} title="Before Screenshot Name" done={false} locked={!step1Done} {...stepProps}>
+        <StepCard num={2} title="Before Screenshot Name" done={false} locked={!step1Done&&!draftData} {...stepProps}>
           <p style={{fontSize:13,color:"var(--muted)",marginBottom:9}}>Save your before screenshot with this name.</p>
           <CopyName name={beforeName}/>
         </StepCard>
 
-        <StepCard num={3} title={isSC?"Post-Live Amends Notepad":"Assumptions Notepad"} done={step3Done} locked={!step1Done} {...stepProps}>
+        <StepCard num={3} title={isSC?"Post-Live Amends Notepad":"Assumptions Notepad"} done={step3Done} locked={!step1Done&&!draftData} {...stepProps}>
           {form.entries.map((e,i)=>(<EntryCard key={e.id} entry={e} label={entryLabel} index={i} showNumber={isSC} onChange={val=>updateEntry(e.id,val)} onDelete={()=>deleteEntry(e.id)}/>))}
           {isSC&&<button className="add-entry-btn" onClick={addEntry}>＋ Add New Site Comment</button>}
           {!isSC&&(
@@ -1160,30 +1191,30 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
           <button className={cls("copy-all-btn",copiedAll&&"copied")} onClick={handleCopyAll}>{copiedAll?"✓ Copied!":"📋 Copy All "+(isSC?"Site Comments":"Assumptions + Email")}</button>
         </StepCard>
 
-        <StepCard num={4} title="Device Check" done={step4Done} locked={!step3Done} {...stepProps}>
+        <StepCard num={4} title="Device Check" done={step4Done} locked={!step3Done&&!draftData} {...stepProps}>
           <p style={{fontSize:12,color:"var(--muted)",marginBottom:11}}>All three must be checked <span className="req">*</span></p>
           <div className="check-group">
             {[["mobile","📱 Mobile"],["tablet","💻 Tablet"],["desktop","🖥️ Desktop"]].map(([k,l])=>(<label key={k} className={cls("check-label",form.devices[k]&&"checked")}><input type="checkbox" checked={form.devices[k]} onChange={e=>setF({devices:{...form.devices,[k]:e.target.checked}})}/>{l}</label>))}
           </div>
         </StepCard>
 
-        <StepCard num={5} title="After Screenshot Name" done={false} locked={!step4Done} {...stepProps}>
+        <StepCard num={5} title="After Screenshot Name" done={false} locked={!step4Done&&!draftData} {...stepProps}>
           <p style={{fontSize:13,color:"var(--muted)",marginBottom:9}}>Save your after screenshot with this name.</p>
           <CopyName name={afterName}/>
         </StepCard>
 
-        <StepCard num={6} title="Before/After Backup" done={false} locked={!step4Done} {...stepProps}>
+        <StepCard num={6} title="Before/After Backup" done={false} locked={!step4Done&&!draftData} {...stepProps}>
           <p style={{fontSize:13,color:"var(--muted)",marginBottom:9}}>Upload screenshot — renamed automatically on download.</p>
           <CopyName name={screenshotName}/>
           <div style={{marginTop:12}}><ImageUpload baseName={screenshotName} multiple={false} onImages={imgs=>setF({images:imgs})} immediateUpload={false} initialImages={form.images||[]}/></div>
         </StepCard>
 
-        <StepCard num="6b" title="Additional Backup Screenshots" done={false} locked={!step4Done} {...stepProps}>
+        <StepCard num="6b" title="Additional Backup Screenshots" done={false} locked={!step4Done&&!draftData} {...stepProps}>
           <p style={{fontSize:13,color:"var(--muted)",marginBottom:11}}>Each renamed <span style={{color:"var(--accent)",fontWeight:600}}>backup-screenshot-N</span> on download.</p>
           <ImageUpload baseName="backup-screenshot" multiple onImages={imgs=>setF({backupImages:imgs})} immediateUpload={false} initialImages={form.backupImages||[]}/>
         </StepCard>
 
-        <StepCard num={7} title="Final Checklist" done={step7Done} locked={!step4Done} {...stepProps}>
+        <StepCard num={7} title="Final Checklist" done={step7Done} locked={!step4Done&&!draftData} {...stepProps}>
           <p style={{fontSize:12,color:"var(--muted)",marginBottom:11}}>All items must be checked <span className="req">*</span></p>
           <div className="check-group" style={{flexDirection:"column"}}>
             {[["backup","Before/After Backup?"],["caseComment","Case Comment"],["combinedTracker","Combined Tracker?"],["qaChecklist","QA Checklist?"],["completeJob","Complete Job?"],["emailSales","Email Sales?"],["trackerChecklist","Tracker Checklist?"],["completeStatus","Complete Status Tracker?"]].map(([k,l])=>(<label key={k} className={cls("check-label",form.checklist[k]&&"checked")} style={{width:"fit-content"}}><input type="checkbox" checked={form.checklist[k]} onChange={e=>setF({checklist:{...form.checklist,[k]:e.target.checked}})}/>{l}</label>))}
@@ -1221,7 +1252,7 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
         <Toast msg={toast.msg} type={toast.type}/>
       </div>
       <div className="form-right">
-        <StickyPanel startTimeRef={startTimeRef} form={form} isSC={isSC} buildEntriesText={buildEntriesText} buildEmailText={buildEmailText} onTimerEnd={onTimerEnd}/>
+        <StickyPanel startTimeRef={startTimeRef} form={form} isSC={isSC} buildEntriesText={buildEntriesText} buildEmailText={buildEmailText} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={timerLimitSecs}/>
       </div>
     </div>
   );
@@ -1411,13 +1442,14 @@ function Dashboard({ savedCases, setPage, specialRequestors, addRequestor, remov
 // ─────────────────────────────────────────────────────────────────────────────
 // SavedCaseCard (mini dropdown for PostLive page)
 // ─────────────────────────────────────────────────────────────────────────────
-function SavedCaseCard({ c, openId, setOpenId }) {
-  const open = openId === c._id;
+function SavedCaseCard({ c, openId, setOpenId, idx=0 }) {
+  const cardId = c._id || `local-${idx}`;
+  const open = openId === cardId;
   const isSC=c._mode==="siteComment";
   const allImages=[...(c.images||[]),...(c.backupImages||[])];
   return (
     <div style={{background:"var(--card)",border:"1.5px solid var(--border)",borderRadius:0,marginBottom:10,overflow:"hidden",transition:".2s",boxShadow:"var(--shadow-sm)"}}>
-      <div style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",cursor:"pointer"}} onClick={()=>setOpenId(open ? null : c._id)}>
+      <div style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",cursor:"pointer"}} onClick={()=>setOpenId(open ? null : cardId)}>
         <div className="saved-dot"/>
         <div className="saved-info">
           <div className="saved-case">Case #{c.caseNum} — {c.accountNum}</div>
@@ -1446,7 +1478,7 @@ function SavedCaseCard({ c, openId, setOpenId }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // POST LIVE PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function PostLivePage({ onSaveCase, onFormActive, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, user, onTimerEnd }) {
+function PostLivePage({ onSaveCase, onFormActive, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30 }) {
   const [mode,setMode]=useState(null);
   const [backConfirm,setBackConfirm]=useState(false);
   const [openSavedId,setOpenSavedId]=useState(null);
@@ -1469,7 +1501,7 @@ function PostLivePage({ onSaveCase, onFormActive, allSavedCases, dbDrafts, onSav
           <div className="page-title">{mode==="siteComment"?"Post-Live — Site Comment":"Post-Live — Inbound Email"}</div>
           <div className="page-sub">{mode==="siteComment"?"Fill in each step. Steps unlock as you progress.":"Assumption-based format with email details."}</div>
         </div>
-        <PostLiveForm mode={mode} draftData={currentDraft} user={user} onTimerEnd={onTimerEnd}
+        <PostLiveForm mode={mode} draftData={currentDraft} user={user} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={alarmMins*60}
           onSave={f=>{
             const rec={...f,_mode:mode,savedAt:new Date().toLocaleString()};
             if(currentDraft?._id) onDeleteDraft&&onDeleteDraft(currentDraft._id,mode);
@@ -1478,7 +1510,7 @@ function PostLivePage({ onSaveCase, onFormActive, allSavedCases, dbDrafts, onSav
           }}
           onSaveDraftDirect={handleSaveDraft}
           onBack={exitMode}/>
-        {backConfirm&&(<div className="modal-bg"><div className="modal"><div style={{fontSize:36,marginBottom:10}}>⚠️</div><h3>Go Back?</h3><p>Going back will discard unsaved changes.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setBackConfirm(false)}>Keep Editing</button><button className="btn btn-danger" onClick={()=>{setBackConfirm(false);exitMode();}}>Discard</button></div></div></div>)}
+        {backConfirm&&(<div className="modal-bg"><div className="modal"><div style={{fontSize:36,marginBottom:10}}>📌</div><h3>Go Back?</h3><p>Your form and timer will keep running. You can resume at any time — your progress is safe.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setBackConfirm(false)}>Keep Editing</button><button className="btn btn-primary" onClick={()=>{setBackConfirm(false);exitMode();}}>Minimise</button></div></div></div>)}
       </div>
     );
   }
@@ -1498,12 +1530,11 @@ function PostLivePage({ onSaveCase, onFormActive, allSavedCases, dbDrafts, onSav
 
       {dbDrafts&&dbDrafts.length>0&&(<div style={{marginBottom:22}}><div className="section-title">📝 Drafts <span style={{fontSize:11,color:"var(--muted)",fontWeight:400}}>(auto-saved to database)</span></div>{dbDrafts.map((d,i)=>(<div key={d._id||i} className="draft-row"><div className="draft-dot"/><div className="saved-info"><div className="saved-case">Case #{d.caseNum||"—"} — Account {d.accountNum||"—"}</div><div className="saved-meta">{d.amendType||"No amend type"} · Saved {d.draftAt}</div></div><span className="draft-badge">{d._mode==="siteComment"?"Site Comment":"Inbound Email"}</span><button className="draft-resume" onClick={()=>enterMode(d._mode)}>▶ Resume</button><button className="entry-del" title="Delete draft" onClick={()=>onDeleteDraft&&onDeleteDraft(d._id,d._mode)} style={{marginLeft:4}}>🗑</button></div>))}</div>)}
 
-      {recentAll.length>0&&(
-        <div>
-          <div className="section-title">🕒 Recently Saved Cases</div>
-          {recentAll.map((c,i)=>(<SavedCaseCard key={c._id||i} c={c} openId={openSavedId} setOpenId={setOpenSavedId}/>))}
-        </div>
-      )}
+      <div>
+        <div className="section-title">🕒 Recently Saved Cases</div>
+        {recentAll.length===0&&<div style={{color:"var(--muted)",fontSize:13,padding:"8px 0"}}>No cases saved yet. Complete a form to see it here.</div>}
+        {recentAll.map((c,i)=>(<SavedCaseCard key={c._id||`local-${i}`} c={c} idx={i} openId={openSavedId} setOpenId={setOpenSavedId}/>))}
+      </div>
       <Toast msg={toast.msg} type={toast.type}/>
     </div>
   );
@@ -2166,7 +2197,7 @@ function LinksPage({ links, addLink, updateLink, removeLink }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // PROFILE PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function ProfilePage({ user, setUser, onLogout }) {
+function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
   const [editing,setEditing]=useState(false);
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
@@ -2186,6 +2217,7 @@ function ProfilePage({ user, setUser, onLogout }) {
     avatarUrl:user.avatarUrl||"",
   });
   const [pwForm,setPwForm]=useState({next:"",confirm:""});
+  const [timerInput,setTimerInput]=useState(String(timerLimit||30));
 
   // ── Load latest profile from DB on mount ──
   useEffect(()=>{
@@ -2346,6 +2378,38 @@ function ProfilePage({ user, setUser, onLogout }) {
         <button className="btn btn-primary" onClick={changePw} disabled={saving}>{saving?"Updating...":"Update Password"}</button>
       </div>
 
+      {/* ── Timer settings card ── */}
+      <div className="profile-card">
+        <h3 style={{fontSize:16,fontWeight:700,marginBottom:4}}>⏱ Case Timer Alert</h3>
+        <p style={{fontSize:12,color:"var(--muted)",marginBottom:16}}>Alarm fires after this many minutes on a case. Default is 30 minutes.</p>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <input className="inp" type="number" min="1" max="240" style={{width:90,textAlign:"center",fontWeight:700,fontSize:15}}
+            value={timerInput}
+            onChange={e=>setTimerInput(e.target.value)}
+            onKeyDown={e=>e.key==="Enter"&&(saveTimerLimit(timerInput),showToast("Timer updated ✅"))}
+          />
+          <span style={{fontSize:13,color:"var(--muted)"}}>minutes</span>
+          <button className="btn btn-primary" style={{marginLeft:"auto",padding:"8px 18px",fontSize:12}}
+            onClick={()=>{saveTimerLimit(timerInput);showToast("Timer alert updated ✅");}}>
+            Save
+          </button>
+        </div>
+        <div style={{fontSize:11,color:"var(--muted)",marginTop:8}}>Currently: <strong style={{color:"var(--accent)"}}>{timerLimit} min</strong></div>
+      </div>
+
+      {/* ── Timer settings card ── */}
+      <div className="profile-card">
+        <h3 style={{fontSize:16,fontWeight:700,marginBottom:4}}>⏱ Case Timer Alert</h3>
+        <p style={{fontSize:12,color:"var(--muted)",marginBottom:16}}>Set how many minutes before the alarm fires during a Post-Live case. Default is 30 minutes.</p>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <label style={{fontSize:13,fontWeight:600,minWidth:120}}>Alert after</label>
+          <input className="inp" type="number" min="1" max="999" style={{width:80}}
+            defaultValue={typeof window!=="undefined"?(localStorage.getItem("ch_alarm_mins")||"30"):"30"}
+            onChange={e=>saveAlarmMins&&saveAlarmMins(e.target.value)}/>
+          <span style={{fontSize:12,color:"var(--muted)"}}>minutes</span>
+        </div>
+      </div>
+
       {/* ── Danger zone ── */}
       <div className="profile-card" style={{borderColor:"rgba(244,63,94,.3)"}}>
         <h3 style={{fontSize:16,fontWeight:700,marginBottom:8,color:"var(--red)"}}>⚠️ Danger Zone</h3>
@@ -2364,7 +2428,14 @@ function ProfilePage({ user, setUser, onLogout }) {
 function AuthLogo() {
   return (
     <div className="auth-logo">
-      <div className="auth-logo-icon">⚡</div>
+      <div className="auth-logo-icon">
+        <svg width="40" height="40" viewBox="0 0 30 30" fill="none">
+          <rect x="2" y="2" width="11" height="11" fill="var(--accent)" opacity=".9"/>
+          <rect x="17" y="2" width="11" height="11" fill="var(--accent)" opacity=".5"/>
+          <rect x="2" y="17" width="11" height="11" fill="var(--accent)" opacity=".5"/>
+          <rect x="17" y="17" width="11" height="11" fill="var(--accent)" opacity=".2"/>
+        </svg>
+      </div>
       <div className="auth-logo-text">Case<span>Hub</span></div>
     </div>
   );
@@ -2471,10 +2542,22 @@ function App() {
     return false;
   });
   const [specialRequestors,setSpecialRequestors]=useState([]);
+  const [timerLimit,setTimerLimit]=useState(()=>{
+    if(typeof window!=="undefined"){const v=parseInt(localStorage.getItem("ch_timer_limit"));return isNaN(v)?30:v;}
+    return 30;
+  });
+  const saveTimerLimit=(mins)=>{
+    const v=Math.max(1,Math.min(240,parseInt(mins)||30));
+    setTimerLimit(v);
+    if(typeof window!=="undefined") localStorage.setItem("ch_timer_limit",v);
+  };
   const [announcements,setAnnouncements]=useState([]); // always loaded from DB
   const [links,setLinks]=useState([]);
   const [dataLoading,setDataLoading]=useState(false);
   const [breakTimer,setBreakTimer]=useState(null); // {label,endsAt,warnAt,warned,ended}
+  // timerLimit (mins) is the single source of truth — also aliased as alarmMins for legacy compat
+  const alarmMins = timerLimit;
+  const saveAlarmMins = saveTimerLimit;
 
   useEffect(()=>{document.body.classList.toggle("light",lightMode);if(typeof window!=="undefined") localStorage.setItem("ch_theme",lightMode?"light":"dark");},[lightMode]);
 
@@ -2743,8 +2826,7 @@ function App() {
 
   const handleNav=(id)=>{
     if(id===page)return;
-    if(page==="postlive"&&formActive){setPendingPage(id);setNavConfirm(true);}
-    else setPage(id);
+    setPage(id); // always just navigate — form state is preserved in PostLivePage
   };
 
   const logout=()=>{
@@ -2794,7 +2876,14 @@ function App() {
       <div className="shell">
         <aside className="sidebar">
           <div className="logo">
-            <div className="logo-icon">⚡</div>
+            <div className="logo-icon">
+              <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+                <rect width="26" height="26" fill="var(--accent)"/>
+                <rect x="5" y="8" width="10" height="2" fill="white"/>
+                <rect x="5" y="12" width="16" height="2" fill="white" opacity=".7"/>
+                <rect x="5" y="16" width="7" height="2" fill="white" opacity=".45"/>
+              </svg>
+            </div>
             <div className="logo-text">Case<span>Hub</span></div>
           </div>
 
@@ -2856,11 +2945,13 @@ function App() {
           {!dataLoading&&page==="dashboard"&&<Dashboard savedCases={allCases} setPage={setPage} specialRequestors={specialRequestors} addRequestor={addRequestor} removeRequestor={removeRequestor} user={user}/>}
           {!dataLoading&&page==="build"&&<div className="soon-wrap"><div className="soon-badge">🏗️</div><div className="soon-title">Build</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&page==="prelive"&&<div className="soon-wrap"><div className="soon-badge">🔧</div><div className="soon-title">Pre-Live Amends</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
-          {!dataLoading&&page==="postlive"&&<PostLivePage onSaveCase={addCase} onFormActive={setFormActive} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} user={user} onTimerEnd={playEndAlarm}/>}
+          {!dataLoading&&<div style={{display:page==="postlive"?"block":"none"}}>
+            <PostLivePage onSaveCase={addCase} onFormActive={setFormActive} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins}/>
+          </div>}
           {!dataLoading&&page==="history"&&<CaseHistory cases={allCases} onUpdate={updateCase} onDelete={deleteCase}/>}
           {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} updateAnnouncement={updateAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
           {!dataLoading&&page==="links"&&<LinksPage links={links} addLink={addLink} updateLink={updateLink} removeLink={removeLink}/>}
-          {!dataLoading&&page==="profile"&&<ProfilePage user={user} setUser={setUser} onLogout={logout}/>}
+          {!dataLoading&&page==="profile"&&<ProfilePage user={user} setUser={setUser} onLogout={logout} timerLimit={timerLimit} saveTimerLimit={saveTimerLimit}/>}
         </main>
       </div>
 
@@ -2909,7 +3000,7 @@ function App() {
         </div>
       )}
 
-      {navConfirm&&(<div className="modal-bg"><div className="modal"><div style={{fontSize:36,marginBottom:10}}>⚠️</div><h3>Leave Page?</h3><p>You have an unsaved form open. Leaving will discard all changes.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>{setNavConfirm(false);setPendingPage(null);}}>Stay</button><button className="btn btn-danger" onClick={()=>{setPage(pendingPage);setPendingPage(null);setNavConfirm(false);setFormActive(false);}}>Leave</button></div></div></div>)}
+      {/* Nav no longer shows discard warning — form state preserved on page switch */}
     </>
   );
 }
