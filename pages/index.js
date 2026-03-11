@@ -1091,22 +1091,32 @@ function CopyRow({ label, value }) {
 }
 
 // ── GreetingRow — dropdown type selector for check-in message ──
-function GreetingRow({ greetingMsg, caseNum, isSC }) {
+function GreetingRow({ greetingMsg, caseNum, accountNum, isSC, entries }) {
   const [type,setType]=useState(isSC?"Site Comment":"Inbound Email");
+  const [refType,setRefType]=useState(isSC?"Site Comment #":"Case #");
   const [copied,setCopied]=useState(false);
-  const types=["Site Comment","Inbound Email"];
-  // Build message: replace (Case #) with actual number, no parentheses, append type
-  const msg=(greetingMsg||"Hi po Ms. Tina, magpapacheck lang po (Case #)")
-    .replace("(Case #)",`Case #${caseNum}`)+" "+type;
+  const refTypes=["Site Comment #","Case #","Acc#"];
+  const typeOpts=["Site Comment","Inbound Email"];
+  const refVal = refType==="Site Comment #"
+    ? (entries&&entries.length>0&&entries[0].number ? `Site Comment #${entries[0].number}` : "Site Comment #")
+    : refType==="Acc#"
+    ? `Acc# ${accountNum||""}`
+    : `Case #${caseNum||""}`;
+  const baseMsg=(greetingMsg||"Hi po Ms. Tina, magpapacheck lang po").replace(/\(Case #\)/g,"").trimEnd();
+  const msg=baseMsg+" ("+refVal+") "+type;
   const copy=()=>{ copyToClipboard(msg).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),1800);}); };
   return (
     <div className="copy-row-wrap">
       <div className="copy-row-label">Message</div>
       <div style={{display:"flex",flexDirection:"column",gap:6}}>
-        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+        <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+          <select value={refType} onChange={e=>setRefType(e.target.value)}
+            style={{background:"var(--inp-bg)",border:"1.5px solid var(--accent)",color:"var(--accent)",fontSize:11,padding:"4px 8px",borderRadius:0,fontFamily:"'Poppins',sans-serif",cursor:"pointer",outline:"none",fontWeight:600}}>
+            {refTypes.map(t=><option key={t} value={t}>{t}</option>)}
+          </select>
           <select value={type} onChange={e=>setType(e.target.value)}
             style={{background:"var(--inp-bg)",border:"1.5px solid var(--border)",color:"var(--text)",fontSize:11,padding:"4px 8px",borderRadius:0,fontFamily:"'Poppins',sans-serif",cursor:"pointer",outline:"none"}}>
-            {types.map(t=><option key={t} value={t}>{t}</option>)}
+            {typeOpts.map(t=><option key={t} value={t}>{t}</option>)}
           </select>
           <button className={copied?"copy-row-btn done":"copy-row-btn"} onClick={copy} style={{flexShrink:0}}>{copied?"✓":"📋"}</button>
         </div>
@@ -1156,7 +1166,7 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
         {!isSC&&<CopyRow label="Inbound #" value={f.inboundNum}/>}
         <CopyRow label="Amend Type" value={f.amendType}/>
         {f.caseNum&&(
-          <GreetingRow greetingMsg={greetingMsg} caseNum={f.caseNum} isSC={isSC}/>
+          <GreetingRow greetingMsg={greetingMsg} caseNum={f.caseNum} accountNum={f.accountNum} isSC={isSC} entries={f.entries}/>
         )}
         <CopyRow label={isSC?"Site Comments":"Assumptions"} value={isSC?buildEntriesText():buildEmailText()}/>
         {!isSC&&<CopyRow label="Email Type" value={emailTypeLabel}/>}
@@ -1262,6 +1272,7 @@ function TocPanel({ openStep, setOpenStep, isSC, page }) {
     {num:5,label:"After Name"},
     {num:6,label:"Before/After"},
     {num:7,label:"Checklist"},
+    {num:"req",label:"Requestors"},
   ];
   return (
     <div className="toc-card">
@@ -1488,6 +1499,23 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
             {[["backup","Before/After Backup?"],["caseComment","Case Comment"],["combinedTracker","Combined Tracker?"],["qaChecklist","QA Checklist?"],["completeJob","Complete Job?"],["emailSales","Email Sales?"],["trackerChecklist","Complete Status Tracker?"],["completeStatus","Tracker Checklist?"]].map(([k,l])=>(<label key={k} className={cls("check-label",form.checklist[k]&&"checked")} style={{width:"fit-content"}}><input type="checkbox" checked={form.checklist[k]} onChange={e=>setF({checklist:{...form.checklist,[k]:e.target.checked}})}/>{l}</label>))}
           </div>
         </StepCard>
+
+        {/* Special Requestors anchor - scrolled to from TocPanel */}
+        {specialRequestors&&specialRequestors.length>0&&(
+          <div id="step-req" style={{background:"var(--card)",border:"1.5px solid var(--border)",padding:"16px 18px",marginBottom:12}}>
+            <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:10,fontFamily:"'Poppins',sans-serif"}}>Special Requestors</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+              {specialRequestors.map((name,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"center",gap:6,background:"var(--entry-accent-bg)",border:"1px solid rgba(245,148,92,.25)",padding:"5px 10px",fontSize:12,fontWeight:600,color:"var(--accent)",fontFamily:"'Poppins',sans-serif"}}>
+                  <span style={{width:20,height:20,borderRadius:"50%",background:"var(--btn-save-bg)",display:"inline-flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:9,fontWeight:700,flexShrink:0}}>
+                    {name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
+                  </span>
+                  {name}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="action-bar">
           <button className="btn btn-cancel" onClick={()=>setModal("cancel")}>✕ Cancel</button>
@@ -2483,11 +2511,12 @@ function LinksPage({ links, setLinks, addLink, updateLink, removeLink }) {
           )}
           <div className="link-card"
             draggable
-            onDragStart={()=>{dragLinkRef.current=i;setDragLinkActive(i);}}
-            onDragOver={e=>{e.preventDefault();if(dragLinkOver!==i)setDragLinkOver(i);}}
-            onDrop={()=>{
-              const from=dragLinkRef.current;
-              if(from!=null&&from!==i){const arr=[...links];const[m]=arr.splice(from,1);arr.splice(i,0,m);setLinks(arr);}
+            onDragStart={e=>{e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain",String(i));dragLinkRef.current=i;setDragLinkActive(i);}}
+            onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="move";if(dragLinkOver!==i)setDragLinkOver(i);}}
+            onDrop={e=>{
+              e.preventDefault();
+              const from=dragLinkRef.current!=null?dragLinkRef.current:parseInt(e.dataTransfer.getData("text/plain"));
+              if(!isNaN(from)&&from!==i){const arr=[...links];const[m]=arr.splice(from,1);arr.splice(i,0,m);setLinks(arr);}
               dragLinkRef.current=null;setDragLinkActive(null);setDragLinkOver(null);
             }}
             onDragEnd={()=>{dragLinkRef.current=null;setDragLinkActive(null);setDragLinkOver(null);}}
@@ -2501,7 +2530,7 @@ function LinksPage({ links, setLinks, addLink, updateLink, removeLink }) {
           <div className="link-icon">{l.icon}</div>
           <div className="link-info"><div className="link-title">{l.title}</div><div className="link-url">{l.url}</div></div>
           <div className="link-actions">
-            <a href={l.url} target="_blank" rel="noopener noreferrer" className="h-btn" style={{textDecoration:"none"}}>↗ Open</a>
+            <a href={l.url} target="_blank" rel="noopener noreferrer" className="h-btn" draggable={false} style={{textDecoration:"none"}} onClick={e=>e.stopPropagation()}>↗ Open</a>
             <button className="h-btn" style={{borderColor:"var(--accent)",color:"var(--accent)"}} onClick={()=>startEdit(l)}>✏️ Edit</button>
             <button className="h-btn danger" onClick={()=>remove(l.id)}><Icon name="trash" size={13} color="var(--red)"/></button>
           </div>
@@ -2675,12 +2704,12 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
       {/* ── Greeting / check-in message card ── */}
       <div className="profile-card">
         <h3 style={{fontSize:16,fontWeight:700,marginBottom:8}}>Check-in Message</h3>
-        <p style={{fontSize:12,color:"var(--muted)",marginBottom:12}}>Appears in your Live Summary panel when a Case # is entered. Use <code style={{background:"var(--border)",padding:"1px 5px",fontSize:11}}>(Case #)</code> as the placeholder.</p>
+        <p style={{fontSize:12,color:"var(--muted)",marginBottom:12}}>Appears in your Live Summary panel. The reference number (Site Comment #, Case #, or Acc#) is added via dropdown when using the form.</p>
         <div className="field">
           <label>Message Template</label>
-          <input className="inp" value={form.greetingMsg||""} onChange={e=>setForm(f=>({...f,greetingMsg:e.target.value}))} placeholder="Hi po Ms. Tina, magpapacheck lang po (Case #)"/>
+          <input className="inp" value={form.greetingMsg||""} onChange={e=>setForm(f=>({...f,greetingMsg:e.target.value}))} placeholder="Hi po Ms. Tina, magpapacheck lang po"/>
         </div>
-        <div style={{fontSize:11,color:"var(--muted)",marginTop:6}}>Preview: <span style={{color:"var(--accent)",fontWeight:600}}>{(form.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po (Case #)").replace("(Case #)","(Case #12345)")}</span></div>
+        <div style={{fontSize:11,color:"var(--muted)",marginTop:6}}>Preview: <span style={{color:"var(--accent)",fontWeight:600}}>{(form.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po").replace(/\(Case #\)/g,"").trimEnd()} (Case #12345) Site Comment</span></div>
         <button className="btn btn-primary" style={{marginTop:14}} onClick={saveProfile} disabled={saving}>{saving?"Saving...":"Save Message"}</button>
       </div>
 
