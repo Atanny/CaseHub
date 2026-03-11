@@ -117,6 +117,45 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
   border-radius:0;font-size:10px;font-weight:700;
   padding:1px 7px;line-height:1.6;
 }
+
+.toc-panel{
+  position:fixed;left:220px;top:50%;transform:translateY(-50%);
+  z-index:800;width:14px;transition:.25s;
+}
+.toc-panel:hover{width:230px;}
+.toc-trigger{
+  position:absolute;left:0;top:50%;transform:translateY(-50%);
+  width:14px;height:60px;background:var(--accent);opacity:.35;
+  cursor:pointer;transition:.2s;border-radius:0 4px 4px 0;
+}
+.toc-panel:hover .toc-trigger{opacity:0;pointer-events:none;}
+.toc-content{
+  position:absolute;left:0;top:50%;transform:translateY(-50%);
+  width:220px;opacity:0;pointer-events:none;transition:.2s;
+  background:var(--glass-bg);border:1px solid var(--glass-border);
+  backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
+  box-shadow:var(--glass-shadow);padding:14px 0;max-height:80vh;overflow-y:auto;
+}
+.toc-panel:hover .toc-content{opacity:1;pointer-events:all;}
+.toc-item{
+  display:block;width:100%;text-align:left;background:none;border:none;
+  padding:5px 16px;font-size:11px;color:var(--muted);cursor:pointer;
+  font-family:'Poppins',sans-serif;transition:.12s;line-height:1.5;
+}
+.toc-item:hover{color:var(--accent);background:var(--entry-accent-bg);}
+.toc-item.active{color:var(--accent);font-weight:700;border-left:2px solid var(--accent);padding-left:14px;}
+.toc-group{padding:8px 16px 3px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-family:'Poppins',sans-serif;}
+.form-progress-pill{
+  position:fixed;bottom:24px;right:24px;z-index:900;
+  display:flex;align-items:center;gap:10px;
+  padding:11px 18px 11px 14px;
+  background:var(--accent);color:#fff;
+  cursor:pointer;transition:.2s;
+  box-shadow:0 4px 24px rgba(245,148,92,.45);
+  font-family:'Poppins',sans-serif;
+}
+.form-progress-pill:hover{background:var(--accent2);transform:translateY(-2px);box-shadow:0 8px 32px rgba(245,148,92,.5);}
+.form-progress-pill-dot{width:8px;height:8px;border-radius:50%;background:#fff;animation:pulse-dot 1.4s ease-in-out infinite;}
 .nav-inprogress{
   margin-left:auto;display:flex;align-items:center;gap:4px;
   font-size:9px;font-weight:700;color:var(--accent);
@@ -766,7 +805,7 @@ function useToast() {
   return [toast, show];
 }
 
-function CopyName({ name }) {
+function CopyName({ name, onCopy }) {
   const [c,setC] = useState(false);
   return (
     <div className="copy-name">
@@ -971,7 +1010,7 @@ function CopyRow({ label, value }) {
   );
 }
 
-function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailText, onTimerEnd, specialRequestors, timerLimitSecs }) {
+function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailText, onTimerEnd, specialRequestors, timerLimitSecs, greetingMsg="Hi po Ms. Tina, magpapacheck lang po (Case #)" }) {
   const [elapsed,setElapsed]=useState(0);
   const [now,setNow]=useState(new Date());
   const firedRef=useRef(false);
@@ -1013,15 +1052,7 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
         {f.caseNum&&(
           <div style={{background:"var(--entry-accent-bg)",border:"1px solid rgba(245,148,92,.25)",padding:"10px 14px",margin:"2px 0",fontFamily:"'Poppins',sans-serif"}}>
             <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:5}}>Message</div>
-            <div style={{fontSize:12,color:"var(--text)",lineHeight:1.7}}>Hi po Ms. Tina, magpapacheck lang po (Case #{f.caseNum})</div>
-          </div>
-        )}
-        {f.amendType&&f.caseNum&&(
-          <div style={{background:"var(--entry-accent-bg)",border:"1px solid rgba(245,148,92,.25)",padding:"10px 14px",margin:"2px 0 2px",fontFamily:"'Poppins',sans-serif"}}>
-            <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:5}}>Message Preview</div>
-            <div style={{fontSize:12,color:"var(--text)",lineHeight:1.7,fontStyle:"italic"}}>
-              Hi po Ms. Tina, magpapacheck lang po (Case #{f.caseNum})
-            </div>
+            <div style={{fontSize:12,color:"var(--text)",lineHeight:1.7,cursor:"pointer"}} onClick={()=>copyToClipboard(greetingMsg.replace("(Case #)",`(Case #${f.caseNum})`)).then(()=>{})}>{greetingMsg.replace("(Case #)",`(Case #${f.caseNum})`)} <span style={{fontSize:10,color:"var(--accent)"}}>[copy]</span></div>
           </div>
         )}
         <CopyRow label={isSC?"Site Comments":"Assumptions"} value={isSC?buildEntriesText():buildEmailText()}/>
@@ -1115,6 +1146,35 @@ const emptyBase  = ()=>({
   _startTime: Date.now(), _elapsedAtSave: 0
 });
 
+
+// ── Table of Contents / Outline Panel ───────────────────────────────────────
+function TocPanel({ form, openStep, setOpenStep, isSC, page }) {
+  if(page!=="postlive"||!isSC&&!form) return null;
+  const steps=[
+    {num:1,label:"Case Information"},
+    {num:2,label:"Before Screenshot Name"},
+    {num:3,label:isSC?"Post-Live Amends Notepad":"Assumptions Notepad"},
+    {num:"6b",label:"Additional Backup"},
+    {num:4,label:"Device Check"},
+    {num:5,label:"After Screenshot Name"},
+    {num:6,label:"Before/After Backup"},
+    {num:7,label:"Final Checklist"},
+  ];
+  return (
+    <div className="toc-panel">
+      <div className="toc-trigger"/>
+      <div className="toc-content">
+        <div className="toc-group">Form Steps</div>
+        {steps.map(s=>(
+          <button key={s.num} className={cls("toc-item",openStep===s.num&&"active")}
+            onClick={()=>setOpenStep(s.num)}>
+            <span style={{opacity:.5,marginRight:6,fontVariantNumeric:"tabular-nums"}}>{s.num}.</span>{s.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user, onTimerEnd, specialRequestors, timerLimitSecs }) {
   const isSC = mode==="siteComment";
   const entryLabel = isSC?"Site Comment":"Assumption";
@@ -1346,7 +1406,7 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
         <Toast msg={toast.msg} type={toast.type}/>
       </div>
       <div className="form-right">
-        <StickyPanel startTimeRef={startTimeRef} form={form} isSC={isSC} buildEntriesText={buildEntriesText} buildEmailText={buildEmailText} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={timerLimitSecs}/>
+        <StickyPanel startTimeRef={startTimeRef} form={form} isSC={isSC} buildEntriesText={buildEntriesText} buildEmailText={buildEmailText} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={timerLimitSecs} greetingMsg={user?.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po (Case #)"}/>
       </div>
     </div>
   );
@@ -2315,6 +2375,7 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
     afterName:user.afterName||defNames(user.name).afterName,
     screenshotName:user.screenshotName||defNames(user.name).screenshotName,
     avatarUrl:user.avatarUrl||"",
+    greetingMsg:user.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po (Case #)",
   });
   const [pwForm,setPwForm]=useState({next:"",confirm:""});
   const [timerInput,setTimerInput]=useState(String(timerLimit||30));
@@ -2333,10 +2394,12 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
             beforeName: data.before_name || user.beforeName||defNames(user.name).beforeName,
             afterName:  data.after_name  || user.afterName||defNames(user.name).afterName,
             screenshotName: data.screenshot_name || user.screenshotName||defNames(user.name).screenshotName,
+            greetingMsg: data.greeting_msg || user.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po (Case #)",
           };
           setForm(f=>({...f,
             name:merged.name,role:merged.role,avatarUrl:merged.avatarUrl,
             beforeName:merged.beforeName,afterName:merged.afterName,screenshotName:merged.screenshotName,
+            greetingMsg:merged.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po (Case #)",
           }));
           // Sync to localStorage so rest of app sees it
           localStorage.setItem("ch_user",JSON.stringify(merged));
@@ -2360,6 +2423,7 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
         after_name:form.afterName,
         screenshot_name:form.screenshotName,
         avatar_url:form.avatarUrl||null,
+        greeting_msg:form.greetingMsg,
       };
       const res=await fetch("/api/profile",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
       const data=await res.json();
@@ -2367,7 +2431,8 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
       // Update local state and localStorage
       const updated={...user,...form,
         beforeName:form.beforeName,afterName:form.afterName,
-        screenshotName:form.screenshotName,avatarUrl:form.avatarUrl||user.avatarUrl||""};
+        screenshotName:form.screenshotName,avatarUrl:form.avatarUrl||user.avatarUrl||"",
+        greetingMsg:form.greetingMsg};
       localStorage.setItem("ch_user",JSON.stringify(updated));
       setUser(updated);
       setEditing(false);
@@ -2446,6 +2511,18 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
           <div className="field"><label>Role / Title</label><input className="inp" value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))} placeholder="e.g. Web Specialist"/></div>
           <button className="btn btn-primary" onClick={saveProfile} disabled={saving}>{saving?"Saving...":"Save Changes"}</button>
         </div>)}
+      </div>
+
+      {/* ── Greeting / check-in message card ── */}
+      <div className="profile-card">
+        <h3 style={{fontSize:16,fontWeight:700,marginBottom:8}}>Check-in Message</h3>
+        <p style={{fontSize:12,color:"var(--muted)",marginBottom:12}}>Appears in your Live Summary panel when a Case # is entered. Use <code style={{background:"var(--border)",padding:"1px 5px",fontSize:11}}>(Case #)</code> as the placeholder.</p>
+        <div className="field">
+          <label>Message Template</label>
+          <input className="inp" value={form.greetingMsg||""} onChange={e=>setForm(f=>({...f,greetingMsg:e.target.value}))} placeholder="Hi po Ms. Tina, magpapacheck lang po (Case #)"/>
+        </div>
+        <div style={{fontSize:11,color:"var(--muted)",marginTop:6}}>Preview: <span style={{color:"var(--accent)",fontWeight:600}}>{(form.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po (Case #)").replace("(Case #)","(Case #12345)")}</span></div>
+        <button className="btn btn-primary" style={{marginTop:14}} onClick={saveProfile} disabled={saving}>{saving?"Saving...":"Save Message"}</button>
       </div>
 
       {/* ── File naming card ── */}
@@ -3035,38 +3112,7 @@ function App() {
 
         <main className="main-area" style={{paddingBottom:breakTimer?80:32}}>
           {dataLoading&&<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"80vh",flexDirection:"column",gap:16}}><div style={{animation:"float 1.5s ease-in-out infinite"}}><Icon name="loading" size={48} color="var(--accent)"/></div><div style={{color:"var(--muted)",fontSize:13,fontFamily:"Poppins,sans-serif"}}>Loading your workspace...</div></div>}
-          {!dataLoading&&formActive&&page!=="postlive"&&(
-            <div onClick={()=>handleNav("postlive")} style={{
-              display:"flex",alignItems:"center",gap:14,padding:"14px 18px",marginBottom:18,
-              background:"linear-gradient(135deg,rgba(245,148,92,.12),rgba(212,114,74,.08))",
-              border:"1.5px solid var(--accent)",cursor:"pointer",transition:".15s",
-            }}>
-              <div style={{animation:"pulse-dot 1.4s ease-in-out infinite",flexShrink:0}}>
-                <Icon name="inprogress" size={22} color="var(--accent)"/>
-              </div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:13,fontWeight:700,color:"var(--accent)",fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Form In Progress</div>
-                <div style={{fontSize:11,color:"var(--muted)",marginTop:2,fontFamily:"'Poppins',sans-serif"}}>Your Post-Live form and timer are running. Click to resume.</div>
-              </div>
-              <Icon name="back" size={16} color="var(--accent)" style={{transform:"rotate(180deg)"}}/>
-            </div>
-          )}
-          {!dataLoading&&formActive&&page!=="postlive"&&(
-            <div onClick={()=>handleNav("postlive")} style={{
-              display:"flex",alignItems:"center",gap:14,padding:"14px 18px",marginBottom:18,
-              background:"linear-gradient(135deg,rgba(245,148,92,.12),rgba(212,114,74,.08))",
-              border:"1.5px solid var(--accent)",cursor:"pointer",
-            }}>
-              <div style={{animation:"pulse-dot 1.4s ease-in-out infinite",flexShrink:0}}>
-                <Icon name="inprogress" size={22} color="var(--accent)"/>
-              </div>
-              <div style={{flex:1}}>
-                <div style={{fontSize:13,fontWeight:700,color:"var(--accent)",fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Form In Progress</div>
-                <div style={{fontSize:11,color:"var(--muted)",marginTop:2,fontFamily:"'Poppins',sans-serif"}}>Your Post-Live form and timer are running. Click to resume.</div>
-              </div>
-              <Icon name="back" size={16} color="var(--accent)" style={{transform:"rotate(180deg)"}}/>
-            </div>
-          )}
+
           {!dataLoading&&page==="dashboard"&&<Dashboard savedCases={allCases} setPage={setPage} specialRequestors={specialRequestors} addRequestor={addRequestor} removeRequestor={removeRequestor} user={user}/>}
           {!dataLoading&&page==="build"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="casebox" size={80} color="var(--muted)"/></div><div className="soon-title">Build</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&page==="prelive"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="prelive" size={80} color="var(--muted)"/></div><div className="soon-title">Pre-Live Amends</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
