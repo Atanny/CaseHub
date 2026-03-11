@@ -118,39 +118,33 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
   padding:1px 7px;line-height:1.6;
 }
 
-.toc-panel{
-  position:fixed;left:240px;top:50%;transform:translateY(-50%);
-  z-index:800;width:12px;transition:.3s cubic-bezier(.4,0,.2,1);
-}
-.toc-panel:hover{width:240px;}
-.toc-trigger{
-  position:absolute;left:0;top:50%;transform:translateY(-50%);
-  width:12px;height:80px;background:var(--accent);opacity:.4;
-  cursor:pointer;transition:.2s;border-radius:0 6px 6px 0;
-  display:flex;align-items:center;justify-content:center;
-}
-.toc-trigger::after{content:"";display:block;width:2px;height:32px;background:#fff;border-radius:2px;opacity:.7;}
-.toc-panel:hover .toc-trigger{opacity:0;width:0;overflow:hidden;}
-.toc-content{
-  position:absolute;left:0;top:50%;transform:translateY(-50%);
-  width:230px;opacity:0;pointer-events:none;transition:.25s;
+/* TOC nav card — sticky column between sidebar and form */
+.toc-card{
+  width:148px;flex-shrink:0;
+  position:sticky;top:20px;align-self:flex-start;
   background:var(--glass-bg);border:1px solid var(--glass-border);
   backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
-  box-shadow:var(--glass-shadow);padding:14px 0;max-height:75vh;overflow-y:auto;
+  box-shadow:var(--glass-shadow);overflow:hidden;
 }
-.toc-panel:hover .toc-content{opacity:1;pointer-events:all;}
+.toc-card-header{
+  padding:10px 12px 8px;border-bottom:1px solid var(--border);
+  font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;
+  color:var(--muted);font-family:'Poppins',sans-serif;
+  display:flex;align-items:center;gap:6px;
+}
 .toc-item{
-  display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:none;border:none;
-  padding:6px 16px;font-size:11px;color:var(--muted);cursor:pointer;
+  display:flex;align-items:center;width:100%;text-align:left;background:none;border:none;
+  padding:7px 12px;font-size:11px;color:var(--muted);cursor:pointer;
   font-family:'Poppins',sans-serif;transition:.12s;line-height:1.4;border-left:2px solid transparent;
+  gap:6px;
 }
 .toc-item:hover{color:var(--text);background:var(--card2);}
 .toc-item.active{color:var(--accent);font-weight:700;border-left-color:var(--accent);background:var(--entry-accent-bg);}
-.toc-group{padding:8px 16px 4px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-family:'Poppins',sans-serif;}
+.toc-num{font-size:9px;opacity:.5;font-variant-numeric:tabular-nums;flex-shrink:0;width:14px;}
 .form-progress-pill{
   position:fixed;bottom:24px;right:24px;z-index:900;
-  display:flex;align-items:center;gap:10px;
-  padding:11px 18px 11px 14px;
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  padding:11px 16px;
   background:var(--accent);color:#fff;
   cursor:pointer;transition:.2s;
   box-shadow:0 4px 24px rgba(245,148,92,.45);
@@ -413,11 +407,37 @@ select.inp{cursor:pointer;}
 
 /* Radio */
 .radio-group{display:flex;gap:10px;margin-top:4px;flex-wrap:wrap;}
-.radio-label{display:flex;align-items:center;gap:8px;background:var(--inp-bg);border:1.5px solid var(--border);padding:9px 15px;border-radius:0;font-size:13px;cursor:pointer;transition:.15s;font-family:'Poppins',sans-serif;}
+.radio-label{
+  display:inline-flex;align-items:center;gap:9px;
+  background:var(--inp-bg);border:1.5px solid var(--border);
+  padding:9px 16px;border-radius:0;font-size:13px;cursor:pointer;
+  transition:.15s;font-family:'Poppins',sans-serif;
+  line-height:1;user-select:none;
+}
 .radio-label:hover{border-color:var(--accent);}
-.radio-label input{accent-color:var(--accent);}
+.radio-label input[type="radio"]{
+  appearance:none;-webkit-appearance:none;
+  width:15px;height:15px;min-width:15px;
+  border:2px solid var(--border);border-radius:50%;
+  background:var(--inp-bg);
+  display:inline-flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:.15s;margin:0;padding:0;vertical-align:middle;
+  position:relative;flex-shrink:0;
+}
+.radio-label input[type="radio"]::after{
+  content:"";display:block;width:7px;height:7px;
+  border-radius:50%;background:transparent;
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  transition:.15s;
+}
+.radio-label input[type="radio"]:checked{border-color:var(--accent);background:var(--inp-bg);}
+.radio-label input[type="radio"]:checked::after{background:var(--accent);}
 .radio-label.selected-clarif{border-color:var(--amber);color:var(--amber);background:var(--btn-draft-bg);}
+.radio-label.selected-clarif input[type="radio"]{border-color:var(--amber);}
+.radio-label.selected-clarif input[type="radio"]:checked::after{background:var(--amber);}
 .radio-label.selected-complete{border-color:var(--green);color:var(--green);background:rgba(16,185,129,.08);}
+.radio-label.selected-complete input[type="radio"]{border-color:var(--green);}
+.radio-label.selected-complete input[type="radio"]:checked::after{background:var(--green);}
 
 /* Checkboxes */
 .check-group{display:flex;flex-wrap:wrap;gap:9px;}
@@ -831,7 +851,7 @@ function CopyName({ name, onCopy }) {
 function StepCard({ num, title, children, done, locked, openStep, setOpenStep }) {
   const isOpen = openStep === num;
   return (
-    <div className={cls("step-card", locked?"locked":"unlocked", done&&"done", isOpen&&!locked&&"open")}>
+    <div id={`step-${num}`} className={cls("step-card", locked?"locked":"unlocked", done&&"done", isOpen&&!locked&&"open")}>
       <div className="step-header" onClick={()=>{ if(!locked) setOpenStep(isOpen ? null : num); }}>
         <div className="step-num">{done?"✓":num}</div>
         <div className="step-title">{title}</div>
@@ -1176,31 +1196,37 @@ const emptyBase  = ()=>({
 });
 
 
-// ── Table of Contents / Outline Panel ───────────────────────────────────────
-function TocPanel({ form, openStep, setOpenStep, isSC, page }) {
-  if(page!=="postlive"||!isSC&&!form) return null;
+// ── Table of Contents / Outline Panel — sticky card column ──────────────────
+function TocPanel({ openStep, setOpenStep, isSC, page }) {
+  if(page!=="postlive") return null;
   const steps=[
-    {num:1,label:"Case Information"},
-    {num:2,label:"Before Screenshot Name"},
-    {num:3,label:isSC?"Post-Live Amends Notepad":"Assumptions Notepad"},
-    {num:"6b",label:"Additional Backup"},
+    {num:1,label:"Case Info"},
+    {num:2,label:"Before Name"},
+    {num:3,label:isSC?"Amends Notepad":"Assumptions"},
+    {num:"6b",label:"Extra Backups"},
     {num:4,label:"Device Check"},
-    {num:5,label:"After Screenshot Name"},
-    {num:6,label:"Before/After Backup"},
-    {num:7,label:"Final Checklist"},
+    {num:5,label:"After Name"},
+    {num:6,label:"Before/After"},
+    {num:7,label:"Checklist"},
   ];
   return (
-    <div className="toc-panel">
-      <div className="toc-trigger"/>
-      <div className="toc-content">
-        <div className="toc-group">Form Steps</div>
-        {steps.map(s=>(
-          <button key={s.num} className={cls("toc-item",openStep===s.num&&"active")}
-            onClick={()=>setOpenStep(s.num)}>
-            <span style={{opacity:.5,marginRight:6,fontVariantNumeric:"tabular-nums"}}>{s.num}.</span>{s.label}
-          </button>
-        ))}
+    <div className="toc-card">
+      <div className="toc-card-header">
+        <Icon name="dashboard" size={10} color="var(--muted)"/>Steps
       </div>
+      {steps.map(s=>(
+        <button key={s.num} className={cls("toc-item",openStep===s.num&&"active")}
+          onClick={()=>{
+            setOpenStep(s.num);
+            setTimeout(()=>{
+              const el=document.getElementById(`step-${s.num}`);
+              if(el) el.scrollIntoView({behavior:"smooth",block:"start"});
+            },50);
+          }}>
+          <span className="toc-num">{s.num}</span>
+          <span style={{flex:1,textAlign:"left"}}>{s.label}</span>
+        </button>
+      ))}
     </div>
   );
 }
@@ -1230,8 +1256,10 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
   const [copiedAll,setCopiedAll] = useState(false);
   const [autoSaved,setAutoSaved] = useState(null);
   const [draftSaving,setDraftSaving] = useState(false);
-  const dragEntryIdxRef = useRef(null);
-  const [dragEntryIdx,setDragEntryIdx] = useState(-1); // -1 = none dragging
+  const dragEntryIdxRef = useRef(-1);
+  const [dragEntryIdx,setDragEntryIdx] = useState(-1);
+  const dragOverIdxRef = useRef(-1);
+  const [dragOverIdx,setDragOverIdx] = useState(-1);
 
   // ── Auto-save every 30s ──
   useEffect(()=>{
@@ -1329,6 +1357,7 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
 
   return (
     <div className="form-cols">
+      <TocPanel openStep={openStep} setOpenStep={setOpenStep} isSC={isSC} page="postlive"/>
       <div className="form-left">
 
         <StepCard num={1} title="Case Information" done={step1Done} locked={false} {...stepProps}>
@@ -1346,16 +1375,19 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
 
         <StepCard num={3} title={isSC?"Post-Live Amends Notepad":"Assumptions Notepad"} done={step3Done} locked={!step1Done&&!isDraft} {...stepProps}>
           {form.entries.map((e,i)=>(
-            <div key={e.id} draggable
-              onDragStart={()=>{dragEntryIdxRef.current=i;setDragEntryIdx(i);}}
-              onDragOver={ev=>ev.preventDefault()}
-              onDrop={()=>{
-                const from=dragEntryIdxRef.current;
-                if(from!==-1&&from!==i)moveEntry(from,i);
-                dragEntryIdxRef.current=-1;setDragEntryIdx(-1);
-              }}
-              onDragEnd={()=>{dragEntryIdxRef.current=-1;setDragEntryIdx(-1);}}
-              style={{userSelect:"none",transition:"opacity .15s",opacity:dragEntryIdx===i?0.35:1}}>
+            <div key={e.id}
+              draggable
+              onDragStart={ev=>{ev.dataTransfer.effectAllowed="move";dragEntryIdxRef.current=i;setDragEntryIdx(i);setDragOverIdx(i);}}
+              onDragOver={ev=>{ev.preventDefault();ev.dataTransfer.dropEffect="move";if(dragOverIdxRef.current!==i){dragOverIdxRef.current=i;setDragOverIdx(i);}}}
+              onDrop={ev=>{ev.preventDefault();const from=dragEntryIdxRef.current;if(from!==-1&&from!==i)moveEntry(from,i);dragEntryIdxRef.current=-1;dragOverIdxRef.current=-1;setDragEntryIdx(-1);setDragOverIdx(-1);}}
+              onDragEnd={()=>{dragEntryIdxRef.current=-1;dragOverIdxRef.current=-1;setDragEntryIdx(-1);setDragOverIdx(-1);}}
+              style={{
+                userSelect:"none",
+                opacity:dragEntryIdx===i?0.3:1,
+                transition:"opacity .12s, transform .12s",
+                outline:dragOverIdx===i&&dragEntryIdx!==i?"2px solid var(--accent)":"none",
+                outlineOffset:2,
+              }}>
               <EntryCard entry={e} label={entryLabel} index={i} showNumber={isSC} onChange={val=>updateEntry(e.id,val)} onDelete={()=>deleteEntry(e.id)}/>
             </div>
           ))}
@@ -3279,11 +3311,11 @@ function App() {
           transition:"opacity .25s, transform .25s",
         }}>
         <div className="form-progress-pill-dot"/>
-        <div>
-          <div style={{fontSize:12,fontWeight:700,lineHeight:1}}>Form In Progress</div>
-          <div style={{fontSize:10,opacity:.85,marginTop:2}}>Click to resume</div>
+        <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+          <div style={{fontSize:12,fontWeight:700,lineHeight:1,textAlign:"center"}}>Form In Progress</div>
+          <div style={{fontSize:10,opacity:.85,lineHeight:1,textAlign:"center"}}>Click to resume</div>
         </div>
-        <Icon name="back" size={14} color="#fff" style={{transform:"rotate(180deg)",marginLeft:4}}/>
+        <Icon name="back" size={14} color="#fff" style={{transform:"rotate(180deg)",marginLeft:2,flexShrink:0}}/>
       </div>
     </>
   );
