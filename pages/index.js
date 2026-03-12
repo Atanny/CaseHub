@@ -87,11 +87,12 @@ body.light ::-webkit-scrollbar-thumb:hover{background:rgba(212,114,74,.45);}
 body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 
 /* ── Shell ── */
-.shell{display:flex;min-height:100vh;}
+html,body{overflow-x:hidden;max-width:100vw;}
+.shell{display:flex;min-height:100vh;overflow-x:hidden;width:100%;max-width:100vw;}
 .sidebar{
   width:240px;background:var(--glass-bg);border-right:1px solid var(--glass-border);
   display:flex;flex-direction:column;padding:20px 14px;gap:2px;
-  position:sticky;top:0;height:100vh;flex-shrink:0;overflow-y:auto;
+  position:sticky;top:0;height:100vh;flex-shrink:0;overflow-y:auto;overflow-x:hidden;
   backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
   box-shadow:var(--glass-shadow);
   transition:width .22s cubic-bezier(.4,0,.2,1);
@@ -205,7 +206,7 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
   transition:.18s;text-decoration:none;
 }
 .nav-custom-link:hover{background:var(--card2);color:var(--accent);}
-.main-area{flex:1;overflow-y:auto;padding:32px;height:100vh;}
+.main-area{flex:1;overflow-y:auto;overflow-x:hidden;padding:32px;height:100vh;min-width:0;}
 
 /* Theme toggle */
 .theme-toggle{
@@ -377,7 +378,7 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 /* Form layout */
 .form-cols{display:flex;gap:20px;align-items:flex-start;}
 .form-left{flex:1;min-width:0;}
-.form-right{width:300px;flex-shrink:0;position:sticky;top:0;align-self:flex-start;max-height:calc(100vh - 64px);overflow-y:auto;}
+.form-right{width:300px;flex-shrink:0;position:sticky;top:0;align-self:flex-start;max-height:calc(100vh - 64px);overflow-y:auto;overflow-x:hidden;}
 
 /* Right panel */
 .right-panel{background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius);overflow:hidden;backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);box-shadow:var(--glass-shadow);}
@@ -3404,10 +3405,10 @@ function App() {
                 </svg>
               </div>
               <div style={{lineHeight:1.05}}>
-                <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:13,fontWeight:800,letterSpacing:2,whiteSpace:"nowrap"}}>
+                <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:13,fontWeight:800,letterSpacing:2,whiteSpace:"nowrap",overflow:"hidden"}}>
                   <span style={{color:"var(--logo-easy-color)"}}>EASY</span><span style={{color:"#F07820"}}> WORK</span>
                 </div>
-                <div style={{fontFamily:"'Poppins',sans-serif",fontSize:8,fontWeight:500,letterSpacing:2,color:"var(--logo-tag-color)",textTransform:"uppercase",marginTop:2,whiteSpace:"nowrap"}}>Amends System Cases</div>
+                <div style={{fontFamily:"'Poppins',sans-serif",fontSize:8,fontWeight:500,letterSpacing:2,color:"var(--logo-tag-color)",textTransform:"uppercase",marginTop:2,overflow:"hidden",textOverflow:"ellipsis"}}>Amends System Cases</div>
               </div>
             </div>
           </div>
