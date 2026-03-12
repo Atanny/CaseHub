@@ -96,7 +96,9 @@ html,body{overflow-x:hidden;max-width:100vw;}
   backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
   box-shadow:var(--glass-shadow);
   transition:width .22s cubic-bezier(.4,0,.2,1);
+  direction:rtl;
 }
+.sidebar > *{direction:ltr;}
 .sidebar.collapsed{width:56px;padding:20px 8px;overflow-x:hidden;}
 .sidebar.collapsed .nav-group{display:none;}
 .sidebar.collapsed .nav-item{padding:10px 0;justify-content:center;gap:0;}
