@@ -99,70 +99,88 @@ html,body{overflow-x:hidden;max-width:100vw;}
   direction:rtl;
 }
 .sidebar > *{direction:ltr;}
-.sidebar.collapsed{width:56px;padding:20px 8px;overflow-x:hidden;}
+.sidebar.collapsed{width:68px;padding:12px 6px;overflow-x:hidden;}
 .sidebar.collapsed .nav-group{display:none;}
-.sidebar.collapsed .nav-item{padding:10px 0;justify-content:center;gap:0;}
+.sidebar.collapsed .nav-item{padding:10px 0;justify-content:center;gap:0;width:100%;}
 .sidebar.collapsed .nav-item .nav-badge{display:none;}
 .sidebar.collapsed .nav-item .nav-inprogress{display:none;}
 .sidebar.collapsed .nav-item-label{display:none;}
-.sidebar.collapsed .break-btns{display:none;}
+.sidebar.collapsed .break-btns{display:flex;flex-direction:column;gap:4px;padding:4px 0;}
+.sidebar.collapsed .break-btn{justify-content:center;padding:8px 0;border-radius:6px;}
+.sidebar.collapsed .break-btn .nav-item-label{display:none;}
+/* Profile: show only avatar, centered */
+.sidebar.collapsed .sidebar-profile{justify-content:center;padding:8px 0;border:none;background:none;width:100%;}
 .sidebar.collapsed .sidebar-profile .profile-name,.sidebar.collapsed .sidebar-profile .profile-role{display:none;}
-.sidebar.collapsed .sidebar-profile{justify-content:center;padding:8px 0;}
+.sidebar.collapsed .profile-avatar{width:40px;height:40px;font-size:16px;flex-shrink:0;}
+/* Theme toggle: show only icon */
+.sidebar.collapsed .theme-toggle{justify-content:center;padding:10px 0;border:none;background:none;width:100%;}
 .sidebar.collapsed .theme-toggle .theme-label,.sidebar.collapsed .theme-toggle .toggle-track{display:none;}
-.sidebar.collapsed .theme-toggle{justify-content:center;padding:10px 0;}
+.sidebar.collapsed .theme-toggle span:first-child{font-size:18px;}
+/* DB status: show only dot, centered */
+.sidebar.collapsed .db-status{justify-content:center;padding:8px 0;border-top:1px solid var(--border);}
 .sidebar.collapsed .db-status .db-status-text{display:none;}
-.sidebar.collapsed .db-status{justify-content:center;}
+.sidebar.collapsed .db-dot{width:10px;height:10px;}
+/* Custom links */
 .sidebar.collapsed .nav-custom-link .link-label{display:none;}
-.sidebar.collapsed .nav-custom-link{justify-content:center;padding:9px 0;}
-.sidebar.collapsed .logo-wrap{display:flex;justify-content:center;padding:4px 0 14px!important;}
+.sidebar.collapsed .nav-custom-link{justify-content:center;padding:9px 0;width:100%;}
+/* Logo */
+.sidebar.collapsed .logo-wrap{padding:4px 0 14px!important;justify-content:center;display:flex;}
 .sidebar.collapsed .logo-wrap > div > div:last-child{display:none;}
 .sidebar.collapsed .logo-wrap > div{justify-content:center;}
-.sidebar.collapsed .logo-wrap{padding:4px 0 14px!important;justify-content:center;}
 
 /* ── Responsive / Mobile ── */
 @media (max-width:768px){
   .shell{position:relative;}
   .sidebar{
     position:fixed;top:0;left:0;z-index:200;
-    height:100vh;transform:translateX(0);
-    transition:transform .25s cubic-bezier(.4,0,.2,1),width .22s cubic-bezier(.4,0,.2,1);
+    height:100vh;width:240px!important;
+    transform:translateX(0);
+    transition:transform .25s cubic-bezier(.4,0,.2,1);
   }
   .sidebar.mobile-hidden{transform:translateX(-100%);}
-  .main-area{padding:16px;width:100%;min-width:0;}
+  .main-area{padding:56px 12px 16px;width:100%;min-width:0;box-sizing:border-box;}
   .mobile-overlay{
     display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:199;
   }
   .mobile-overlay.visible{display:block;}
   .mobile-menu-btn{
-    display:flex;align-items:center;justify-content:center;
-    position:fixed;top:12px;left:12px;z-index:198;
+    display:flex!important;align-items:center;justify-content:center;
+    position:fixed;top:12px;left:12px;z-index:210;
     width:38px;height:38px;border-radius:8px;
-    background:var(--glass-bg);border:1px solid var(--glass-border);
-    backdrop-filter:var(--glass-blur);box-shadow:var(--shadow-sm);
-    cursor:pointer;color:var(--text);font-size:16px;
+    background:var(--accent);border:none;
+    cursor:pointer;color:#fff;font-size:18px;font-weight:700;
   }
-  .main-area{padding-top:56px;}
-  .form-right{display:none;}
+  .form-right{display:none!important;}
+  .form-cols{flex-direction:column;}
+  .toc-card{display:none!important;}
+  .analytics-grid{grid-template-columns:1fr;}
+  .choice-row{flex-direction:column;}
+  .choice-btn{min-width:0;}
+  .case-card-header{flex-wrap:wrap;gap:8px;}
+  .page-header{padding:0 0 16px;}
   .form-layout{flex-direction:column;}
 }
 @media (min-width:769px){
-  .mobile-menu-btn{display:none;}
+  .mobile-menu-btn{display:none!important;}
   .mobile-overlay{display:none!important;}
   .sidebar.mobile-hidden{transform:none!important;}
 }
+@media (max-width:1100px) and (min-width:769px){
+  .form-right{width:220px;}
+  .toc-card{width:120px;}
+  .main-area{padding:20px;}
+}
 .collapse-btn{
   position:fixed;top:50%;transform:translateY(-50%);
-  width:20px;height:48px;
-  background:var(--card);border:1px solid var(--border);
-  border-left:none;
-  border-radius:0 8px 8px 0;
+  width:16px;height:44px;
+  background:var(--accent);border:none;box-shadow:none;
+  border-radius:0 6px 6px 0;
   display:flex;align-items:center;justify-content:center;
-  cursor:pointer;z-index:300;font-size:10px;color:var(--muted);
-  transition:left .22s cubic-bezier(.4,0,.2,1), background .18s, color .18s;
-  box-shadow:3px 0 12px rgba(0,0,0,.25);
+  cursor:pointer;z-index:300;font-size:11px;color:#fff;font-weight:700;
+  transition:left .22s cubic-bezier(.4,0,.2,1),background .18s;
 }
-.collapse-btn:hover{color:var(--accent);border-color:var(--accent);background:var(--card2);}
-@media(max-width:768px){.collapse-btn{display:none;}}
+.collapse-btn:hover{background:var(--accent2);}
+@media(max-width:768px){.collapse-btn{display:none!important;}}
 .logo{
   font-size:18px;font-weight:800;color:var(--text);
   padding:4px 10px 20px;letter-spacing:-.5px;
@@ -200,7 +218,7 @@ html,body{overflow-x:hidden;max-width:100vw;}
 
 /* TOC nav card — sticky column between sidebar and form */
 .toc-card{
-  width:148px;flex-shrink:0;
+  width:140px;flex-shrink:0;
   position:sticky;top:20px;align-self:flex-start;
   background:var(--glass-bg);border:1px solid var(--glass-border);
   backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
@@ -245,7 +263,7 @@ html,body{overflow-x:hidden;max-width:100vw;}
   transition:.18s;text-decoration:none;
 }
 .nav-custom-link:hover{background:var(--card2);color:var(--accent);}
-.main-area{flex:1;overflow-y:auto;overflow-x:hidden;padding:32px;height:100vh;min-width:0;}
+.main-area{flex:1;overflow-y:auto;overflow-x:hidden;padding:32px;height:100vh;min-width:0;box-sizing:border-box;}
 
 /* Theme toggle */
 .theme-toggle{
@@ -273,6 +291,7 @@ html,body{overflow-x:hidden;max-width:100vw;}
   background:var(--btn-save-bg);
   display:flex;align-items:center;justify-content:center;
   font-size:14px;font-weight:700;color:#fff;flex-shrink:0;
+  overflow:hidden;transition:width .22s,height .22s,font-size .22s;
 }
 .profile-name{font-size:12px;font-weight:600;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .profile-role{font-size:10px;color:var(--muted);}
@@ -417,7 +436,7 @@ html,body{overflow-x:hidden;max-width:100vw;}
 /* Form layout */
 .form-cols{display:flex;gap:20px;align-items:flex-start;}
 .form-left{flex:1;min-width:0;}
-.form-right{width:300px;flex-shrink:0;position:sticky;top:0;align-self:flex-start;max-height:calc(100vh - 64px);overflow-y:auto;overflow-x:hidden;}
+.form-right{width:280px;flex-shrink:0;position:sticky;top:0;align-self:flex-start;max-height:calc(100vh - 64px);overflow-y:auto;overflow-x:hidden;}
 
 /* Right panel */
 .right-panel{background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius);overflow:hidden;backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);box-shadow:var(--glass-shadow);}
@@ -3102,7 +3121,7 @@ function App() {
   });
   const [isMobile,setIsMobile]=useState(()=>typeof window!=="undefined"&&window.innerWidth<=768);
   const [mobileOpen,setMobileOpen]=useState(false);
-  const sidebarWidth=sidebarCollapsed?56:240;
+  const sidebarWidth=sidebarCollapsed?68:240;
   const [specialRequestors,setSpecialRequestors]=useState([]);
   const [timerLimit,setTimerLimit]=useState(()=>{
     if(typeof window!=="undefined"){const v=parseInt(localStorage.getItem("ch_timer_limit"));return isNaN(v)?30:v;}
