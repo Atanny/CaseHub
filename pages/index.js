@@ -1900,8 +1900,22 @@ async function downloadCase(c) {
   if(!window.JSZip){await new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
   const zip=new window.JSZip();
   zip.file("case_data.txt",meta);
+  const imgFolder=zip.folder("images");
   for(const img of [...(c.images||[]),...(c.backupImages||[])]){
-    try{const r=await fetch(img.url);const blob=await r.blob();const ext=(img.name||"screenshot").split(".").pop()||"png";zip.file(`${img.name||"screenshot"}.${ext}`,blob);}catch(e){console.warn("Image fetch failed:",e);}
+    if(!(img.url||"").startsWith("https://"))continue;
+    try{
+      const r=await fetch(img.url);
+      if(!r.ok)continue;
+      const blob=await r.blob();
+      // Get extension: first try URL path, then blob mime type, fallback png
+      const urlPath=(img.url||"").split("?")[0];
+      const urlExt=urlPath.includes(".")&&!urlPath.endsWith("/")?urlPath.split(".").pop().toLowerCase().replace(/[^a-z0-9]/g,""):""; 
+      const mimeExt=(blob.type||"").split("/").pop().replace("jpeg","jpg").replace(/[^a-z0-9]/g,"");
+      const ext=urlExt||mimeExt||"png";
+      // Clean base name - strip any existing extension from img.name
+      const baseName=(img.name||"screenshot").replace(/\.[^/.]+$/,"");
+      imgFolder.file(`${baseName}.${ext}`,blob);
+    }catch(e){console.warn("Image fetch failed:",img.name,e);}
   }
   const zipBlob=await zip.generateAsync({type:"blob"});
 
