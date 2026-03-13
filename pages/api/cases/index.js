@@ -53,11 +53,12 @@ export function dbToCase(row) {
     _id: row.id, _mode: row.mode, userEmail: row.user_email,
     caseNum: row.case_num, accountNum: row.account_num,
     amendType: row.amend_type, inboundNum: row.inbound_num,
-    inProgress: row.in_progress, entries: row.entries || {},
+    inProgress: row.in_progress, entries: Array.isArray(row.entries) ? row.entries : (row.entries ? Object.values(row.entries) : []),
     devices: row.devices || {}, checklist: row.checklist || {},
     emailAddress: row.email_address, emailType: row.email_type,
     images: imgs.filter(i => i.type === 'main').map(i => ({ ...i, id: i.path || i.url })),
     backupImages: imgs.filter(i => i.type === 'backup').map(i => ({ ...i, id: i.path || i.url })),
     savedAt: row.saved_at ? new Date(row.saved_at).toLocaleString() : new Date().toLocaleString(),
+    endedAt: row.ended_at || null,
   }
 }

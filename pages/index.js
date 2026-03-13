@@ -30,12 +30,6 @@ ${FONTS}
   --entry-accent-bg:rgba(245,148,92,.1);
   --glass-bg:rgba(20,27,40,.55);--glass-border:rgba(255,255,255,.07);--glass-blur:blur(18px);
   --glass-shadow:0 8px 32px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06);
-  --logo-icon-bg:linear-gradient(145deg,#0c1d3d,#112248);
-  --logo-icon-border:rgba(24,119,242,0.4);
-  --logo-icon-shadow:0 2px 10px rgba(24,119,242,0.18);
-  --logo-icon-glow:0 0 24px rgba(24,119,242,0.2),inset 0 1px 0 rgba(255,255,255,0.05);
-  --logo-easy-color:#eef2ff;
-  --logo-tag-color:rgba(24,119,242,0.65);
 }
 /* ══════════════════════ LIGHT THEME ══════════════════════ */
 body.light,:root.light{
@@ -49,12 +43,6 @@ body.light,:root.light{
   --btn-ghost-bg:#fef0e6;--btn-ghost-border:#f0d5c0;--btn-ghost-text:#6b4e38;
   --nav-active-bg:linear-gradient(135deg,rgba(245,148,92,.18),rgba(212,114,74,.12));
   --nav-active-border:rgba(245,148,92,.5);
-  --logo-icon-bg:linear-gradient(145deg,#e8f0fe,#dbeafe);
-  --logo-icon-border:rgba(24,119,242,0.35);
-  --logo-icon-shadow:0 2px 10px rgba(24,119,242,0.15);
-  --logo-icon-glow:0 0 16px rgba(24,119,242,0.12),inset 0 1px 0 rgba(255,255,255,0.8);
-  --logo-easy-color:#1a0f08;
-  --logo-tag-color:rgba(24,100,200,0.6);
   --h-badge-site-bg:rgba(245,148,92,.15);--h-badge-email-bg:rgba(212,114,74,.12);
   --quick-hover:rgba(245,148,92,.08);--choice-hover:rgba(245,148,92,.06);
   --entry-accent-bg:rgba(245,148,92,.1);
@@ -87,98 +75,14 @@ body.light ::-webkit-scrollbar-thumb:hover{background:rgba(212,114,74,.45);}
 body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 
 /* ── Shell ── */
-html,body{overflow-x:hidden;max-width:100vw;}
-.shell{display:flex;min-height:100vh;overflow-x:hidden;width:100%;max-width:100vw;}
+.shell{display:flex;min-height:100vh;}
 .sidebar{
   width:240px;background:var(--glass-bg);border-right:1px solid var(--glass-border);
   display:flex;flex-direction:column;padding:20px 14px;gap:2px;
-  position:sticky;top:0;height:100vh;flex-shrink:0;overflow-y:auto;overflow-x:hidden;
+  position:sticky;top:0;height:100vh;flex-shrink:0;overflow-y:auto;
   backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
   box-shadow:var(--glass-shadow);
-  transition:width .22s cubic-bezier(.4,0,.2,1);
-  direction:rtl;
 }
-.sidebar > *{direction:ltr;}
-.sidebar.collapsed{width:68px;padding:12px 6px;overflow-x:hidden;}
-.sidebar.collapsed .nav-group{display:none;}
-.sidebar.collapsed .nav-item{padding:10px 0;justify-content:center;gap:0;width:100%;}
-.sidebar.collapsed .nav-item .nav-badge{display:none;}
-.sidebar.collapsed .nav-item .nav-inprogress{display:none;}
-.sidebar.collapsed .nav-item-label{display:none;}
-.sidebar.collapsed .break-btns{display:flex;flex-direction:column;gap:4px;padding:4px 0;}
-.sidebar.collapsed .break-btn{justify-content:center;padding:8px 0;border-radius:6px;}
-.sidebar.collapsed .break-btn .nav-item-label{display:none;}
-/* Profile: show only avatar, centered */
-.sidebar.collapsed .sidebar-profile{display:flex;justify-content:center;align-items:center;padding:8px 0;border:none;background:none;width:100%;gap:0;}
-.sidebar.collapsed .sidebar-profile > div:last-child{display:none;}
-.sidebar.collapsed .profile-avatar{width:34px;height:34px;font-size:13px;flex-shrink:0;margin:0;}
-/* Theme toggle: show only icon */
-.sidebar.collapsed .theme-toggle{justify-content:center;padding:10px 0;border:none;background:none;width:100%;}
-.sidebar.collapsed .theme-toggle .theme-label,.sidebar.collapsed .theme-toggle .toggle-track{display:none;}
-.sidebar.collapsed .theme-toggle span:first-child{font-size:18px;}
-/* DB status: show only dot, centered */
-
-/* Custom links */
-.sidebar.collapsed .nav-custom-link .link-label{display:none;}
-.sidebar.collapsed .nav-custom-link{justify-content:center;padding:9px 0;width:100%;}
-/* Logo */
-.sidebar.collapsed .logo-wrap{padding:4px 0 14px!important;justify-content:center;display:flex;}
-.sidebar.collapsed .logo-wrap > div > div:last-child{display:none;}
-.sidebar.collapsed .logo-wrap > div{justify-content:center;}
-
-/* ── Responsive / Mobile ── */
-@media (max-width:768px){
-  .shell{position:relative;}
-  .sidebar{
-    position:fixed;top:0;left:0;z-index:200;
-    height:100vh;width:240px!important;
-    transform:translateX(0);
-    transition:transform .25s cubic-bezier(.4,0,.2,1);
-  }
-  .sidebar.mobile-hidden{transform:translateX(-100%);}
-  .main-area{padding:56px 12px 16px;width:100%;min-width:0;box-sizing:border-box;}
-  .mobile-overlay{
-    display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:199;
-  }
-  .mobile-overlay.visible{display:block;}
-  .mobile-menu-btn{
-    display:flex!important;align-items:center;justify-content:center;
-    position:fixed;top:12px;left:12px;z-index:210;
-    width:38px;height:38px;border-radius:8px;
-    background:var(--accent);border:none;
-    cursor:pointer;color:#fff;font-size:18px;font-weight:700;
-  }
-  .form-right{display:none!important;}
-  .form-cols{flex-direction:column;}
-  .toc-card{display:none!important;}
-  .analytics-grid{grid-template-columns:1fr;}
-  .choice-row{flex-direction:column;}
-  .choice-btn{min-width:0;}
-  .case-card-header{flex-wrap:wrap;gap:8px;}
-  .page-header{padding:0 0 16px;}
-  .form-layout{flex-direction:column;}
-}
-@media (min-width:769px){
-  .mobile-menu-btn{display:none!important;}
-  .mobile-overlay{display:none!important;}
-  .sidebar.mobile-hidden{transform:none!important;}
-}
-@media (max-width:1100px) and (min-width:769px){
-  .form-right{width:220px;}
-  .toc-card{width:120px;}
-  .main-area{padding:20px;}
-}
-.collapse-btn{
-  position:fixed;top:50%;transform:translateY(-50%);
-  width:16px;height:44px;
-  background:var(--accent);border:none;box-shadow:none;
-  border-radius:0 6px 6px 0;
-  display:flex;align-items:center;justify-content:center;
-  cursor:pointer;z-index:300;font-size:11px;color:#fff;font-weight:700;
-  transition:left .22s cubic-bezier(.4,0,.2,1),background .18s;
-}
-.collapse-btn:hover{background:var(--accent2);}
-@media(max-width:768px){.collapse-btn{display:none!important;}}
 .logo{
   font-size:18px;font-weight:800;color:var(--text);
   padding:4px 10px 20px;letter-spacing:-.5px;
@@ -216,7 +120,7 @@ html,body{overflow-x:hidden;max-width:100vw;}
 
 /* TOC nav card — sticky column between sidebar and form */
 .toc-card{
-  width:140px;flex-shrink:0;
+  width:148px;flex-shrink:0;
   position:sticky;top:20px;align-self:flex-start;
   background:var(--glass-bg);border:1px solid var(--glass-border);
   backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
@@ -261,7 +165,7 @@ html,body{overflow-x:hidden;max-width:100vw;}
   transition:.18s;text-decoration:none;
 }
 .nav-custom-link:hover{background:var(--card2);color:var(--accent);}
-.main-area{flex:1;overflow-y:auto;overflow-x:hidden;padding:32px;height:100vh;min-width:0;box-sizing:border-box;}
+.main-area{flex:1;overflow-y:auto;padding:32px;height:100vh;}
 
 /* Theme toggle */
 .theme-toggle{
@@ -289,7 +193,6 @@ html,body{overflow-x:hidden;max-width:100vw;}
   background:var(--btn-save-bg);
   display:flex;align-items:center;justify-content:center;
   font-size:14px;font-weight:700;color:#fff;flex-shrink:0;
-  overflow:hidden;transition:width .22s,height .22s,font-size .22s;
 }
 .profile-name{font-size:12px;font-weight:600;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .profile-role{font-size:10px;color:var(--muted);}
@@ -372,7 +275,7 @@ html,body{overflow-x:hidden;max-width:100vw;}
 .act-dot.purple{background:var(--accent2);}
 .act-info{flex:1;min-width:0;}
 .act-title{font-size:13px;font-weight:600;}
-.act-sub{font-size:11px;color:var(--muted);margin-top:2px;flex-wrap:wrap;line-height:1.6;}
+.act-sub{font-size:11px;color:var(--muted);margin-top:2px;}
 .act-badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:0;}
 .act-badge.site{background:var(--h-badge-site-bg);color:var(--accent);}
 .act-badge.email{background:var(--h-badge-email-bg);color:var(--accent2);}
@@ -434,7 +337,7 @@ html,body{overflow-x:hidden;max-width:100vw;}
 /* Form layout */
 .form-cols{display:flex;gap:20px;align-items:flex-start;}
 .form-left{flex:1;min-width:0;}
-.form-right{width:280px;flex-shrink:0;position:sticky;top:0;align-self:flex-start;max-height:calc(100vh - 64px);overflow-y:auto;overflow-x:hidden;}
+.form-right{width:300px;flex-shrink:0;position:sticky;top:0;align-self:flex-start;max-height:calc(100vh - 64px);overflow-y:auto;}
 
 /* Right panel */
 .right-panel{background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius);overflow:hidden;backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);box-shadow:var(--glass-shadow);}
@@ -503,29 +406,38 @@ textarea.inp{resize:vertical;min-height:80px;line-height:1.6;}
 select.inp{cursor:pointer;}
 
 /* Radio */
-.radio-group{display:flex;gap:0;margin-top:6px;}
+.radio-group{display:flex;gap:10px;margin-top:4px;flex-wrap:wrap;}
 .radio-label{
-  display:none;
+  display:inline-flex;align-items:center;gap:9px;
+  background:var(--inp-bg);border:1.5px solid var(--border);
+  padding:9px 16px;border-radius:0;font-size:13px;cursor:pointer;
+  transition:.15s;font-family:'Poppins',sans-serif;
+  line-height:1;user-select:none;
 }
-.email-type-toggle{display:flex;gap:0;margin-top:6px;border:1.5px solid var(--border);overflow:hidden;}
-.email-type-btn{
-  flex:1;padding:10px 18px;font-size:13px;font-weight:600;
-  font-family:'Poppins',sans-serif;cursor:pointer;border:none;
-  background:var(--inp-bg);color:var(--muted);
-  transition:.15s;outline:none;line-height:1;
-  border-right:1px solid var(--border);
-  letter-spacing:.01em;
+.radio-label:hover{border-color:var(--accent);}
+.radio-label input[type="radio"]{
+  appearance:none;-webkit-appearance:none;
+  width:15px;height:15px;min-width:15px;
+  border:2px solid var(--border);border-radius:50%;
+  background:var(--inp-bg);
+  display:inline-flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:.15s;margin:0;padding:0;vertical-align:middle;
+  position:relative;flex-shrink:0;
 }
-.email-type-btn:last-child{border-right:none;}
-.email-type-btn:hover{color:var(--text);background:var(--card2);}
-.email-type-btn.clarif{
-  background:var(--btn-draft-bg);color:var(--amber);
-  border-color:var(--amber);
+.radio-label input[type="radio"]::after{
+  content:"";display:block;width:7px;height:7px;
+  border-radius:50%;background:transparent;
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  transition:.15s;
 }
-.email-type-btn.complete{
-  background:rgba(16,185,129,.1);color:var(--green);
-  border-color:var(--green);
-}
+.radio-label input[type="radio"]:checked{border-color:var(--accent);background:var(--inp-bg);}
+.radio-label input[type="radio"]:checked::after{background:var(--accent);}
+.radio-label.selected-clarif{border-color:var(--amber);color:var(--amber);background:var(--btn-draft-bg);}
+.radio-label.selected-clarif input[type="radio"]{border-color:var(--amber);}
+.radio-label.selected-clarif input[type="radio"]:checked::after{background:var(--amber);}
+.radio-label.selected-complete{border-color:var(--green);color:var(--green);background:rgba(16,185,129,.08);}
+.radio-label.selected-complete input[type="radio"]{border-color:var(--green);}
+.radio-label.selected-complete input[type="radio"]:checked::after{background:var(--green);}
 
 /* Checkboxes */
 .check-group{display:flex;flex-wrap:wrap;gap:9px;}
@@ -642,7 +554,7 @@ select.inp{cursor:pointer;}
 .case-card-header:hover{background:var(--card2);}
 .case-num-badge{font-size:16px;font-weight:800;color:var(--accent);background:var(--entry-accent-bg);border:1.5px solid rgba(91,156,246,.25);border-radius:0;padding:5px 14px;white-space:nowrap;}
 .case-meta-main{font-size:13px;font-weight:600;margin-bottom:3px;font-family:'Poppins',sans-serif;}
-.case-meta-sub{font-size:11px;color:var(--muted);font-family:'Poppins',sans-serif;flex-wrap:wrap;line-height:1.7;}
+.case-meta-sub{font-size:11px;color:var(--muted);font-family:'Poppins',sans-serif;}
 .case-expand-btn{background:var(--btn-ghost-bg);border:1.5px solid var(--btn-ghost-border);color:var(--btn-ghost-text);border-radius:0;padding:6px 12px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:5px;transition:.2s;white-space:nowrap;flex-shrink:0;font-family:'Poppins',sans-serif;}
 .case-card:hover .case-expand-btn{border-color:var(--accent);color:var(--accent);}
 .case-expand-icon{transition:.25s;display:inline-block;}
@@ -847,7 +759,18 @@ select.inp{cursor:pointer;}
 .break-btn.active{background:var(--entry-accent-bg);color:var(--accent);border-color:var(--accent);}
 
 /* DB status bar */
-
+.db-status{
+  display:flex;align-items:center;gap:8px;padding:8px 12px;
+  font-size:11px;font-weight:600;font-family:'Poppins',sans-serif;
+  border-top:1px solid var(--border);margin-top:4px;
+  color:var(--muted);transition:.3s;
+}
+.db-dot{
+  width:8px;height:8px;border-radius:50%;flex-shrink:0;transition:.3s;
+}
+.db-dot.connected{background:#10b981;box-shadow:0 0 6px rgba(16,185,129,.6);}
+.db-dot.connecting{background:#f59e0b;animation:pulse-dot 1s ease-in-out infinite;}
+.db-dot.error{background:#f43f5e;box-shadow:0 0 6px rgba(244,63,94,.5);}
 @keyframes pulse-dot{0%,100%{opacity:1;}50%{opacity:.3;}}
 .db-status.connected{color:var(--green);}
 .db-status.error{color:var(--red);}
@@ -1110,7 +1033,7 @@ function ImageUpload({ baseName, multiple, onImages, immediateUpload=false, init
   );
 }
 
-function EntryCard({ entry, label, index, onChange, onDelete, showNumber, onHandleMouseDown }) {
+function EntryCard({ entry, label, index, onChange, onDelete, showNumber }) {
   const [checking,setChecking]=useState(null);
   // New entries start in edit mode; saved entries start locked
   const [saved,setSaved]=useState(!!entry._saved);
@@ -1122,9 +1045,7 @@ function EntryCard({ entry, label, index, onChange, onDelete, showNumber, onHand
     <div className={cls("entry-card",saved&&"saved")}>
       <div className="entry-header">
         {/* Drag handle */}
-        <div className="drag-handle" title="Drag to reorder"
-          style={{cursor:"grab"}}
-          onMouseDown={ev=>{ ev.stopPropagation(); onHandleMouseDown&&onHandleMouseDown(); }}>
+        <div className="drag-handle" title="Drag to reorder">
           <span/><span/><span/>
         </div>
         <span className="entry-label" style={{flex:1}}>{showNumber?`${label} #${entry.number||(index+1)}`:label}</span>
@@ -1170,27 +1091,30 @@ function CopyRow({ label, value }) {
 }
 
 // ── GreetingRow — dropdown type selector for check-in message ──
-function GreetingRow({ greetingMsg, caseNum, accountNum, inboundNum, isSC, entries, greetingRefType }) {
+function GreetingRow({ greetingMsg, caseNum, isSC }) {
+  const [type,setType]=useState(()=>{
+    if(typeof window!=="undefined"){
+      const saved=localStorage.getItem("ch_greeting_type");
+      if(saved) return saved;
+    }
+    return isSC?"Site Comment":"Inbound Email";
+  });
   const [copied,setCopied]=useState(false);
-  const refType = greetingRefType || (isSC?"Site Comment #":"Case #");
-  // For "Inbound #" ref only works in inbound email mode
-  const effectiveRef = (refType==="Inbound #"&&isSC) ? "Case #" : refType;
-  const refVal = effectiveRef==="Site Comment #"
-    ? (entries&&entries.length>0&&entries[0].number ? `Site Comment #${entries[0].number}` : "Site Comment #")
-    : effectiveRef==="Acc#"
-    ? `Account #${accountNum||""}`
-    : effectiveRef==="Inbound #"
-    ? `Inbound #${inboundNum||""}`
-    : `Case #${caseNum||""}`;
-  const baseMsg=(greetingMsg||"Hi po Ms. Tina, magpapacheck lang po").replace(/\(Case #\)/g,"").trimEnd();
-  const msg=baseMsg+" "+refVal;
+  const types=["Site Comment","Inbound Email"];
+  const handleTypeChange=(v)=>{ setType(v); if(typeof window!=="undefined") localStorage.setItem("ch_greeting_type",v); };
+  // Build message: replace (Case #) with actual number, no parentheses, append type
+  const msg=(greetingMsg||"Hi po Ms. Tina, magpapacheck lang po (Case #)")
+    .replace("(Case #)",`Case #${caseNum}`)+" "+type;
   const copy=()=>{ copyToClipboard(msg).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),1800);}); };
   return (
     <div className="copy-row-wrap">
       <div className="copy-row-label">Message</div>
       <div style={{display:"flex",flexDirection:"column",gap:6}}>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
-          <span style={{fontSize:10,color:"var(--muted)",fontStyle:"italic",flex:1}}>ref: <strong style={{color:"var(--accent)"}}>{effectiveRef}</strong></span>
+          <select value={type} onChange={e=>handleTypeChange(e.target.value)}
+            style={{background:"var(--inp-bg)",border:"1.5px solid var(--border)",color:"var(--text)",fontSize:11,padding:"4px 8px",borderRadius:0,fontFamily:"'Poppins',sans-serif",cursor:"pointer",outline:"none"}}>
+            {types.map(t=><option key={t} value={t}>{t}</option>)}
+          </select>
           <button className={copied?"copy-row-btn done":"copy-row-btn"} onClick={copy} style={{flexShrink:0}}>{copied?"✓":"📋"}</button>
         </div>
         <div style={{fontSize:12,color:"var(--text)",lineHeight:1.5,padding:"5px 8px",background:"var(--entry-bg)",border:"1px solid var(--border)"}}>{msg}</div>
@@ -1199,7 +1123,7 @@ function GreetingRow({ greetingMsg, caseNum, accountNum, inboundNum, isSC, entri
   );
 }
 
-function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailText, onTimerEnd, specialRequestors, timerLimitSecs, greetingMsg="Hi po Ms. Tina, magpapacheck lang po", greetingRefType }) {
+function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailText, onTimerEnd, specialRequestors, timerLimitSecs, greetingMsg="Hi po Ms. Tina, magpapacheck lang po (Case #)" }) {
   const [elapsed,setElapsed]=useState(0);
   const [now,setNow]=useState(new Date());
   const firedRef=useRef(false);
@@ -1239,13 +1163,28 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
         {!isSC&&<CopyRow label="Inbound #" value={f.inboundNum}/>}
         <CopyRow label="Amend Type" value={f.amendType}/>
         {f.caseNum&&(
-          <GreetingRow greetingMsg={greetingMsg} caseNum={f.caseNum} accountNum={f.accountNum} inboundNum={f.inboundNum} isSC={isSC} entries={f.entries} greetingRefType={greetingRefType}/>
+          <GreetingRow greetingMsg={greetingMsg} caseNum={f.caseNum} isSC={isSC}/>
         )}
         <CopyRow label={isSC?"Site Comments":"Assumptions"} value={isSC?buildEntriesText():buildEmailText()}/>
         {!isSC&&<CopyRow label="Email Type" value={emailTypeLabel}/>}
         {!isSC&&<CopyRow label="Email Address" value={f.emailAddress}/>}
         {allImages.length>0&&(<div className="copy-row-wrap"><div className="copy-row-label">Screenshots ({allImages.length})</div><div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>{allImages.map(img=>(<div key={img.id} style={{width:68,height:52,borderRadius:0,overflow:"hidden",border:"1.5px solid var(--border)"}}><img src={img.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>))}</div></div>)}
       </div>
+      {specialRequestors&&specialRequestors.length>0&&(
+        <div style={{borderTop:"1px solid var(--border)",padding:"14px 16px"}}>
+          <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:10,fontFamily:"'Poppins',sans-serif"}}>Special Requestors</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            {specialRequestors.map((name,i)=>(
+              <div key={i} style={{display:"flex",alignItems:"center",gap:6,background:"var(--entry-accent-bg)",border:"1px solid rgba(245,148,92,.25)",padding:"5px 10px",fontSize:12,fontWeight:600,color:"var(--accent)",fontFamily:"'Poppins',sans-serif"}}>
+                <span style={{width:20,height:20,borderRadius:"50%",background:"var(--btn-save-bg)",display:"inline-flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:9,fontWeight:700,flexShrink:0}}>
+                  {name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
+                </span>
+                {name}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1319,7 +1258,7 @@ const emptyBase  = ()=>({
 
 
 // ── Table of Contents / Outline Panel — sticky card column ──────────────────
-function TocPanel({ openStep, setOpenStep, isSC, page, specialRequestors }) {
+function TocPanel({ openStep, setOpenStep, isSC, page }) {
   if(page!=="postlive") return null;
   const steps=[
     {num:1,label:"Case Info"},
@@ -1349,21 +1288,6 @@ function TocPanel({ openStep, setOpenStep, isSC, page, specialRequestors }) {
           <span style={{flex:1,textAlign:"left"}}>{s.label}</span>
         </button>
       ))}
-      {specialRequestors&&specialRequestors.length>0&&(
-        <div style={{borderTop:"1px solid var(--border)",marginTop:4,padding:"10px 10px 8px"}}>
-          <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:8,paddingLeft:2,fontFamily:"'Poppins',sans-serif"}}>Requestors</div>
-          <div style={{display:"flex",flexDirection:"column",gap:5}}>
-          {specialRequestors.map((name,i)=>(
-            <div key={i} style={{display:"flex",alignItems:"center",gap:6,background:"var(--entry-accent-bg)",border:"1px solid rgba(245,148,92,.25)",padding:"5px 8px",fontSize:11,fontWeight:600,color:"var(--accent)",fontFamily:"'Poppins',sans-serif"}}>
-              <span style={{width:20,height:20,borderRadius:"50%",background:"var(--btn-save-bg)",display:"inline-flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:8,fontWeight:700,flexShrink:0}}>
-                {name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
-              </span>
-              <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{name}</span>
-            </div>
-          ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -1397,8 +1321,6 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
   const [dragEntryIdx,setDragEntryIdx] = useState(-1);
   const dragOverIdxRef = useRef(-1);
   const [dragOverIdx,setDragOverIdx] = useState(-1);
-  const [dragOverPos,setDragOverPos] = useState(null); // "before" | "after"
-  const dragHandlePressed = useRef(false); // only allow drag from handle
 
   // ── Auto-save every 30s ──
   useEffect(()=>{
@@ -1440,10 +1362,10 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
   const step4Done = form.devices.mobile&&form.devices.tablet&&form.devices.desktop;
   const step7Done = Object.values(form.checklist).every(Boolean);
 
-  const addEntry    = ()=>setForm(f=>{const saved=f.entries.map(e=>e._saved?e:{...e,_saved:true});return{...f,entries:[...saved,emptyEntry()]};});
+  const addEntry    = ()=>setF({entries:[...form.entries,emptyEntry()]});
   const updateEntry = (id,val)=>setF({entries:form.entries.map(e=>e.id===id?val:e)});
   const deleteEntry = (id)=>setF({entries:form.entries.filter(e=>e.id!==id)});
-  const moveEntry   = (from,to)=>setForm(f=>{const arr=[...f.entries];const[m]=arr.splice(from,1);arr.splice(to,0,m);return{...f,entries:arr};});
+  const moveEntry   = (from,to)=>setF(f=>{const arr=[...f.entries];const[m]=arr.splice(from,1);arr.splice(to,0,m);return{...f,entries:arr};});
 
   const buildEntriesText = ()=>{
     const es=formRef.current.entries;
@@ -1496,7 +1418,7 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
 
   return (
     <div className="form-cols">
-      <TocPanel openStep={openStep} setOpenStep={setOpenStep} isSC={isSC} page="postlive" specialRequestors={specialRequestors}/>
+      <TocPanel openStep={openStep} setOpenStep={setOpenStep} isSC={isSC} page="postlive"/>
       <div className="form-left">
 
         <StepCard num={1} title="Case Information" done={step1Done} locked={false} {...stepProps}>
@@ -1513,71 +1435,30 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
         </StepCard>
 
         <StepCard num={3} title={isSC?"Post-Live Amends Notepad":"Assumptions Notepad"} done={step3Done} locked={!step1Done&&!isDraft} {...stepProps}>
-          {form.entries.map((e,i)=>{
-            const isDragging=dragEntryIdx===i;
-            const isOver=dragOverIdx===i&&!isDragging;
-            return (
-              <div key={e.id} style={{position:"relative"}}
-                onDragOver={ev=>{
-                  ev.preventDefault();ev.dataTransfer.dropEffect="move";
-                  const rect=ev.currentTarget.getBoundingClientRect();
-                  const pos=ev.clientY<rect.top+rect.height/2?"before":"after";
-                  if(dragOverIdxRef.current!==i){dragOverIdxRef.current=i;setDragOverIdx(i);}
-                  setDragOverPos(pos);
-                }}
-                onDrop={ev=>{
-                  ev.preventDefault();
-                  const from=dragEntryIdxRef.current!==-1?dragEntryIdxRef.current:parseInt(ev.dataTransfer.getData("text/plain")||"-1");
-                  if(!isNaN(from)&&from>=0&&from!==i) moveEntry(from,i);
-                  dragEntryIdxRef.current=-1;dragOverIdxRef.current=-1;dragHandlePressed.current=false;
-                  setDragEntryIdx(-1);setDragOverIdx(-1);setDragOverPos(null);
-                }}
-                onDragLeave={ev=>{
-                  if(!ev.currentTarget.contains(ev.relatedTarget)){
-                    dragOverIdxRef.current=-1;setDragOverIdx(-1);setDragOverPos(null);
-                  }
-                }}
-              >
-                {isOver&&dragOverPos==="before"&&(
-                  <div className="drag-skeleton" style={{margin:"0 0 4px"}}><Icon name="draft" size={14} color="var(--accent)"/>Drop here</div>
-                )}
-                <div
-                  draggable
-                  onDragStart={ev=>{
-                    if(!dragHandlePressed.current){ev.preventDefault();return;}
-                    ev.dataTransfer.effectAllowed="move";
-                    ev.dataTransfer.setData("text/plain",String(i));
-                    dragEntryIdxRef.current=i;setDragEntryIdx(i);
-                  }}
-                  onDragEnd={()=>{
-                    dragEntryIdxRef.current=-1;dragOverIdxRef.current=-1;dragHandlePressed.current=false;
-                    setDragEntryIdx(-1);setDragOverIdx(-1);setDragOverPos(null);
-                  }}
-                  style={{opacity:isDragging?0.22:1,transition:"opacity .1s"}}>
-                  <EntryCard entry={e} label={entryLabel} index={i} showNumber={isSC}
-                    onChange={val=>updateEntry(e.id,val)}
-                    onDelete={()=>deleteEntry(e.id)}
-                    onHandleMouseDown={()=>{dragHandlePressed.current=true;}}
-                  />
-                </div>
-                {isOver&&dragOverPos==="after"&&(
-                  <div className="drag-skeleton" style={{margin:"4px 0 0"}}><Icon name="draft" size={14} color="var(--accent)"/>Drop here</div>
-                )}
+          {form.entries.map((e,i)=>(
+            <div key={e.id}>
+              {dragOverIdx===i&&dragEntryIdx!==i&&(
+                <div className="drag-skeleton"><Icon name="draft" size={14} color="var(--accent)"/>Drop here</div>
+              )}
+              <div
+                draggable
+                onDragStart={ev=>{ev.dataTransfer.effectAllowed="move";dragEntryIdxRef.current=i;setDragEntryIdx(i);}}
+                onDragOver={ev=>{ev.preventDefault();ev.dataTransfer.dropEffect="move";if(dragOverIdxRef.current!==i){dragOverIdxRef.current=i;setDragOverIdx(i);}}}
+                onDrop={ev=>{ev.preventDefault();const from=dragEntryIdxRef.current;if(from!==-1&&from!==i)moveEntry(from,i);dragEntryIdxRef.current=-1;dragOverIdxRef.current=-1;setDragEntryIdx(-1);setDragOverIdx(-1);}}
+                onDragEnd={()=>{dragEntryIdxRef.current=-1;dragOverIdxRef.current=-1;setDragEntryIdx(-1);setDragOverIdx(-1);}}
+                style={{userSelect:"none",opacity:dragEntryIdx===i?0.25:1,transition:"opacity .12s"}}>
+                <EntryCard entry={e} label={entryLabel} index={i} showNumber={isSC} onChange={val=>updateEntry(e.id,val)} onDelete={()=>deleteEntry(e.id)}/>
               </div>
-            );
-          })}
+            </div>
+          ))}
           {isSC&&<button className="add-entry-btn" onClick={addEntry}>＋ Add New Site Comment</button>}
           {!isSC&&(
             <div style={{marginTop:16,padding:"15px",background:"var(--code-bg)",borderRadius:0,border:"1.5px solid var(--border)"}}>
               <div className="field"><label>Email Address <span className="req">*</span></label><input className="inp" type="email" placeholder="client@email.com" value={form.emailAddress} onChange={e=>setF({emailAddress:e.target.value})}/></div>
               <div className="field" style={{marginBottom:0}}><label>Email Type <span className="req">*</span></label>
-                <div className="email-type-toggle">
-                  <button className={cls("email-type-btn",form.emailType==="clarification"&&"clarif")} onClick={()=>setF({emailType:"clarification"})}>
-                    📝 Clarification
-                  </button>
-                  <button className={cls("email-type-btn",form.emailType==="completed"&&"complete")} onClick={()=>setF({emailType:"completed"})}>
-                    ✅ Completed
-                  </button>
+                <div className="radio-group">
+                  <label className={cls("radio-label",form.emailType==="clarification"&&"selected-clarif")}><input type="radio" name="emailType" value="clarification" checked={form.emailType==="clarification"} onChange={()=>setF({emailType:"clarification"})}/>Clarification</label>
+                  <label className={cls("radio-label",form.emailType==="completed"&&"selected-complete")}><input type="radio" name="emailType" value="completed" checked={form.emailType==="completed"} onChange={()=>setF({emailType:"completed"})}/>Completed</label>
                 </div>
               </div>
             </div>
@@ -1646,7 +1527,7 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
         <Toast msg={toast.msg} type={toast.type}/>
       </div>
       <div className="form-right">
-        <StickyPanel startTimeRef={startTimeRef} form={form} isSC={isSC} buildEntriesText={buildEntriesText} buildEmailText={buildEmailText} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={timerLimitSecs} greetingMsg={user?.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po"} greetingRefType={user?.greetingRefType}/>
+        <StickyPanel startTimeRef={startTimeRef} form={form} isSC={isSC} buildEntriesText={buildEntriesText} buildEmailText={buildEmailText} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={timerLimitSecs} greetingMsg={user?.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po (Case #)"}/>
       </div>
     </div>
   );
@@ -1790,6 +1671,22 @@ function Dashboard({ savedCases, setPage, specialRequestors, addRequestor, remov
         </div>
       </div>
 
+      {/* Special Requestors */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+        <div className="section-title" style={{marginBottom:0}}>Special Requestors</div>
+        <button className="btn btn-primary" style={{padding:"7px 14px",fontSize:12}} onClick={()=>setAddingReq(true)}>＋ Add Requestor</button>
+      </div>
+      <div className="requestor-grid">
+        {specialRequestors.map((name,i)=>(
+          <div key={i} className="requestor-chip">
+            <div className="requestor-avatar">{name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}</div>
+            <span>{name}</span>
+            <button className="requestor-del" onClick={()=>removeRequestor(name)}>✕</button>
+          </div>
+        ))}
+        {specialRequestors.length===0&&<div style={{color:"var(--muted)",fontSize:13}}>No special requestors yet.</div>}
+      </div>
+      {addingReq&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="requestors" size={40} color="var(--amber)"/></div><h3>Add Special Requestor</h3><div className="field" style={{textAlign:"left",marginBottom:16}}><label>Full Name</label><input className="inp" placeholder="e.g. John Smith" value={newReq} onChange={e=>setNewReq(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleAddRequestor()} autoFocus/></div><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>{setAddingReq(false);setNewReq("");}}>Cancel</button><button className="btn btn-primary" onClick={handleAddRequestor}>Add</button></div></div></div>)}
 
       {/* Quick Actions */}
       <div className="section-title" style={{marginTop:4}}>Quick Actions</div>
@@ -1802,36 +1699,14 @@ function Dashboard({ savedCases, setPage, specialRequestors, addRequestor, remov
 
       {/* Recent */}
       {savedCases.length>0&&(<>
-        <div className="section-title">Recently Saved Cases</div>
-        {[...savedCases].slice(0,6).map((c,i)=>{
-          const imgs=[...(c.images||[]),...(c.backupImages||[])].filter(img=>(img.url||"").startsWith("https://"));
-          return (
-          <div key={i} className="activity-row" style={{flexDirection:"column",alignItems:"stretch",gap:0,padding:"12px 14px"}}>
-            <div style={{display:"flex",alignItems:"center",gap:10}}>
-              <div className={cls("act-dot",c._mode==="siteComment"?"blue":"purple")}/>
-              <div className="act-info" style={{flex:1}}>
-                <div className="act-title">Case #{c.caseNum} — {c.accountNum}</div>
-                <div className="act-sub" style={{display:"flex",flexDirection:"column",gap:1}}>
-                  <span>{c.amendType}</span>
-                  <span>📅 Saved: {c.savedAt}</span>
-                  {c.endedAt&&<span style={{color:"var(--green)",fontWeight:600}}>✓ Ended: {c.endedAt}</span>}
-                </div>
-              </div>
-              <span className={cls("act-badge",c._mode==="siteComment"?"site":"email")} style={{flexShrink:0}}>{c._mode==="siteComment"?"Site Comment":"Inbound Email"}</span>
-            </div>
-            {imgs.length>0&&(
-              <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap",paddingLeft:18}}>
-                {imgs.slice(0,5).map(img=>(
-                  <div key={img.id||img.name} style={{width:56,height:42,overflow:"hidden",border:"1.5px solid var(--border)",borderRadius:0,flexShrink:0}}>
-                    <img src={img.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
-                  </div>
-                ))}
-                {imgs.length>5&&<div style={{width:56,height:42,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"var(--muted)",border:"1.5px solid var(--border)",flexShrink:0}}>+{imgs.length-5}</div>}
-              </div>
-            )}
+        <div className="section-title">Recent Cases</div>
+        {[...savedCases].slice(0,6).map((c,i)=>(
+          <div key={i} className="activity-row">
+            <div className={cls("act-dot",c._mode==="siteComment"?"blue":"purple")}/>
+            <div className="act-info"><div className="act-title">Case #{c.caseNum} — {c.accountNum}</div><div className="act-sub">{c.amendType} · {c.savedAt}</div></div>
+            <span className={cls("act-badge",c._mode==="siteComment"?"site":"email")}>{c._mode==="siteComment"?"Site Comment":"Inbound Email"}</span>
           </div>
-          );
-        })}
+        ))}
       </>)}
       {savedCases.length===0&&(<div style={{textAlign:"center",color:"var(--muted)",padding:"40px 0",fontSize:14}}><div style={{marginBottom:16}}><Icon name="empty" size={52} color="var(--muted)"/></div>No cases saved yet. Start by creating a Post-Live Amend!</div>)}
       <Toast msg={toast.msg} type={toast.type}/>
@@ -1853,11 +1728,7 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0 }) {
         <div className="saved-dot"/>
         <div className="saved-info">
           <div className="saved-case">Case #{c.caseNum} — {c.accountNum}</div>
-          <div className="saved-meta" style={{display:"flex",flexDirection:"column",gap:1}}>
-            <span>{c.amendType}</span>
-            <span>📅 Saved: {c.savedAt}</span>
-            {c.endedAt&&<span style={{color:"var(--green)",fontWeight:700}}>✓ Ended: {c.endedAt}</span>}
-          </div>
+          <div className="saved-meta">{c.amendType} · {c.savedAt}{c.endedAt&&<span style={{marginLeft:8,color:"var(--green)",fontWeight:700}}>✓ {c.endedAt}</span>}</div>
         </div>
         <span className="saved-type">{isSC?"Site Comment":"Inbound Email"}</span>
         <span style={{color:"var(--muted)",fontSize:12,transition:".25s",display:"inline-block",transform:open?"rotate(180deg)":"none"}}>▼</span>
@@ -1934,7 +1805,7 @@ function PostLivePage({ onSaveCase, onFormActive, allSavedCases, dbDrafts, onSav
         </div>
         <PostLiveForm mode={mode} draftData={currentDraft} user={user} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={alarmMins*60}
           onSave={f=>{
-            const now=new Date();const rec={...f,_mode:mode,savedAt:now.toLocaleString(),endedAt:now.toLocaleString("en-US",{month:"short",day:"numeric",year:"numeric",hour:"2-digit",minute:"2-digit"})};
+            const now=new Date();const rec={...f,_mode:mode,savedAt:now.toLocaleString(),endedAt:now.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})};
             if(currentDraft?._id) onDeleteDraft&&onDeleteDraft(currentDraft._id,mode);
             onSaveCase&&onSaveCase(rec);
             exitMode();
@@ -1959,7 +1830,7 @@ function PostLivePage({ onSaveCase, onFormActive, allSavedCases, dbDrafts, onSav
         <button className="choice-btn" onClick={()=>enterMode("inbound")}><span className="choice-icon"><Icon name="inbound" size={28} color="var(--accent)"/></span><div><div className="choice-btn-title">Inbound Email</div><div className="choice-btn-sub">Assumption-based format</div></div></button>
       </div>
 
-      {dbDrafts&&dbDrafts.length>0&&(<div style={{marginBottom:22}}><div className="section-title">Drafts <span style={{fontSize:11,color:"var(--muted)",fontWeight:400}}>(auto-saved to database)</span></div>{[...dbDrafts].map((d,i)=>(<div key={d._id||i} className="draft-row"><div className="draft-dot"/><div className="saved-info"><div className="saved-case">Case #{d.caseNum||"—"} — Account {d.accountNum||"—"}</div><div className="saved-meta">{d.amendType||"No amend type"} · 📝 Draft saved {d.draftAt||d.saved_at||""}</div></div><span className="draft-badge">{d._mode==="siteComment"?"Site Comment":"Inbound Email"}</span><button className="draft-resume" onClick={()=>enterMode(d._mode)}><Icon name="play" size={11} style={{marginRight:4}}/>Resume</button><button className="entry-del" title="Delete draft" onClick={()=>onDeleteDraft&&onDeleteDraft(d._id,d._mode)} style={{marginLeft:4}}><Icon name="trash" size={13} color="var(--red)"/></button></div>))}</div>)}
+      {dbDrafts&&dbDrafts.length>0&&(<div style={{marginBottom:22}}><div className="section-title">Drafts <span style={{fontSize:11,color:"var(--muted)",fontWeight:400}}>(auto-saved to database)</span></div>{dbDrafts.map((d,i)=>(<div key={d._id||i} className="draft-row"><div className="draft-dot"/><div className="saved-info"><div className="saved-case">Case #{d.caseNum||"—"} — Account {d.accountNum||"—"}</div><div className="saved-meta">{d.amendType||"No amend type"} · Saved {d.draftAt}</div></div><span className="draft-badge">{d._mode==="siteComment"?"Site Comment":"Inbound Email"}</span><button className="draft-resume" onClick={()=>enterMode(d._mode)}><Icon name="play" size={11} style={{marginRight:4}}/>Resume</button><button className="entry-del" title="Delete draft" onClick={()=>onDeleteDraft&&onDeleteDraft(d._id,d._mode)} style={{marginLeft:4}}><Icon name="trash" size={13} color="var(--red)"/></button></div>))}</div>)}
 
       <div>
         <div className="section-title">Recently Saved Cases</div>
@@ -1986,22 +1857,8 @@ async function downloadCase(c) {
   if(!window.JSZip){await new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
   const zip=new window.JSZip();
   zip.file("case_data.txt",meta);
-  const imgFolder=zip.folder("images");
   for(const img of [...(c.images||[]),...(c.backupImages||[])]){
-    if(!(img.url||"").startsWith("https://"))continue;
-    try{
-      const r=await fetch(img.url);
-      if(!r.ok)continue;
-      const blob=await r.blob();
-      // Get extension: first try URL path, then blob mime type, fallback png
-      const urlPath=(img.url||"").split("?")[0];
-      const urlExt=urlPath.includes(".")&&!urlPath.endsWith("/")?urlPath.split(".").pop().toLowerCase().replace(/[^a-z0-9]/g,""):""; 
-      const mimeExt=(blob.type||"").split("/").pop().replace("jpeg","jpg").replace(/[^a-z0-9]/g,"");
-      const ext=urlExt||mimeExt||"png";
-      // Clean base name - strip any existing extension from img.name
-      const baseName=(img.name||"screenshot").replace(/\.[^/.]+$/,"");
-      imgFolder.file(`${baseName}.${ext}`,blob);
-    }catch(e){console.warn("Image fetch failed:",img.name,e);}
+    try{const r=await fetch(img.url);const blob=await r.blob();const ext=(img.name||"screenshot").split(".").pop()||"png";zip.file(`${img.name||"screenshot"}.${ext}`,blob);}catch(e){console.warn("Image fetch failed:",e);}
   }
   const zipBlob=await zip.generateAsync({type:"blob"});
 
@@ -2125,14 +1982,11 @@ function EditableCaseCard({ c, onUpdate, onDelete, onLightbox, openId, setOpenId
         <div className="case-num-badge">#{c.caseNum||"—"}</div>
         <div style={{flex:1,minWidth:0,marginLeft:4}}>
           <div className="case-meta-main">{c.accountNum||"—"} &nbsp;·&nbsp; {c.amendType||"—"}</div>
-          <div className="case-meta-sub" style={{display:"flex",flexDirection:"column",gap:2,marginTop:3}}>
-            <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
-              <span className={cls("act-badge",isSC?"site":"email")} style={{fontSize:10,padding:"2px 8px"}}>{isSC?"Site Comment":"Inbound Email"}</span>
-              {allImages.length>0&&<span style={{opacity:.7}}>{allImages.length} img</span>}
-              {c.checklist&&<span style={{color:checkDone===checkTotal?"var(--green)":"var(--amber)"}}>✓ {checkDone}/{checkTotal}</span>}
-            </div>
-            <span>📅 Saved: {c.savedAt}</span>
-            {c.endedAt&&<span style={{color:"var(--green)",fontWeight:700}}>✓ Ended: {c.endedAt}</span>}
+          <div className="case-meta-sub">
+            <span className={cls("act-badge",isSC?"site":"email")} style={{fontSize:10,padding:"2px 8px",marginRight:6}}>{isSC?"Site Comment":"Inbound Email"}</span>
+            {c.savedAt}{c.endedAt&&<span style={{marginLeft:8,color:"var(--green)",fontWeight:600}}> · Done {c.endedAt}</span>}
+            {allImages.length>0&&<span style={{marginLeft:8,opacity:.7}}>{allImages.length} img</span>}
+            {c.checklist&&<span style={{marginLeft:8,color:checkDone===checkTotal?"var(--green)":"var(--amber)"}}>✓ {checkDone}/{checkTotal}</span>}
           </div>
         </div>
         <div style={{display:"flex",gap:8,flexShrink:0}} onClick={e=>e.stopPropagation()}>
@@ -2376,9 +2230,8 @@ function CaseHistory({ cases, onUpdate, onDelete }) {
     const q=search.toLowerCase();
     const matchQ=!q||c.caseNum?.toLowerCase().includes(q)||c.accountNum?.toLowerCase().includes(q)||c.amendType?.toLowerCase().includes(q)||c.entries?.some(e=>e.note?.toLowerCase().includes(q)||e.clarification?.toLowerCase().includes(q));
     const matchMode=filterMode==="all"||(filterMode==="site"&&c._mode==="siteComment")||(filterMode==="inbound"&&c._mode==="inbound");
-    const matchDate=!filterDate||(()=>{try{const d=new Date(c.savedAt);return!isNaN(d)&&d.toLocaleDateString("en-CA")===filterDate;}catch{return false;}})();
+    const matchDate=!filterDate||c.savedAt?.includes(filterDate);
     return matchQ&&matchMode&&matchDate;
-  // already reversed on load, keep newest first
   });
 
   return (
@@ -2543,7 +2396,7 @@ function AnnouncementsPage({ announcements, addAnnouncement, updateAnnouncement,
       {announcements.map(a=>(
         <div key={a.id} className="announcement-card">
           <div className="ann-header">
-            <div className="db-status-text" style={{flex:1,minWidth:0}}>
+            <div style={{flex:1,minWidth:0}}>
               <div className="ann-title">{a.title}</div>
               <div className="ann-meta">By {a.author} · {a.createdAt}</div>
             </div>
@@ -2572,7 +2425,6 @@ function LinksPage({ links, setLinks, addLink, updateLink, removeLink }) {
   const dragLinkRef=useRef(null);
   const [dragLinkActive,setDragLinkActive]=useState(null);
   const [dragLinkOver,setDragLinkOver]=useState(null);
-  const [dragLinkPos,setDragLinkPos]=useState(null);
   const [adding,setAdding]=useState(false);
   const [editing,setEditing]=useState(null); // link object being edited
   const [form,setForm]=useState({title:"",url:"",icon:"🔗"});
@@ -2632,31 +2484,20 @@ function LinksPage({ links, setLinks, addLink, updateLink, removeLink }) {
       {links.length===0&&(<div className="empty-history"><div style={{fontSize:52,marginBottom:14}}>🔗</div><div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:18,fontWeight:800,marginBottom:6}}>No links yet</div><div>Add a link to have it appear in the sidebar.</div></div>)}
 
       {links.map((l,i)=>(
-        <div key={l.id} style={{position:"relative"}}
-          onDragOver={e=>{
-            e.preventDefault();e.dataTransfer.dropEffect="move";
-            const rect=e.currentTarget.getBoundingClientRect();
-            const pos=e.clientY<rect.top+rect.height/2?"before":"after";
-            if(dragLinkOver!==i)setDragLinkOver(i);
-            setDragLinkPos(pos);
-          }}
-          onDrop={e=>{
-            e.preventDefault();
-            const from=dragLinkRef.current!=null?dragLinkRef.current:parseInt(e.dataTransfer.getData("text/plain"));
-            if(!isNaN(from)&&from!==i){const arr=[...links];const[m]=arr.splice(from,1);arr.splice(i,0,m);setLinks(arr);}
-            dragLinkRef.current=null;setDragLinkActive(null);setDragLinkOver(null);setDragLinkPos(null);
-          }}
-          onDragLeave={e=>{
-            if(!e.currentTarget.contains(e.relatedTarget)){setDragLinkOver(null);setDragLinkPos(null);}
-          }}
-        >
-          {dragLinkOver===i&&dragLinkActive!==i&&dragLinkPos==="before"&&(
+        <div key={l.id}>
+          {dragLinkOver===i&&dragLinkActive!==i&&(
             <div className="link-drag-skeleton"><Icon name="links" size={14} color="var(--accent)"/>Drop here</div>
           )}
           <div className="link-card"
             draggable
-            onDragStart={e=>{e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain",String(i));dragLinkRef.current=i;setDragLinkActive(i);}}
-            onDragEnd={()=>{dragLinkRef.current=null;setDragLinkActive(null);setDragLinkOver(null);setDragLinkPos(null);}}
+            onDragStart={()=>{dragLinkRef.current=i;setDragLinkActive(i);}}
+            onDragOver={e=>{e.preventDefault();if(dragLinkOver!==i)setDragLinkOver(i);}}
+            onDrop={()=>{
+              const from=dragLinkRef.current;
+              if(from!=null&&from!==i){const arr=[...links];const[m]=arr.splice(from,1);arr.splice(i,0,m);setLinks(arr);}
+              dragLinkRef.current=null;setDragLinkActive(null);setDragLinkOver(null);
+            }}
+            onDragEnd={()=>{dragLinkRef.current=null;setDragLinkActive(null);setDragLinkOver(null);}}
             style={{cursor:"grab",userSelect:"none",opacity:dragLinkActive===i?0.25:1,transition:"opacity .12s"}}
           >
           <div className="drag-handle" title="Drag to reorder" style={{flexDirection:"row",gap:3,padding:"6px 4px"}}>
@@ -2667,14 +2508,11 @@ function LinksPage({ links, setLinks, addLink, updateLink, removeLink }) {
           <div className="link-icon">{l.icon}</div>
           <div className="link-info"><div className="link-title">{l.title}</div><div className="link-url">{l.url}</div></div>
           <div className="link-actions">
-            <a href={l.url} target="_blank" rel="noopener noreferrer" className="h-btn" draggable={false} style={{textDecoration:"none"}} onClick={e=>e.stopPropagation()}>↗ Open</a>
+            <a href={l.url} target="_blank" rel="noopener noreferrer" className="h-btn" style={{textDecoration:"none"}}>↗ Open</a>
             <button className="h-btn" style={{borderColor:"var(--accent)",color:"var(--accent)"}} onClick={()=>startEdit(l)}>✏️ Edit</button>
             <button className="h-btn danger" onClick={()=>remove(l.id)}><Icon name="trash" size={13} color="var(--red)"/></button>
           </div>
           </div>
-          {dragLinkOver===i&&dragLinkActive!==i&&dragLinkPos==="after"&&(
-            <div className="link-drag-skeleton"><Icon name="links" size={14} color="var(--accent)"/>Drop here</div>
-          )}
         </div>
       ))}
       <Toast msg={toast.msg} type={toast.type}/>
@@ -2685,21 +2523,12 @@ function LinksPage({ links, setLinks, addLink, updateLink, removeLink }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // PROFILE PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, specialRequestors=[], addRequestor, removeRequestor }) {
+function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
   const [editing,setEditing]=useState(false);
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
   const [toast,showToast]=useToast();
   const avatarInputRef=useRef();
-  const [addingReq,setAddingReq]=useState(false);
-  const [newReq,setNewReq]=useState("");
-  const handleAddReq=()=>{
-    const n=newReq.trim();if(!n)return;
-    if(specialRequestors.includes(n)){showToast("Already exists","error");setNewReq("");return;}
-    addRequestor&&addRequestor(n);
-    setNewReq("");setAddingReq(false);
-    showToast("Requestor added ✅");
-  };
 
   const defNames=(name)=>{
     const n=(name||"User").trim().replace(/\s+/g,"_");
@@ -2712,8 +2541,7 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, spec
     afterName:user.afterName||defNames(user.name).afterName,
     screenshotName:user.screenshotName||defNames(user.name).screenshotName,
     avatarUrl:user.avatarUrl||"",
-    greetingMsg:user.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po",
-    greetingRefType:user.greetingRefType||"Case #",
+    greetingMsg:user.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po (Case #)",
   });
   const [pwForm,setPwForm]=useState({next:"",confirm:""});
   const [timerInput,setTimerInput]=useState(String(timerLimit||30));
@@ -2732,13 +2560,12 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, spec
             beforeName: data.before_name || user.beforeName||defNames(user.name).beforeName,
             afterName:  data.after_name  || user.afterName||defNames(user.name).afterName,
             screenshotName: data.screenshot_name || user.screenshotName||defNames(user.name).screenshotName,
-            greetingMsg: data.greeting_msg || user.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po",
+            greetingMsg: data.greeting_msg || user.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po (Case #)",
           };
           setForm(f=>({...f,
             name:merged.name,role:merged.role,avatarUrl:merged.avatarUrl,
             beforeName:merged.beforeName,afterName:merged.afterName,screenshotName:merged.screenshotName,
-            greetingMsg:merged.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po",
-            greetingRefType:merged.greetingRefType||"Case #",
+            greetingMsg:merged.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po (Case #)",
           }));
           // Sync to localStorage so rest of app sees it
           localStorage.setItem("ch_user",JSON.stringify(merged));
@@ -2771,7 +2598,7 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, spec
       const updated={...user,...form,
         beforeName:form.beforeName,afterName:form.afterName,
         screenshotName:form.screenshotName,avatarUrl:form.avatarUrl||user.avatarUrl||"",
-        greetingMsg:form.greetingMsg,greetingRefType:form.greetingRefType||"Case #"};
+        greetingMsg:form.greetingMsg};
       localStorage.setItem("ch_user",JSON.stringify(updated));
       setUser(updated);
       setEditing(false);
@@ -2826,7 +2653,7 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, spec
 
   return (
     <div>
-      <div className="page-header"><div className="page-title">Profile and Settings</div><div className="page-sub">Manage your account details, file naming and requestors</div></div>
+      <div className="page-header"><div className="page-title">My Profile</div><div className="page-sub">Manage your account details and file naming</div></div>
       {loading&&<div style={{textAlign:"center",padding:"40px 0",color:"var(--muted)"}}>Loading profile…</div>}
       {!loading&&<>
 
@@ -2855,33 +2682,12 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, spec
       {/* ── Greeting / check-in message card ── */}
       <div className="profile-card">
         <h3 style={{fontSize:16,fontWeight:700,marginBottom:8}}>Check-in Message</h3>
-        <p style={{fontSize:12,color:"var(--muted)",marginBottom:16}}>This message appears in your Live Summary panel. Choose what reference number to include.</p>
+        <p style={{fontSize:12,color:"var(--muted)",marginBottom:12}}>Appears in your Live Summary panel when a Case # is entered. Use <code style={{background:"var(--border)",padding:"1px 5px",fontSize:11}}>(Case #)</code> as the placeholder.</p>
         <div className="field">
           <label>Message Template</label>
-          <input className="inp" value={form.greetingMsg||""} onChange={e=>setForm(f=>({...f,greetingMsg:e.target.value}))} placeholder="Hi po Ms. Tina, magpapacheck lang po"/>
+          <input className="inp" value={form.greetingMsg||""} onChange={e=>setForm(f=>({...f,greetingMsg:e.target.value}))} placeholder="Hi po Ms. Tina, magpapacheck lang po (Case #)"/>
         </div>
-        <div className="field" style={{marginBottom:0}}>
-          <label>Reference Number Type</label>
-          <div style={{display:"flex",gap:8,marginTop:6,flexWrap:"wrap"}}>
-            {["Site Comment #","Case #","Acc#","Inbound #"].map(opt=>(
-              <button key={opt} onClick={()=>setForm(f=>({...f,greetingRefType:opt}))}
-                style={{padding:"6px 14px",fontSize:12,fontFamily:"'Poppins',sans-serif",cursor:"pointer",
-                  border:"1.5px solid "+(form.greetingRefType===opt||(!form.greetingRefType&&opt==="Case #")?"var(--accent)":"var(--border)"),
-                  background:form.greetingRefType===opt||(!form.greetingRefType&&opt==="Case #")?"var(--entry-accent-bg)":"var(--inp-bg)",
-                  color:form.greetingRefType===opt||(!form.greetingRefType&&opt==="Case #")?"var(--accent)":"var(--muted)",
-                  fontWeight:form.greetingRefType===opt||(!form.greetingRefType&&opt==="Case #")?700:400,
-                  borderRadius:0,transition:".15s"}}>
-                {opt}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div style={{fontSize:11,color:"var(--muted)",marginTop:14,padding:"8px 12px",background:"var(--entry-bg)",border:"1px solid var(--border)"}}>
-          Preview: <span style={{color:"var(--accent)",fontWeight:600}}>
-            {(form.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po").replace(/\(Case #\)/g,"").trimEnd()}
-            {" "}{form.greetingRefType==="Site Comment #"?"Site Comment #3":form.greetingRefType==="Acc#"?"Account #123456":form.greetingRefType==="Inbound #"?"Inbound #7890":"Case #12345"}
-          </span>
-        </div>
+        <div style={{fontSize:11,color:"var(--muted)",marginTop:6}}>Preview: <span style={{color:"var(--accent)",fontWeight:600}}>{(form.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po (Case #)").replace("(Case #)","(Case #12345)")}</span></div>
         <button className="btn btn-primary" style={{marginTop:14}} onClick={saveProfile} disabled={saving}>{saving?"Saving...":"Save Message"}</button>
       </div>
 
@@ -2934,28 +2740,6 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, spec
         <div style={{fontSize:11,color:"var(--muted)",marginTop:8}}>Currently: <strong style={{color:"var(--accent)"}}>{timerLimit} min</strong></div>
       </div>
 
-      {/* ── Special Requestors ── */}
-      <div className="profile-card">
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-          <div>
-            <h3 style={{fontSize:15,fontWeight:700,marginBottom:3}}>Special Requestors</h3>
-            <p style={{color:"var(--muted)",fontSize:12,margin:0}}>Names shown in the steps sidebar during Post-Live Amends</p>
-          </div>
-          <button className="btn btn-primary" style={{padding:"6px 12px",fontSize:12,flexShrink:0}} onClick={()=>setAddingReq(true)}>㼋 Add</button>
-        </div>
-        <div className="requestor-grid">
-          {specialRequestors.map((name,i)=>(
-            <div key={i} className="requestor-chip">
-              <div className="requestor-avatar">{name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}</div>
-              <span>{name}</span>
-              <button className="requestor-del" onClick={()=>removeRequestor&&removeRequestor(name)}>✕</button>
-            </div>
-          ))}
-          {specialRequestors.length===0&&<div style={{color:"var(--muted)",fontSize:13,padding:"6px 0"}}>No special requestors added yet.</div>}
-        </div>
-      </div>
-      {addingReq&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="requestors" size={40} color="var(--amber)"/></div><h3>Add Special Requestor</h3><div className="field" style={{textAlign:"left",marginBottom:16}}><label>Full Name</label><input className="inp" placeholder="e.g. John Smith" value={newReq} onChange={e=>setNewReq(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleAddReq()} autoFocus/></div><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>{setAddingReq(false);setNewReq("");}}>Cancel</button><button className="btn btn-primary" onClick={handleAddReq}>Add</button></div></div></div>)}
-
       {/* ── Danger zone ── */}
       <div className="profile-card" style={{borderColor:"rgba(244,63,94,.3)"}}>
         <h3 style={{fontSize:16,fontWeight:700,marginBottom:8,color:"var(--red)"}}>Danger Zone</h3>
@@ -2973,19 +2757,16 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, spec
 // ─────────────────────────────────────────────────────────────────────────────
 function AuthLogo() {
   return (
-    <div className="auth-logo" style={{justifyContent:"center",marginBottom:24,flexDirection:"column",alignItems:"center",gap:14}}>
-      <div style={{width:68,height:68,borderRadius:16,background:"var(--logo-icon-bg)",border:"1.5px solid var(--logo-icon-border)",boxShadow:"var(--logo-icon-glow)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-        <svg width="36" height="40" viewBox="0 0 36 40" fill="none">
-          <defs><linearGradient id="boltgrad" x1="4" y1="2" x2="32" y2="38" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#4da3ff"/><stop offset="100%" stopColor="#1877F2"/></linearGradient></defs>
-          <path d="M22 2L4 22H16L14 38L32 18H20L22 2Z" fill="url(#boltgrad)"/>
+    <div className="auth-logo">
+      <div className="auth-logo-icon">
+        <svg width="40" height="40" viewBox="0 0 30 30" fill="none">
+          <rect x="2" y="2" width="11" height="11" fill="var(--accent)" opacity=".9"/>
+          <rect x="17" y="2" width="11" height="11" fill="var(--accent)" opacity=".5"/>
+          <rect x="2" y="17" width="11" height="11" fill="var(--accent)" opacity=".5"/>
+          <rect x="17" y="17" width="11" height="11" fill="var(--accent)" opacity=".2"/>
         </svg>
       </div>
-      <div style={{textAlign:"center"}}>
-        <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:28,fontWeight:800,letterSpacing:5,lineHeight:1.1,whiteSpace:"nowrap"}}>
-          <span style={{color:"var(--logo-easy-color)"}}>EASY</span><span style={{color:"#F07820"}}> WORK</span>
-        </div>
-        <div style={{fontFamily:"'Poppins',sans-serif",fontSize:10,fontWeight:500,letterSpacing:2.5,color:"var(--logo-tag-color)",textTransform:"uppercase",marginTop:6}}>Amends System Cases</div>
-      </div>
+      <div className="auth-logo-text">Case<span>Hub</span></div>
     </div>
   );
 }
@@ -3014,7 +2795,7 @@ function LoginPage({ onLogin, goSignup }) {
       <div className="auth-card">
         <AuthLogo/>
         <div className="auth-title">Welcome back</div>
-        <div className="auth-sub">Sign in to your Easy Work workspace</div>
+        <div className="auth-sub">Sign in to your CaseHub workspace</div>
         {err&&<div style={{background:"var(--btn-cancel-bg)",border:"1px solid var(--btn-cancel-border)",color:"var(--btn-cancel-text)",borderRadius:0,padding:"10px 14px",fontSize:13,marginBottom:16,textAlign:"center"}}>{err}</div>}
         <div className="field"><label>Email</label><input className="inp" type="email" placeholder="you@email.com" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&submit()} disabled={loading}/></div>
         <div className="field"><label>Password</label><input className="inp" type="password" placeholder="••••••••" value={form.password} onChange={e=>setForm(f=>({...f,password:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&submit()} disabled={loading}/></div>
@@ -3057,7 +2838,7 @@ function SignupPage({ onSignup, goLogin }) {
       <div className="auth-card">
         <AuthLogo/>
         <div className="auth-title">Create account</div>
-        <div className="auth-sub">Join your Easy Work workspace</div>
+        <div className="auth-sub">Join your CaseHub workspace</div>
         {err&&<div style={{background:"var(--btn-cancel-bg)",border:"1px solid var(--btn-cancel-border)",color:"var(--btn-cancel-text)",borderRadius:0,padding:"10px 14px",fontSize:13,marginBottom:16,textAlign:"center"}}>{err}</div>}
         {form._confirmed&&<div style={{background:"rgba(16,185,129,.1)",border:"1px solid var(--green)",color:"var(--green)",borderRadius:0,padding:"14px",fontSize:13,marginBottom:16,textAlign:"center",lineHeight:1.6}}>✅ Account created!<br/><span style={{opacity:.8,fontSize:12}}>{form._msg}</span><br/><button className="auth-link" style={{marginTop:8,display:"block",textAlign:"center"}} onClick={goLogin}>← Back to Sign In</button></div>}
         {!form._confirmed&&<><div className="field"><label>Full Name</label><input className="inp" placeholder="Your name" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} disabled={loading}/></div>
@@ -3102,13 +2883,6 @@ function App() {
     if(typeof window!=="undefined"){return localStorage.getItem("ch_theme")==="light";}
     return false;
   });
-  const [sidebarCollapsed,setSidebarCollapsed]=useState(()=>{
-    if(typeof window!=="undefined"){return localStorage.getItem("ch_sidebar_collapsed")==="1";}
-    return false;
-  });
-  const [isMobile,setIsMobile]=useState(()=>typeof window!=="undefined"&&window.innerWidth<=768);
-  const [mobileOpen,setMobileOpen]=useState(false);
-  const sidebarWidth=sidebarCollapsed?68:240;
   const [specialRequestors,setSpecialRequestors]=useState([]);
   const [timerLimit,setTimerLimit]=useState(()=>{
     if(typeof window!=="undefined"){const v=parseInt(localStorage.getItem("ch_timer_limit"));return isNaN(v)?30:v;}
@@ -3128,11 +2902,6 @@ function App() {
   const saveAlarmMins = saveTimerLimit;
 
   useEffect(()=>{document.body.classList.toggle("light",lightMode);if(typeof window!=="undefined") localStorage.setItem("ch_theme",lightMode?"light":"dark");},[lightMode]);
-  useEffect(()=>{
-    const onResize=()=>setIsMobile(window.innerWidth<=768);
-    window.addEventListener("resize",onResize);
-    return ()=>window.removeEventListener("resize",onResize);
-  },[]);
 
   // ── Alarm state: null | "warn" | "end" | "case" ──
   const [activeAlarm,setActiveAlarm]=useState(null);
@@ -3262,7 +3031,7 @@ function App() {
       fetch(`/api/drafts?email=${encodeURIComponent(user.email)}`).then(r=>r.json()).catch(()=>[]),
       fetch(`/api/profile?email=${encodeURIComponent(user.email)}`).then(r=>r.json()).catch(()=>({})),
     ]).then(([cases,anns,lnks,reqs,draftList,profile])=>{
-      setAllCases(Array.isArray(cases)?[...cases]:[]);
+      setAllCases(Array.isArray(cases)?[...cases].reverse():[]);
       setAnnouncements(Array.isArray(anns)?anns:[]);
       setLinks(Array.isArray(lnks)?lnks:[]);
       setSpecialRequestors(Array.isArray(reqs)?reqs:[]);
@@ -3397,7 +3166,7 @@ function App() {
     setSpecialRequestors(s=>s.filter(x=>x!==name));
   };
 
-  const handleNav=(id)=>{setMobileOpen(false);
+  const handleNav=(id)=>{
     if(id===page)return;
     setPage(id); // always just navigate — form state is preserved in PostLivePage
   };
@@ -3418,7 +3187,7 @@ function App() {
         <style>{CSS}</style>
         <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:"var(--bg)",flexDirection:"column",gap:16}}>
           <div style={{animation:"float 1.5s ease-in-out infinite"}}><Icon name="loading" size={52} color="var(--accent)"/></div>
-          <div style={{color:"var(--muted)",fontSize:14,fontFamily:"Poppins,sans-serif"}}>Loading Easy Work...</div>
+          <div style={{color:"var(--muted)",fontSize:14,fontFamily:"Poppins,sans-serif"}}>Loading CaseHub...</div>
         </div>
       </>
     );
@@ -3448,31 +3217,25 @@ function App() {
     <>
       <style>{CSS}</style>
       <div className="shell">
-        <aside className={cls("sidebar",sidebarCollapsed&&"collapsed",isMobile&&!mobileOpen&&"mobile-hidden")}>
-          <div className="logo-wrap" style={{padding:"4px 10px 14px"}}>
-            <div style={{display:"flex",alignItems:"center",gap:10}}>
-              <div style={{width:34,height:34,borderRadius:8,background:"var(--logo-icon-bg)",border:"1px solid var(--logo-icon-border)",boxShadow:"var(--logo-icon-shadow)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                <svg width="18" height="20" viewBox="0 0 36 40" fill="none">
-                  <defs><linearGradient id="sg" x1="4" y1="2" x2="32" y2="38" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#4da3ff"/><stop offset="100%" stopColor="#1877F2"/></linearGradient></defs>
-                  <path d="M22 2L4 22H16L14 38L32 18H20L22 2Z" fill="url(#sg)"/>
-                </svg>
-              </div>
-              <div style={{lineHeight:1.05}}>
-                <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:13,fontWeight:800,letterSpacing:2,whiteSpace:"nowrap",overflow:"hidden"}}>
-                  <span style={{color:"var(--logo-easy-color)"}}>EASY</span><span style={{color:"#F07820"}}> WORK</span>
-                </div>
-                <div style={{fontFamily:"'Poppins',sans-serif",fontSize:8,fontWeight:500,letterSpacing:2,color:"var(--logo-tag-color)",textTransform:"uppercase",marginTop:2,overflow:"hidden",textOverflow:"ellipsis"}}>Amends System Cases</div>
-              </div>
+        <aside className="sidebar">
+          <div className="logo">
+            <div className="logo-icon">
+              <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+                <rect width="26" height="26" fill="var(--accent)"/>
+                <rect x="5" y="8" width="10" height="2" fill="white"/>
+                <rect x="5" y="12" width="16" height="2" fill="white" opacity=".7"/>
+                <rect x="5" y="16" width="7" height="2" fill="white" opacity=".45"/>
+              </svg>
             </div>
+            <div className="logo-text">Case<span>Hub</span></div>
           </div>
-
 
           {coreNav.map((n,i)=>
             n.group
               ?<div key={i} className="nav-group">{n.group}</div>
               :<button key={n.id} className={cls("nav-item",page===n.id&&"active")} onClick={()=>handleNav(n.id)}>
                 <Icon name={n.icon} size={15} color={page===n.id?"var(--accent)":"var(--muted)"}/>
-                <span className="nav-item-label">{n.label}</span>
+                {n.label}
                 {n.id==="postlive"&&formActive&&page!=="postlive"&&(
                   <span className="nav-inprogress" title="Form in progress">
                     <Icon name="inprogress" size={11} color="var(--accent)"/>
@@ -3498,7 +3261,7 @@ function App() {
                 }}
                 onDragEnd={()=>{ref.current=null;}}
                 style={{cursor:"grab"}}>
-                <a href={l.url} target="_blank" rel="noopener noreferrer" className={cls("nav-custom-link")} onClick={e=>e.stopPropagation()}>{l.icon}<span className="link-label"> {l.title}</span></a>
+                <a href={l.url} target="_blank" rel="noopener noreferrer" className={cls("nav-custom-link")} onClick={e=>e.stopPropagation()}>{l.icon} {l.title}</a>
               </div>);
             })}
           </>)}
@@ -3507,10 +3270,10 @@ function App() {
           {/* Break Timers */}
           <div className="nav-group">Breaks</div>
           <div className="break-btns">
-            {[{label:"15 Mins Break",icon:"coffee",mins:15},{label:"30 Mins Break",icon:"meditate",mins:30},{label:"Lunch",icon:"lunch",mins:60}].map(({label,icon,mins})=>(
+            {[{label:"15 min",icon:"coffee",mins:15},{label:"30 min",icon:"meditate",mins:30},{label:"Lunch",icon:"lunch",mins:60}].map(({label,icon,mins})=>(
               <button key={mins} className={cls("break-btn",breakTimer&&breakTimer.mins===mins&&"active")} disabled={breakTimer&&breakTimer.mins!==mins} style={{opacity:breakTimer&&breakTimer.mins!==mins?.35:1,cursor:breakTimer&&breakTimer.mins!==mins?"not-allowed":"pointer"}} onClick={()=>breakTimer?.mins===mins?stopBreak():startBreak(label,mins)}>
                 <Icon name={icon} size={14} color={breakTimer?.mins===mins?"var(--accent)":"var(--muted)"}/>
-                <span className="nav-item-label" style={{flex:1}}>{label}</span>
+                <span style={{flex:1}}>{label}</span>
                 {breakTimer?.mins===mins&&<Icon name="play" size={9} color="var(--accent)"/>}
               </button>
             ))}
@@ -3524,28 +3287,22 @@ function App() {
           </div>
           <button className="theme-toggle" onClick={()=>setLightMode(l=>!l)}>
             <span>{lightMode?"🌙":"☀️"}</span>
-            <span className="theme-label" style={{flex:1,textAlign:"left"}}>{lightMode?"Dark Mode":"Light Mode"}</span>
+            <span style={{flex:1,textAlign:"left"}}>{lightMode?"Dark Mode":"Light Mode"}</span>
             <div className={cls("toggle-track",!lightMode&&"on")}><div className="toggle-thumb"/></div>
           </button>
 
+          {/* ── DB Status ── */}
+          <div className={cls("db-status", dbStatus.status)} title={dbStatus.latency?`${dbStatus.latency}ms`:undefined} onClick={dbStatus.recheck} style={{cursor:"pointer"}}>
+            <div className={cls("db-dot", dbStatus.status)}/>
+            <div style={{flex:1,minWidth:0}}>
+              {dbStatus.status==="connected"&&<span>DB Connected{dbStatus.latency?` · ${dbStatus.latency}ms`:""}</span>}
+              {dbStatus.status==="connecting"&&<span>Connecting…</span>}
+              {dbStatus.status==="error"&&<span>DB Offline ⚠</span>}
+              {dbStatus.lastSaved&&<div style={{fontSize:9,opacity:.7,marginTop:1}}>Saved {dbStatus.lastSaved.toLocaleTimeString()}</div>}
+            </div>
+            {dbStatus.status==="error"&&<span style={{fontSize:9,opacity:.7}}>tap to retry</span>}
+          </div>
         </aside>
-
-        {/* Collapse button — fixed, vertically centered on sidebar edge */}
-        <button
-          className="collapse-btn"
-          style={{left:sidebarWidth}}
-          title={sidebarCollapsed?"Expand":"Collapse"}
-          onClick={()=>{const v=!sidebarCollapsed;setSidebarCollapsed(v);localStorage.setItem("ch_sidebar_collapsed",v?"1":"0");}}>
-          {sidebarCollapsed?"›":"‹"}
-        </button>
-
-        {/* Mobile hamburger */}
-        <button className="mobile-menu-btn" onClick={()=>setMobileOpen(o=>!o)}>
-          {mobileOpen?"✕":"☰"}
-        </button>
-
-        {/* Mobile overlay backdrop */}
-        {mobileOpen&&<div className="mobile-overlay visible" onClick={()=>setMobileOpen(false)}/>}
 
         <main className="main-area" style={{paddingBottom:breakTimer?80:32}}>
           {dataLoading&&<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"80vh",flexDirection:"column",gap:16}}><div style={{animation:"float 1.5s ease-in-out infinite"}}><Icon name="loading" size={48} color="var(--accent)"/></div><div style={{color:"var(--muted)",fontSize:13,fontFamily:"Poppins,sans-serif"}}>Loading your workspace...</div></div>}
@@ -3559,7 +3316,7 @@ function App() {
           {!dataLoading&&page==="history"&&<CaseHistory cases={allCases} onUpdate={updateCase} onDelete={deleteCase}/>}
           {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} updateAnnouncement={updateAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
           {!dataLoading&&page==="links"&&<LinksPage links={links} setLinks={setLinks} addLink={addLink} updateLink={updateLink} removeLink={removeLink}/>}
-          {!dataLoading&&page==="profile"&&<ProfilePage user={user} setUser={setUser} onLogout={logout} timerLimit={timerLimit} saveTimerLimit={saveTimerLimit} specialRequestors={specialRequestors} addRequestor={addRequestor} removeRequestor={removeRequestor}/>}
+          {!dataLoading&&page==="profile"&&<ProfilePage user={user} setUser={setUser} onLogout={logout} timerLimit={timerLimit} saveTimerLimit={saveTimerLimit}/>}
         </main>
       </div>
 
@@ -3593,11 +3350,11 @@ function App() {
           <div className="alarm-modal">
             <span className="alarm-icon">{<Icon name={activeAlarm==="warn"?"timer":activeAlarm==="case"?"timer":"bell"} size={56} color="var(--accent)"/>}</span>
             <div className="alarm-title">
-              {activeAlarm==="warn"?"5 Minutes Left!":activeAlarm==="case"?"30 Minutes on Case!":"Break Over!"}
+              {activeAlarm==="warn"?"5 Minutes Left!":activeAlarm==="case"?`${timerLimit} Minutes on Case!`:"Break Over!"}
             </div>
             <div className="alarm-sub">
               {activeAlarm==="warn"?"Your break is almost up — wrap it up!"
-               :activeAlarm==="case"?"You've been on this case for 30 minutes."
+               :activeAlarm==="case"?`You've been on this case for ${timerLimit} minutes.`
                :"Your break has ended. Time to get back to work!"}
             </div>
             <div className="alarm-btns">
