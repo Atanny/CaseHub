@@ -2549,7 +2549,7 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
     afterName:user.afterName||defNames(user.name).afterName,
     screenshotName:user.screenshotName||defNames(user.name).screenshotName,
     avatarUrl:user.avatarUrl||"",
-    greetingMessages:user.greetingMessages||defaultMsgs,
+    greetingMessages:(user.greetingMessages||defaultMsgs).map(m=>({...m,base:m.base||(m.template||"").replace("[Case #]","").replace("[Inbound #]","").replace("[Type]","").trim()})),
   });
   const [pwForm,setPwForm]=useState({next:"",confirm:""});
   const [timerInput,setTimerInput]=useState(String(timerLimit||30));
@@ -2568,12 +2568,13 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
             beforeName: data.before_name || user.beforeName||defNames(user.name).beforeName,
             afterName:  data.after_name  || user.afterName||defNames(user.name).afterName,
             screenshotName: data.screenshot_name || user.screenshotName||defNames(user.name).screenshotName,
-            greetingMessages: (data.greeting_messages && data.greeting_messages.length>0) ? data.greeting_messages : (user.greetingMessages||defaultMsgs),
+            greetingMessages: ((data.greeting_messages && data.greeting_messages.length>0) ? data.greeting_messages : (user.greetingMessages||defaultMsgs))
+              .map(m=>({...m, base: m.base || (m.template||"").replace("[Case #]","").replace("[Inbound #]","").replace("[Type]","").trim() })),
           };
           setForm(f=>({...f,
             name:merged.name,role:merged.role,avatarUrl:merged.avatarUrl,
             beforeName:merged.beforeName,afterName:merged.afterName,screenshotName:merged.screenshotName,
-            greetingMessages:merged.greetingMessages||defaultMsgs,
+            greetingMessages:(merged.greetingMessages||defaultMsgs).map(m=>({...m,base:m.base||(m.template||"").replace("[Case #]","").replace("[Inbound #]","").replace("[Type]","").trim()})),
           }));
           // Sync to localStorage so rest of app sees it
           localStorage.setItem("ch_user",JSON.stringify(merged));
