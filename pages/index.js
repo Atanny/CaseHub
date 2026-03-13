@@ -100,15 +100,15 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 .sidebar.collapsed .theme-toggle{justify-content:center;padding:10px 0;gap:0;}
 .sidebar.collapsed .logo{justify-content:center;padding-left:0;padding-right:0;}
 .sidebar-collapse-btn{
-  position:absolute;top:72px;right:-13px;
-  width:26px;height:26px;border-radius:50%;
-  background:var(--accent);border:3px solid var(--bg);
+  position:absolute;top:50%;right:-12px;transform:translateY(-50%);
+  width:24px;height:24px;border-radius:0;
+  background:var(--accent);border:none;
   display:flex;align-items:center;justify-content:center;
-  cursor:pointer;z-index:200;box-shadow:0 2px 10px rgba(0,0,0,.3);
-  transition:background .15s, right .22s;padding:0;
+  cursor:pointer;z-index:200;box-shadow:0 2px 8px rgba(0,0,0,.28);
+  transition:background .15s;padding:0;flex-shrink:0;
 }
 .sidebar-collapse-btn:hover{background:var(--accent2);}
-.sidebar-wrap{position:relative;flex-shrink:0;transition:width .22s ease;}
+.sidebar-wrap{position:relative;flex-shrink:0;}
 .logo{
   font-size:18px;font-weight:800;color:var(--text);
   padding:4px 10px 20px;letter-spacing:-.5px;
@@ -143,6 +143,24 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
   border-radius:0;font-size:10px;font-weight:700;
   padding:1px 7px;line-height:1.6;
 }
+.nav-icon-wrap{position:relative;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
+.nav-badge-dot{
+  position:absolute;top:-5px;right:-6px;
+  min-width:14px;height:14px;border-radius:7px;
+  background:var(--accent);color:#fff;
+  font-size:8px;font-weight:700;line-height:14px;text-align:center;
+  padding:0 3px;pointer-events:none;
+  display:none;
+}
+.sidebar.collapsed .nav-badge-dot{display:block;}
+.nav-active-dot{
+  position:absolute;top:-3px;right:-3px;
+  width:7px;height:7px;border-radius:50%;
+  background:var(--accent);display:none;
+  animation:pulse-dot 1.4s ease-in-out infinite;
+}
+.sidebar.collapsed .nav-active-dot{display:block;}
+.sidebar.collapsed .profile-text{display:none;}
 
 /* TOC nav card — sticky column between sidebar and form */
 .toc-card{
@@ -1208,22 +1226,22 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
         {!isSC&&<CopyRow label="Email Type" value={emailTypeLabel}/>}
         {!isSC&&<CopyRow label="Email Address" value={f.emailAddress}/>}
         {allImages.length>0&&(<div className="copy-row-wrap"><div className="copy-row-label">Screenshots ({allImages.length})</div><div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>{allImages.map(img=>(<div key={img.id} style={{width:68,height:52,borderRadius:0,overflow:"hidden",border:"1.5px solid var(--border)"}}><img src={img.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>))}</div></div>)}
-        {specialRequestors&&specialRequestors.length>0&&(
-          <div style={{borderTop:"1px solid var(--border)",paddingTop:14,marginTop:6}}>
-            <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:10,fontFamily:"'Poppins',sans-serif"}}>Special Requestors</div>
-            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-              {specialRequestors.map((name,i)=>(
-                <div key={i} style={{display:"flex",alignItems:"center",gap:6,background:"var(--entry-accent-bg)",border:"1px solid rgba(245,148,92,.25)",padding:"5px 10px",fontSize:12,fontWeight:600,color:"var(--accent)",fontFamily:"'Poppins',sans-serif"}}>
-                  <span style={{width:20,height:20,borderRadius:"50%",background:"var(--btn-save-bg)",display:"inline-flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:9,fontWeight:700,flexShrink:0}}>
-                    {name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
-                  </span>
-                  {name}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
+      {specialRequestors&&specialRequestors.length>0&&(
+        <div style={{padding:"14px 16px 0"}}>
+          <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:8,fontFamily:"'Poppins',sans-serif"}}>Special Requestors</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            {specialRequestors.map((name,i)=>(
+              <div key={i} style={{display:"flex",alignItems:"center",gap:6,background:"var(--entry-accent-bg)",border:"1px solid rgba(245,148,92,.25)",padding:"5px 10px",fontSize:12,fontWeight:600,color:"var(--accent)",fontFamily:"'Poppins',sans-serif"}}>
+                <span style={{width:20,height:20,borderRadius:"50%",background:"var(--btn-save-bg)",display:"inline-flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:9,fontWeight:700,flexShrink:0}}>
+                  {name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
+                </span>
+                {name}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -3444,15 +3462,20 @@ function App() {
             n.group
               ?<div key={i} className="nav-group">{n.group}</div>
               :<button key={n.id} className={cls("nav-item",page===n.id&&"active")} onClick={()=>handleNav(n.id)}>
-                <Icon name={n.icon} size={15} color={page===n.id?"var(--accent)":"var(--muted)"}/>
+                <span className="nav-icon-wrap">
+                  <Icon name={n.icon} size={15} color={page===n.id?"var(--accent)":"var(--muted)"}/>
+                  {n.id==="history"&&allCases.length>0&&<span className="nav-badge-dot">{allCases.length}</span>}
+                  {n.id==="announcements"&&announcements.length>0&&<span className="nav-badge-dot">{announcements.length}</span>}
+                  {n.id==="postlive"&&formActive&&page!=="postlive"&&<span className="nav-active-dot"/>}
+                </span>
                 <span className="nav-label">{n.label}</span>
                 {n.id==="postlive"&&formActive&&page!=="postlive"&&(
-                  <span className="nav-inprogress" title="Form in progress">
+                  <span className="nav-inprogress nav-label" title="Form in progress">
                     <Icon name="inprogress" size={11} color="var(--accent)"/>
                   </span>
                 )}
-                {n.id==="history"&&allCases.length>0&&<span className="nav-badge">{allCases.length}</span>}
-                {n.id==="announcements"&&announcements.length>0&&<span className="nav-badge">{announcements.length}</span>}
+                {n.id==="history"&&allCases.length>0&&<span className="nav-badge nav-label">{allCases.length}</span>}
+                {n.id==="announcements"&&announcements.length>0&&<span className="nav-badge nav-label">{announcements.length}</span>}
               </button>
           )}
 
@@ -3490,10 +3513,10 @@ function App() {
           </div>
           <div className="sidebar-divider" style={{height:1,background:"var(--border)",margin:"4px 0 10px"}}/>
           <div className="sidebar-profile" onClick={()=>handleNav("profile")}>
-            <div className="profile-avatar" style={{overflow:"hidden",padding:0}}>
-              {user.avatarUrl?<img src={user.avatarUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover",borderRadius:"50%"}}/>:<span>{initials}</span>}
+            <div className="profile-avatar" style={{overflow:"hidden",padding:0,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              {user.avatarUrl?<img src={user.avatarUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover",borderRadius:"50%"}}/>:<span style={{display:"flex",alignItems:"center",justifyContent:"center",width:"100%",height:"100%"}}>{initials}</span>}
             </div>
-            <div><div className="profile-name">{user.name}</div><div className="profile-role">{user.role||"User"}</div></div>
+            <div className="profile-text"><div className="profile-name">{user.name}</div><div className="profile-role">{user.role||"User"}</div></div>
           </div>
           <button className="theme-toggle" onClick={()=>setLightMode(l=>!l)}>
             <span style={{flexShrink:0}}>{lightMode?"🌙":"☀️"}</span>
