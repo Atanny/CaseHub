@@ -1090,40 +1090,49 @@ function CopyRow({ label, value }) {
   );
 }
 
-// ── GreetingRow — dropdown type selector for check-in message ──
-function GreetingRow({ greetingMsg, caseNum, isSC }) {
-  const [type,setType]=useState(()=>{
-    if(typeof window!=="undefined"){
-      const saved=localStorage.getItem("ch_greeting_type");
-      if(saved) return saved;
-    }
-    return isSC?"Site Comment":"Inbound Email";
-  });
-  const [copied,setCopied]=useState(false);
-  const types=["Site Comment","Inbound Email"];
-  const handleTypeChange=(v)=>{ setType(v); if(typeof window!=="undefined") localStorage.setItem("ch_greeting_type",v); };
-  // Build message: replace (Case #) with actual number, no parentheses, append type
-  const msg=(greetingMsg||"Hi po Ms. Tina, magpapacheck lang po (Case #)")
-    .replace("(Case #)",`Case #${caseNum}`)+" "+type;
-  const copy=()=>{ copyToClipboard(msg).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),1800);}); };
+// ── GreetingRow — multi-message panel in Live Summary ──
+function GreetingRow({ greetingMessages, caseNum, inboundNum, isSC }) {
+  const DEFAULT_MSGS = [{ id:"default", label:"Check-in", template:"Hi po Ms. Tina, magpapacheck lang po [Case #]", fillType:"caseNum" }];
+  const msgs = (greetingMessages&&greetingMessages.length>0) ? greetingMessages : DEFAULT_MSGS;
+  const [copiedId,setCopiedId]=useState(null);
+
+  // Build the filled message — replace placeholders, no brackets in output
+  const buildMsg=(m)=>{
+    let t=m.template||"";
+    if(m.fillType==="caseNum")   t=t.replace("[Case #]", caseNum||"—");
+    if(m.fillType==="siteComment") t=t.replace("[Case #]", caseNum||"—").replace("[Type]","Site Comment");
+    if(m.fillType==="inbound")   t=t.replace("[Case #]", caseNum||"—").replace("[Inbound #]", inboundNum||"—").replace("[Type]","Inbound Email");
+    // strip any remaining brackets
+    t=t.replace(/\[.*?\]/g,"—");
+    return t;
+  };
+
+  const copy=(m)=>{
+    const txt=buildMsg(m);
+    copyToClipboard(txt).then(()=>{setCopiedId(m.id);setTimeout(()=>setCopiedId(null),1800);});
+  };
+
+  if(!caseNum) return null;
+
   return (
-    <div className="copy-row-wrap">
-      <div className="copy-row-label">Message</div>
-      <div style={{display:"flex",flexDirection:"column",gap:6}}>
-        <div style={{display:"flex",gap:6,alignItems:"center"}}>
-          <select value={type} onChange={e=>handleTypeChange(e.target.value)}
-            style={{background:"var(--inp-bg)",border:"1.5px solid var(--border)",color:"var(--text)",fontSize:11,padding:"4px 8px",borderRadius:0,fontFamily:"'Poppins',sans-serif",cursor:"pointer",outline:"none"}}>
-            {types.map(t=><option key={t} value={t}>{t}</option>)}
-          </select>
-          <button className={copied?"copy-row-btn done":"copy-row-btn"} onClick={copy} style={{flexShrink:0}}>{copied?"✓":"📋"}</button>
-        </div>
-        <div style={{fontSize:12,color:"var(--text)",lineHeight:1.5,padding:"5px 8px",background:"var(--entry-bg)",border:"1px solid var(--border)"}}>{msg}</div>
+    <div className="copy-row-wrap" style={{paddingBottom:0}}>
+      <div className="copy-row-label">Messages</div>
+      <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:4}}>
+        {msgs.map(m=>(
+          <div key={m.id} style={{background:"var(--entry-bg)",border:"1.5px solid var(--border)",padding:"8px 10px",display:"flex",flexDirection:"column",gap:4}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:6}}>
+              <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".6px",color:"var(--accent)",fontFamily:"'Poppins',sans-serif"}}>{m.label||"Message"}</span>
+              <button className={copiedId===m.id?"copy-row-btn done":"copy-row-btn"} onClick={()=>copy(m)} style={{flexShrink:0,padding:"2px 8px",fontSize:10}}>{copiedId===m.id?"✓ Copied":"📋 Copy"}</button>
+            </div>
+            <div style={{fontSize:12,color:"var(--text)",lineHeight:1.5,wordBreak:"break-word"}}>{buildMsg(m)}</div>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailText, onTimerEnd, specialRequestors, timerLimitSecs, greetingMsg="Hi po Ms. Tina, magpapacheck lang po (Case #)" }) {
+function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailText, onTimerEnd, specialRequestors, timerLimitSecs, greetingMessages }) {
   const [elapsed,setElapsed]=useState(0);
   const [now,setNow]=useState(new Date());
   const firedRef=useRef(false);
@@ -1163,7 +1172,7 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
         {!isSC&&<CopyRow label="Inbound #" value={f.inboundNum}/>}
         <CopyRow label="Amend Type" value={f.amendType}/>
         {f.caseNum&&(
-          <GreetingRow greetingMsg={greetingMsg} caseNum={f.caseNum} isSC={isSC}/>
+          <GreetingRow greetingMessages={greetingMessages} caseNum={f.caseNum} inboundNum={f.inboundNum} isSC={isSC}/>
         )}
         <CopyRow label={isSC?"Site Comments":"Assumptions"} value={isSC?buildEntriesText():buildEmailText()}/>
         {!isSC&&<CopyRow label="Email Type" value={emailTypeLabel}/>}
@@ -1527,7 +1536,7 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
         <Toast msg={toast.msg} type={toast.type}/>
       </div>
       <div className="form-right">
-        <StickyPanel startTimeRef={startTimeRef} form={form} isSC={isSC} buildEntriesText={buildEntriesText} buildEmailText={buildEmailText} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={timerLimitSecs} greetingMsg={user?.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po (Case #)"}/>
+        <StickyPanel startTimeRef={startTimeRef} form={form} isSC={isSC} buildEntriesText={buildEntriesText} buildEmailText={buildEmailText} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={timerLimitSecs} greetingMessages={user?.greetingMessages}/>
       </div>
     </div>
   );
@@ -2535,13 +2544,14 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
     return {beforeName:`Post_Live_Amend_Before_${n}_Amends`,afterName:`Post_Live_Amend_After_${n}_Amends`,screenshotName:`Post_Live_Amend_Screenshot_${n}_Amends`};
   };
 
+  const defaultMsgs=[{id:"default",label:"Check-in",template:"Hi po Ms. Tina, magpapacheck lang po [Case #]",fillType:"caseNum"}];
   const [form,setForm]=useState({
     name:user.name||"",email:user.email||"",role:user.role||"",
     beforeName:user.beforeName||defNames(user.name).beforeName,
     afterName:user.afterName||defNames(user.name).afterName,
     screenshotName:user.screenshotName||defNames(user.name).screenshotName,
     avatarUrl:user.avatarUrl||"",
-    greetingMsg:user.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po (Case #)",
+    greetingMessages:user.greetingMessages||defaultMsgs,
   });
   const [pwForm,setPwForm]=useState({next:"",confirm:""});
   const [timerInput,setTimerInput]=useState(String(timerLimit||30));
@@ -2560,12 +2570,12 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
             beforeName: data.before_name || user.beforeName||defNames(user.name).beforeName,
             afterName:  data.after_name  || user.afterName||defNames(user.name).afterName,
             screenshotName: data.screenshot_name || user.screenshotName||defNames(user.name).screenshotName,
-            greetingMsg: data.greeting_msg || user.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po (Case #)",
+            greetingMessages: (data.greeting_messages && data.greeting_messages.length>0) ? data.greeting_messages : (user.greetingMessages||defaultMsgs),
           };
           setForm(f=>({...f,
             name:merged.name,role:merged.role,avatarUrl:merged.avatarUrl,
             beforeName:merged.beforeName,afterName:merged.afterName,screenshotName:merged.screenshotName,
-            greetingMsg:merged.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po (Case #)",
+            greetingMessages:merged.greetingMessages||defaultMsgs,
           }));
           // Sync to localStorage so rest of app sees it
           localStorage.setItem("ch_user",JSON.stringify(merged));
@@ -2589,7 +2599,7 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
         after_name:form.afterName,
         screenshot_name:form.screenshotName,
         avatar_url:form.avatarUrl||null,
-        greeting_msg:form.greetingMsg,
+        greeting_messages:form.greetingMessages||[],
       };
       const res=await fetch("/api/profile",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
       const data=await res.json();
@@ -2598,7 +2608,7 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
       const updated={...user,...form,
         beforeName:form.beforeName,afterName:form.afterName,
         screenshotName:form.screenshotName,avatarUrl:form.avatarUrl||user.avatarUrl||"",
-        greetingMsg:form.greetingMsg};
+        greetingMessages:form.greetingMessages||[]};
       localStorage.setItem("ch_user",JSON.stringify(updated));
       setUser(updated);
       setEditing(false);
@@ -2679,16 +2689,55 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
         </div>)}
       </div>
 
-      {/* ── Greeting / check-in message card ── */}
+      {/* ── Check-in Messages card ── */}
       <div className="profile-card">
-        <h3 style={{fontSize:16,fontWeight:700,marginBottom:8}}>Check-in Message</h3>
-        <p style={{fontSize:12,color:"var(--muted)",marginBottom:12}}>Appears in your Live Summary panel when a Case # is entered. Use <code style={{background:"var(--border)",padding:"1px 5px",fontSize:11}}>(Case #)</code> as the placeholder.</p>
-        <div className="field">
-          <label>Message Template</label>
-          <input className="inp" value={form.greetingMsg||""} onChange={e=>setForm(f=>({...f,greetingMsg:e.target.value}))} placeholder="Hi po Ms. Tina, magpapacheck lang po (Case #)"/>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+          <h3 style={{fontSize:16,fontWeight:700,margin:0}}>Check-in Messages</h3>
+          <button className="btn btn-primary" style={{fontSize:11,padding:"5px 12px"}} onClick={()=>{
+            const newMsg={id:Date.now().toString(),label:"New Message",template:"Hi po Ms. Tina, magpapacheck lang po [Case #]",fillType:"caseNum"};
+            setForm(f=>({...f,greetingMessages:[...(f.greetingMessages||[]),newMsg]}));
+          }}>＋ Add Message</button>
         </div>
-        <div style={{fontSize:11,color:"var(--muted)",marginTop:6}}>Preview: <span style={{color:"var(--accent)",fontWeight:600}}>{(form.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po (Case #)").replace("(Case #)","(Case #12345)")}</span></div>
-        <button className="btn btn-primary" style={{marginTop:14}} onClick={saveProfile} disabled={saving}>{saving?"Saving...":"Save Message"}</button>
+        <p style={{fontSize:12,color:"var(--muted)",marginBottom:14}}>Use <code style={{background:"var(--border)",padding:"1px 5px",fontSize:11}}>[Case #]</code>, <code style={{background:"var(--border)",padding:"1px 5px",fontSize:11}}>[Inbound #]</code>, or <code style={{background:"var(--border)",padding:"1px 5px",fontSize:11}}>[Type]</code> as placeholders. Pick what fills <b>[Case #]</b> with the radio.</p>
+        {(form.greetingMessages||[]).length===0&&(
+          <div style={{fontSize:13,color:"var(--muted)",padding:"12px 0"}}>No messages yet. Click <b>＋ Add Message</b> to create one.</div>
+        )}
+        {(form.greetingMessages||[]).map((m,mi)=>(
+          <div key={m.id} style={{background:"var(--entry-bg)",border:"1.5px solid var(--border)",padding:"14px",marginBottom:10}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+              <input className="inp" style={{flex:1,fontWeight:700,fontSize:13}} value={m.label} onChange={e=>{
+                const arr=[...(form.greetingMessages||[])];arr[mi]={...arr[mi],label:e.target.value};setForm(f=>({...f,greetingMessages:arr}));
+              }} placeholder="Label (e.g. Site Comment Check-in)"/>
+              <button className="entry-del" onClick={()=>{
+                const arr=(form.greetingMessages||[]).filter((_,i)=>i!==mi);setForm(f=>({...f,greetingMessages:arr}));
+              }}><Icon name="trash" size={13} color="var(--red)"/></button>
+            </div>
+            <div className="field" style={{marginBottom:10}}>
+              <label>Message Template</label>
+              <textarea className="inp" rows={2} value={m.template} onChange={e=>{
+                const arr=[...(form.greetingMessages||[])];arr[mi]={...arr[mi],template:e.target.value};setForm(f=>({...f,greetingMessages:arr}));
+              }} placeholder="Hi po Ms. Tina, magpapacheck lang po [Case #]"/>
+            </div>
+            <div className="field" style={{marginBottom:0}}>
+              <label>What fills <code style={{background:"var(--border)",padding:"1px 4px",fontSize:10}}>[Case #]</code></label>
+              <div className="radio-group" style={{marginTop:6}}>
+                {[{v:"caseNum",l:"Case Number"},{v:"siteComment",l:"Site Comment"},{v:"inbound",l:"Inbound Email"}].map(({v,l})=>(
+                  <label key={v} className={cls("radio-label",m.fillType===v&&"selected-clarif")}>
+                    <input type="radio" checked={m.fillType===v} onChange={()=>{
+                      const arr=[...(form.greetingMessages||[])];arr[mi]={...arr[mi],fillType:v};setForm(f=>({...f,greetingMessages:arr}));
+                    }}/>{l}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div style={{fontSize:11,color:"var(--muted)",marginTop:10}}>
+              Preview: <span style={{color:"var(--accent)",fontWeight:600}}>
+                {(m.template||"").replace("[Case #]","12345").replace("[Inbound #]","67890").replace("[Type]",m.fillType==="siteComment"?"Site Comment":"Inbound Email").replace(/\[.*?\]/g,"—")}
+              </span>
+            </div>
+          </div>
+        ))}
+        <button className="btn btn-primary" style={{marginTop:4}} onClick={saveProfile} disabled={saving}>{saving?"Saving...":"💾 Save Messages"}</button>
       </div>
 
       {/* ── File naming card ── */}
