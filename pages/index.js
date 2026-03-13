@@ -86,27 +86,29 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 .sidebar.collapsed{width:64px;padding:20px 8px;overflow:hidden;}
 .sidebar.collapsed .logo-text,
 .sidebar.collapsed .nav-group,
-.sidebar.collapsed .nav-item span:not(.nav-badge):not(.nav-inprogress),
+.sidebar.collapsed .nav-label,
 .sidebar.collapsed .profile-name,
 .sidebar.collapsed .profile-role,
-.sidebar.collapsed .theme-toggle span:not(:first-child),
+.sidebar.collapsed .theme-toggle .toggle-label,
 .sidebar.collapsed .toggle-track,
-.sidebar.collapsed .db-status span,
+.sidebar.collapsed .db-status,
 .sidebar.collapsed .break-btns,
-.sidebar.collapsed .nav-custom-link span{display:none;}
-.sidebar.collapsed .nav-item{justify-content:center;padding:10px 0;}
+.sidebar.collapsed .sidebar-divider,
+.sidebar.collapsed .nav-custom-link{display:none;}
+.sidebar.collapsed .nav-item{justify-content:center;padding:10px 0;gap:0;}
 .sidebar.collapsed .sidebar-profile{justify-content:center;padding:8px 0;}
-.sidebar.collapsed .theme-toggle{justify-content:center;padding:10px 0;}
+.sidebar.collapsed .theme-toggle{justify-content:center;padding:10px 0;gap:0;}
+.sidebar.collapsed .logo{justify-content:center;padding-left:0;padding-right:0;}
 .sidebar-collapse-btn{
-  position:absolute;top:50%;right:-14px;transform:translateY(-50%);
-  width:28px;height:28px;border-radius:50%;
-  background:var(--accent);border:2px solid var(--bg);
+  position:absolute;top:72px;right:-13px;
+  width:26px;height:26px;border-radius:50%;
+  background:var(--accent);border:3px solid var(--bg);
   display:flex;align-items:center;justify-content:center;
-  cursor:pointer;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.25);
-  transition:.18s;flex-shrink:0;
+  cursor:pointer;z-index:200;box-shadow:0 2px 10px rgba(0,0,0,.3);
+  transition:background .15s, right .22s;padding:0;
 }
 .sidebar-collapse-btn:hover{background:var(--accent2);}
-.sidebar-wrap{position:relative;flex-shrink:0;}
+.sidebar-wrap{position:relative;flex-shrink:0;transition:width .22s ease;}
 .logo{
   font-size:18px;font-weight:800;color:var(--text);
   padding:4px 10px 20px;letter-spacing:-.5px;
@@ -1283,7 +1285,7 @@ function Icon({ name, size=16, color="currentColor", style={} }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // FORM DATA
 // ─────────────────────────────────────────────────────────────────────────────
-const emptyEntry = ()=>({id:Date.now()+Math.random(),number:"",note:"",clarification:""});
+const emptyEntry = ()=>({id:String(Date.now()+Math.random()),number:"",note:"",clarification:""});
 const emptyBase  = ()=>({
   caseNum:"",accountNum:"",amendType:"",inProgress:false,inboundNum:"",
   entries:[emptyEntry()],
@@ -1491,7 +1493,7 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
                 onDragHandlePointerDown={(ev)=>{
                   ev.preventDefault();
                   ev.stopPropagation();
-                  const fromId=e.id;
+                  const fromId=String(e.id);
                   dragFromId.current=fromId;
                   dragToId.current=fromId;
                   setDragActiveId(fromId);
@@ -1545,26 +1547,24 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
                     dragToId.current=null;
                     if(rawTo && rawTo.includes("::")){
                       const [toId,pos]=rawTo.split("::");
-                      // moveEntry now needs: fromId, toId, pos
-                      setF(f=>{
-                        const arr=[...f.entries];
-                        const fi=arr.findIndex(e=>e.id===fromId);
-                        let ti=arr.findIndex(e=>e.id===toId);
-                        if(fi===-1||ti===-1||fi===ti) return f;
+                      setForm(prev=>{
+                        const arr=[...prev.entries];
+                        const fi=arr.findIndex(x=>String(x.id)===fromId);
+                        let ti=arr.findIndex(x=>String(x.id)===toId);
+                        if(fi===-1||ti===-1||fi===ti) return prev;
                         const [moved]=arr.splice(fi,1);
-                        // recalc ti after splice
-                        ti=arr.findIndex(e=>e.id===toId);
+                        ti=arr.findIndex(x=>String(x.id)===toId);
                         const insertAt=pos==="after"?ti+1:ti;
                         arr.splice(insertAt,0,moved);
-                        return{...f,entries:arr};
+                        return{...prev,entries:arr};
                       });
                     }
-                    window.removeEventListener("pointermove",onMove);
-                    window.removeEventListener("pointerup",onUp);
+                    window.removeEventListener("pointermove",onMove,true);
+                    window.removeEventListener("pointerup",onUp,true);
                   };
 
-                  window.addEventListener("pointermove",onMove);
-                  window.addEventListener("pointerup",onUp);
+                  window.addEventListener("pointermove",onMove,true);
+                  window.addEventListener("pointerup",onUp,true);
                 }}
               />
             </div>
@@ -3445,7 +3445,7 @@ function App() {
               ?<div key={i} className="nav-group">{n.group}</div>
               :<button key={n.id} className={cls("nav-item",page===n.id&&"active")} onClick={()=>handleNav(n.id)}>
                 <Icon name={n.icon} size={15} color={page===n.id?"var(--accent)":"var(--muted)"}/>
-                {n.label}
+                <span className="nav-label">{n.label}</span>
                 {n.id==="postlive"&&formActive&&page!=="postlive"&&(
                   <span className="nav-inprogress" title="Form in progress">
                     <Icon name="inprogress" size={11} color="var(--accent)"/>
@@ -3476,7 +3476,7 @@ function App() {
             })}
           </>)}
 
-          <div style={{height:1,background:"var(--border)",margin:"12px 0 10px"}}/>
+          <div className="sidebar-divider" style={{height:1,background:"var(--border)",margin:"12px 0 10px"}}/>
           {/* Break Timers */}
           <div className="nav-group">Breaks</div>
           <div className="break-btns">
@@ -3488,7 +3488,7 @@ function App() {
               </button>
             ))}
           </div>
-          <div style={{height:1,background:"var(--border)",margin:"4px 0 10px"}}/>
+          <div className="sidebar-divider" style={{height:1,background:"var(--border)",margin:"4px 0 10px"}}/>
           <div className="sidebar-profile" onClick={()=>handleNav("profile")}>
             <div className="profile-avatar" style={{overflow:"hidden",padding:0}}>
               {user.avatarUrl?<img src={user.avatarUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover",borderRadius:"50%"}}/>:<span>{initials}</span>}
@@ -3496,8 +3496,8 @@ function App() {
             <div><div className="profile-name">{user.name}</div><div className="profile-role">{user.role||"User"}</div></div>
           </div>
           <button className="theme-toggle" onClick={()=>setLightMode(l=>!l)}>
-            <span>{lightMode?"🌙":"☀️"}</span>
-            <span style={{flex:1,textAlign:"left"}}>{lightMode?"Dark Mode":"Light Mode"}</span>
+            <span style={{flexShrink:0}}>{lightMode?"🌙":"☀️"}</span>
+            <span className="toggle-label" style={{flex:1,textAlign:"left"}}>{lightMode?"Dark Mode":"Light Mode"}</span>
             <div className={cls("toggle-track",!lightMode&&"on")}><div className="toggle-thumb"/></div>
           </button>
 
