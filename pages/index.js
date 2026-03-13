@@ -1092,19 +1092,17 @@ function CopyRow({ label, value }) {
 
 // ── GreetingRow — multi-message panel in Live Summary ──
 function GreetingRow({ greetingMessages, caseNum, inboundNum, isSC }) {
-  const DEFAULT_MSGS = [{ id:"default", label:"Check-in", template:"Hi po Ms. Tina, magpapacheck lang po [Case #]", fillType:"caseNum" }];
+  const DEFAULT_MSGS = [{ id:"default", label:"Check-in", base:"Hi po Ms. Tina, magpapacheck lang po", fillType:"caseNum" }];
   const msgs = (greetingMessages&&greetingMessages.length>0) ? greetingMessages : DEFAULT_MSGS;
   const [copiedId,setCopiedId]=useState(null);
 
-  // Build the filled message — replace placeholders, no brackets in output
+  // Build the filled message from base text + fillType + actual values
   const buildMsg=(m)=>{
-    let t=m.template||"";
-    if(m.fillType==="caseNum")   t=t.replace("[Case #]", caseNum||"—");
-    if(m.fillType==="siteComment") t=t.replace("[Case #]", caseNum||"—").replace("[Type]","Site Comment");
-    if(m.fillType==="inbound")   t=t.replace("[Case #]", caseNum||"—").replace("[Inbound #]", inboundNum||"—").replace("[Type]","Inbound Email");
-    // strip any remaining brackets
-    t=t.replace(/\[.*?\]/g,"—");
-    return t;
+    const b=(m.base||m.template||"Hi po Ms. Tina, magpapacheck lang po").trim();
+    if(m.fillType==="caseNum")     return `${b} Case #${caseNum||"—"}`;
+    if(m.fillType==="siteComment") return `${b} Case #${caseNum||"—"} Site Comment`;
+    if(m.fillType==="inbound")     return `${b} Case #${caseNum||"—"} Inbound Email`;
+    return `${b} Case #${caseNum||"—"}`;
   };
 
   const copy=(m)=>{
@@ -2544,7 +2542,7 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
     return {beforeName:`Post_Live_Amend_Before_${n}_Amends`,afterName:`Post_Live_Amend_After_${n}_Amends`,screenshotName:`Post_Live_Amend_Screenshot_${n}_Amends`};
   };
 
-  const defaultMsgs=[{id:"default",label:"Check-in",template:"Hi po Ms. Tina, magpapacheck lang po [Case #]",fillType:"caseNum"}];
+  const defaultMsgs=[{id:"default",label:"Check-in",base:"Hi po Ms. Tina, magpapacheck lang po",fillType:"caseNum"}];
   const [form,setForm]=useState({
     name:user.name||"",email:user.email||"",role:user.role||"",
     beforeName:user.beforeName||defNames(user.name).beforeName,
@@ -2694,49 +2692,57 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
           <h3 style={{fontSize:16,fontWeight:700,margin:0}}>Check-in Messages</h3>
           <button className="btn btn-primary" style={{fontSize:11,padding:"5px 12px"}} onClick={()=>{
-            const newMsg={id:Date.now().toString(),label:"New Message",template:"Hi po Ms. Tina, magpapacheck lang po [Case #]",fillType:"caseNum"};
+            const newMsg={id:Date.now().toString(),label:"New Message",base:"Hi po Ms. Tina, magpapacheck lang po",fillType:"caseNum"};
             setForm(f=>({...f,greetingMessages:[...(f.greetingMessages||[]),newMsg]}));
           }}>＋ Add Message</button>
         </div>
-        <p style={{fontSize:12,color:"var(--muted)",marginBottom:14}}>Use <code style={{background:"var(--border)",padding:"1px 5px",fontSize:11}}>[Case #]</code>, <code style={{background:"var(--border)",padding:"1px 5px",fontSize:11}}>[Inbound #]</code>, or <code style={{background:"var(--border)",padding:"1px 5px",fontSize:11}}>[Type]</code> as placeholders. Pick what fills <b>[Case #]</b> with the radio.</p>
+        <p style={{fontSize:12,color:"var(--muted)",marginBottom:14}}>Write your message base text. The radio button automatically appends what type to include when copying.</p>
         {(form.greetingMessages||[]).length===0&&(
           <div style={{fontSize:13,color:"var(--muted)",padding:"12px 0"}}>No messages yet. Click <b>＋ Add Message</b> to create one.</div>
         )}
-        {(form.greetingMessages||[]).map((m,mi)=>(
+        {(form.greetingMessages||[]).map((m,mi)=>{
+          // Auto-build preview from base + fillType
+          const buildPreview=(base,ft)=>{
+            const b=base||"Hi po Ms. Tina, magpapacheck lang po";
+            if(ft==="caseNum")     return `${b} Case #12345`;
+            if(ft==="siteComment") return `${b} Case #12345 Site Comment`;
+            if(ft==="inbound")     return `${b} Case #12345 Inbound Email`;
+            return b;
+          };
+          const updateMsg=(patch)=>{
+            const arr=[...(form.greetingMessages||[])];arr[mi]={...arr[mi],...patch};
+            setForm(f=>({...f,greetingMessages:arr}));
+          };
+          return (
           <div key={m.id} style={{background:"var(--entry-bg)",border:"1.5px solid var(--border)",padding:"14px",marginBottom:10}}>
             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
-              <input className="inp" style={{flex:1,fontWeight:700,fontSize:13}} value={m.label} onChange={e=>{
-                const arr=[...(form.greetingMessages||[])];arr[mi]={...arr[mi],label:e.target.value};setForm(f=>({...f,greetingMessages:arr}));
-              }} placeholder="Label (e.g. Site Comment Check-in)"/>
+              <input className="inp" style={{flex:1,fontWeight:700,fontSize:13}} value={m.label||""} onChange={e=>updateMsg({label:e.target.value})} placeholder="Label (e.g. Site Comment)"/>
               <button className="entry-del" onClick={()=>{
                 const arr=(form.greetingMessages||[]).filter((_,i)=>i!==mi);setForm(f=>({...f,greetingMessages:arr}));
               }}><Icon name="trash" size={13} color="var(--red)"/></button>
             </div>
             <div className="field" style={{marginBottom:10}}>
-              <label>Message Template</label>
-              <textarea className="inp" rows={2} value={m.template} onChange={e=>{
-                const arr=[...(form.greetingMessages||[])];arr[mi]={...arr[mi],template:e.target.value};setForm(f=>({...f,greetingMessages:arr}));
-              }} placeholder="Hi po Ms. Tina, magpapacheck lang po [Case #]"/>
+              <label>Message</label>
+              <input className="inp" value={m.base||""} onChange={e=>updateMsg({base:e.target.value})} placeholder="Hi po Ms. Tina, magpapacheck lang po"/>
             </div>
-            <div className="field" style={{marginBottom:0}}>
-              <label>What fills <code style={{background:"var(--border)",padding:"1px 4px",fontSize:10}}>[Case #]</code></label>
-              <div className="radio-group" style={{marginTop:6}}>
+            <div className="field" style={{marginBottom:8}}>
+              <label style={{marginBottom:6,display:"block"}}>Append to message</label>
+              <div className="radio-group">
                 {[{v:"caseNum",l:"Case Number"},{v:"siteComment",l:"Site Comment"},{v:"inbound",l:"Inbound Email"}].map(({v,l})=>(
-                  <label key={v} className={cls("radio-label",m.fillType===v&&"selected-clarif")}>
-                    <input type="radio" checked={m.fillType===v} onChange={()=>{
-                      const arr=[...(form.greetingMessages||[])];arr[mi]={...arr[mi],fillType:v};setForm(f=>({...f,greetingMessages:arr}));
-                    }}/>{l}
+                  <label key={v} className={cls("radio-label",m.fillType===v&&(v==="siteComment"?"selected-clarif":v==="inbound"?"selected-complete":"selected-clarif"))}>
+                    <input type="radio" name={`fillType-${m.id}`} checked={m.fillType===v} onChange={()=>updateMsg({fillType:v})}/>
+                    {l}
                   </label>
                 ))}
               </div>
             </div>
-            <div style={{fontSize:11,color:"var(--muted)",marginTop:10}}>
-              Preview: <span style={{color:"var(--accent)",fontWeight:600}}>
-                {(m.template||"").replace("[Case #]","12345").replace("[Inbound #]","67890").replace("[Type]",m.fillType==="siteComment"?"Site Comment":"Inbound Email").replace(/\[.*?\]/g,"—")}
-              </span>
+            <div style={{fontSize:11,color:"var(--muted)",marginTop:8,padding:"7px 10px",background:"var(--card)",border:"1px solid var(--border)"}}>
+              <span style={{opacity:.6}}>Preview: </span>
+              <span style={{color:"var(--accent)",fontWeight:600}}>{buildPreview(m.base,m.fillType)}</span>
             </div>
           </div>
-        ))}
+          );
+        })}
         <button className="btn btn-primary" style={{marginTop:4}} onClick={saveProfile} disabled={saving}>{saving?"Saving...":"💾 Save Messages"}</button>
       </div>
 
