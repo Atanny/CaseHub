@@ -1899,7 +1899,7 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // POST LIVE PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, globalTimeIn, onTimeIn, onTimeOut, sessionLog=[], addSessionLog, closeSessionLog, clearSessionLog }) {
+function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, globalTimeIn, timedIn, onTimeIn, onTimeOut, onTimerReset, sessionLog=[], addSessionLog, closeSessionLog, clearSessionLog }) {
   const [mode,setMode]=useState(null);
   const [backConfirm,setBackConfirm]=useState(false);
   const [openSavedId,setOpenSavedId]=useState(null);
@@ -1920,10 +1920,10 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, d
   const recentAll = [...allSavedCases].slice(0,6);
   const [elapsed,setElapsed]=useState(0);
   useEffect(()=>{
-    if(!globalTimeIn) return;
-    const t=setInterval(()=>setElapsed(Math.floor((Date.now()-globalTimeIn)/1000)),1000);
+    if(!timedIn) return;
+    const t=setInterval(()=>setElapsed(globalTimeIn?Math.floor((Date.now()-globalTimeIn)/1000):0),1000);
     return()=>clearInterval(t);
-  },[globalTimeIn]);
+  },[timedIn,globalTimeIn]);
 
   if(mode==="siteComment"||mode==="inbound"){
     return (
@@ -1939,11 +1939,12 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, d
             const now=new Date();const rec={...f,_mode:mode,savedAt:now.toLocaleString(),endedAt:now.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})};
             if(currentDraft?._id) onDeleteDraft&&onDeleteDraft(currentDraft._id,mode);
             onSaveCase&&onSaveCase(rec);
-            onTimeOut&&onTimeOut();
+            onTimerReset&&onTimerReset(); // reset case timer, keep session active
             exitMode();
           }}
           onSaveDraftDirect={async(fd)=>{
             await onSaveDraft(mode,{...fd,_mode:mode});
+            onTimerReset&&onTimerReset(); // reset case timer, keep session active
           }}
           onBack={exitMode}/>
         {backConfirm&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="pin" size={40} color="var(--accent)"/></div><h3>Go Back?</h3><p>Your form and timer will keep running. You can resume at any time — your progress is safe.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setBackConfirm(false)}>Keep Editing</button><button className="btn btn-primary" onClick={()=>{setBackConfirm(false);exitMode();}}>Minimise</button></div></div></div>)}
@@ -1960,12 +1961,17 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, d
         </div>
         {/* TIME IN / OUT card */}
         <div style={{background:"var(--card)",border:"1.5px solid var(--border)",padding:"14px 18px",display:"flex",alignItems:"center",gap:16,flexShrink:0}}>
-          {globalTimeIn?(
-            <div>
-              <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:2,fontFamily:"'Poppins',sans-serif"}}>Timed In</div>
-              <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{new Date(globalTimeIn).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})}</div>
-              <div style={{fontSize:18,fontWeight:800,color:"var(--accent)",fontFamily:"'Plus Jakarta Sans',sans-serif",letterSpacing:"-.5px",marginTop:2}}>{fmtElapsed(elapsed)}</div>
-            </div>
+          {timedIn?(
+            <>
+              <div>
+                <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:2,fontFamily:"'Poppins',sans-serif"}}>Timed In</div>
+                <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{globalTimeIn?new Date(globalTimeIn).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"}):""}</div>
+                <div style={{fontSize:18,fontWeight:800,color:"var(--accent)",fontFamily:"'Plus Jakarta Sans',sans-serif",letterSpacing:"-.5px",marginTop:2}}>{fmtElapsed(elapsed)}</div>
+              </div>
+              <button className="btn btn-danger" style={{fontSize:12,padding:"8px 14px"}} onClick={()=>onTimeOut&&onTimeOut()}>
+                <Icon name="close" size={12} style={{marginRight:4}}/>Time Out
+              </button>
+            </>
           ):(
             <button className="btn btn-save" style={{fontSize:13,padding:"11px 22px"}} onClick={()=>onTimeIn&&onTimeIn()}>
               <Icon name="play" size={14} style={{marginRight:6}}/>Time In
@@ -1976,7 +1982,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, d
 
       {/* Amend type chooser */}
       <div style={{display:"flex",gap:14,marginBottom:28,flexWrap:"wrap"}}>
-        <button className="pl-type-btn" disabled={!globalTimeIn} onClick={()=>enterMode("siteComment")} style={{opacity:globalTimeIn?1:.45}}>
+        <button className="pl-type-btn" disabled={!timedIn} onClick={()=>enterMode("siteComment")} style={{opacity:timedIn?1:.45}}>
           <div className="pl-type-icon"><Icon name="sitecomment" size={26} color="var(--accent)"/></div>
           <div>
             <div className="pl-type-title">Site Comment</div>
@@ -1984,7 +1990,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, d
           </div>
           <Icon name="back" size={14} color="var(--muted)" style={{marginLeft:"auto",transform:"rotate(180deg)"}}/>
         </button>
-        <button className="pl-type-btn" disabled={!globalTimeIn} onClick={()=>enterMode("inbound")} style={{opacity:globalTimeIn?1:.45}}>
+        <button className="pl-type-btn" disabled={!timedIn} onClick={()=>enterMode("inbound")} style={{opacity:timedIn?1:.45}}>
           <div className="pl-type-icon"><Icon name="inbound" size={26} color="var(--accent)"/></div>
           <div>
             <div className="pl-type-title">Inbound Email</div>
@@ -1993,7 +1999,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, d
           <Icon name="back" size={14} color="var(--muted)" style={{marginLeft:"auto",transform:"rotate(180deg)"}}/>
         </button>
       </div>
-      {!globalTimeIn&&<div style={{fontSize:12,color:"var(--muted)",marginTop:-20,marginBottom:20,fontFamily:"'Poppins',sans-serif"}}>⚠ Click <strong>Time In</strong> first to start your session timer before choosing a form.</div>}
+      {!timedIn&&<div style={{fontSize:12,color:"var(--muted)",marginTop:-20,marginBottom:20,fontFamily:"'Poppins',sans-serif"}}>⚠ Click <strong>Time In</strong> first to start your session timer before choosing a form.</div>}
 
       {/* Session Time Log */}
       {sessionLog.length>0&&(
@@ -3807,7 +3813,7 @@ function App() {
           {!dataLoading&&page==="build"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="casebox" size={80} color="var(--muted)"/></div><div className="soon-title">Build</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&page==="prelive"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="prelive" size={80} color="var(--muted)"/></div><div className="soon-title">Pre-Live Amends</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&<div style={{display:page==="postlive"?"block":"none"}}>
-            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onFormActive={setFormActivePersist} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} globalTimeIn={globalTimeIn} onTimeIn={doTimeIn} onTimeOut={doTimeOut} sessionLog={sessionLog} addSessionLog={addSessionLog} closeSessionLog={closeSessionLog} clearSessionLog={clearSessionLog}/>
+            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onFormActive={setFormActivePersist} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} globalTimeIn={globalTimeIn} timedIn={timedIn} onTimeIn={doTimeIn} onTimeOut={doTimeOut} onTimerReset={doTimerReset} sessionLog={sessionLog} addSessionLog={addSessionLog} closeSessionLog={closeSessionLog} clearSessionLog={clearSessionLog}/>
           </div>}
           {!dataLoading&&page==="history"&&<CaseHistory cases={allCases} onUpdate={updateCase} onDelete={deleteCase}/>}
           {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} updateAnnouncement={updateAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
