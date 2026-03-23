@@ -15,13 +15,13 @@ ${FONTS}
 /* ══════════════════════ DARK THEME (default) ══════════════════════ */
 :root{
   --bg:#080c14;--surface:#0f1420;--card:#141b28;--card2:#1a2235;--border:#232e44;
-  --accent:#f5945c;--accent2:#d4724a;--green:#10b981;--red:#f43f5e;--amber:#f59e0b;
+  --accent:#0176D3;--accent2:#0154A0;--green:#10b981;--red:#f43f5e;--amber:#f59e0b;
   --text:#edf2f7;--muted:#7a8ba0;--radius:0px;
   --inp-bg:#0f1420;--entry-bg:#0f1420;--sum-bg:#0a0f1a;--code-bg:#0f1420;
   --shadow:0 8px 32px rgba(0,0,0,.5);--shadow-sm:0 2px 12px rgba(0,0,0,.3);
   --btn-cancel-bg:rgba(244,63,94,.12);--btn-cancel-border:#f43f5e;--btn-cancel-text:#fda4af;
   --btn-draft-bg:rgba(245,158,11,.1);--btn-draft-border:#f59e0b;--btn-draft-text:#fcd34d;
-  --btn-save-bg:linear-gradient(135deg,#f5945c,#d4724a);
+  --btn-save-bg:linear-gradient(135deg,#0176D3,#0154A0);
   --btn-ghost-bg:#1a2235;--btn-ghost-border:#232e44;--btn-ghost-text:#7a8ba0;
   --nav-active-bg:linear-gradient(135deg,rgba(245,148,92,.15),rgba(212,114,74,.15));
   --nav-active-border:rgba(245,148,92,.4);
@@ -39,7 +39,7 @@ body.light,:root.light{
   --shadow:0 8px 32px rgba(180,90,40,.1);--shadow-sm:0 2px 12px rgba(180,90,40,.07);
   --btn-cancel-bg:#fff1f3;--btn-cancel-border:#fda4af;--btn-cancel-text:#be123c;
   --btn-draft-bg:#fffbeb;--btn-draft-border:#f59e0b;--btn-draft-text:#92400e;
-  --btn-save-bg:linear-gradient(135deg,#f5945c,#e07840);
+  --btn-save-bg:linear-gradient(135deg,#0176D3,#0154A0);
   --btn-ghost-bg:#fef0e6;--btn-ghost-border:#f0d5c0;--btn-ghost-text:#6b4e38;
   --nav-active-bg:linear-gradient(135deg,rgba(245,148,92,.18),rgba(212,114,74,.12));
   --nav-active-border:rgba(245,148,92,.5);
@@ -362,29 +362,18 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 .empty-analytics{color:var(--muted);font-size:12px;text-align:center;padding:24px 0;font-family:'Poppins',sans-serif;}
 
 /* Choice buttons */
-.choice-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:28px;}
-.choice-btn{
-  flex:1;min-width:170px;padding:26px 24px;border-radius:0;
-  border:1.5px solid var(--glass-border);background:var(--glass-bg);color:var(--text);
-  font-size:15px;font-weight:700;display:flex;align-items:center;gap:16px;
-  transition:.25s;text-align:left;position:relative;overflow:hidden;
-  backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
-  box-shadow:var(--glass-shadow);
+.pl-type-btn{
+  flex:1;min-width:200px;padding:18px 20px;border-radius:0;
+  border:1.5px solid var(--border);background:var(--card);color:var(--text);
+  display:flex;align-items:center;gap:14px;
+  transition:.18s;text-align:left;cursor:pointer;
   font-family:'Plus Jakarta Sans',sans-serif;
 }
-.choice-btn::before{
-  content:'';position:absolute;top:0;left:0;right:0;height:3px;
-  background:var(--btn-save-bg);opacity:0;transition:.25s;
-}
-.choice-btn:hover{border-color:var(--accent);background:var(--choice-hover);transform:translateY(-3px);box-shadow:var(--glass-shadow);}
-.choice-btn:hover::before{opacity:1;}
-.choice-icon{
-  font-size:30px;width:54px;height:54px;border-radius:0;
-  background:var(--entry-accent-bg);display:flex;align-items:center;justify-content:center;
-  flex-shrink:0;border:1.5px solid var(--border);
-}
-.choice-btn-title{font-size:15px;font-weight:700;}
-.choice-btn-sub{font-size:12px;color:var(--muted);font-weight:400;margin-top:4px;font-family:'Poppins',sans-serif;}
+.pl-type-btn:hover:not(:disabled){border-color:var(--accent);background:var(--card2);}
+.pl-type-btn:disabled{cursor:not-allowed;}
+.pl-type-icon{width:46px;height:46px;background:var(--entry-accent-bg);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.pl-type-title{font-size:14px;font-weight:700;}
+.pl-type-sub{font-size:11px;color:var(--muted);margin-top:3px;font-family:'Poppins',sans-serif;}
 
 /* Form layout */
 .form-cols{display:flex;gap:20px;align-items:flex-start;}
@@ -1356,7 +1345,7 @@ function TocPanel({ openStep, setOpenStep, isSC, page, doneMap={}, specialReques
     </div>
   );
 }
-function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user, onTimerEnd, specialRequestors, timerLimitSecs }) {
+function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user, onTimerEnd, specialRequestors, timerLimitSecs, globalTimeIn }) {
   const isSC = mode==="siteComment";
   const entryLabel = isSC?"Site Comment":"Assumption";
   const rawName = user?.name || "User";
@@ -1369,7 +1358,7 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
   const formRef = useRef(form);
   useEffect(()=>{formRef.current=form;},[form]);
 
-  const startTimeRef = useRef(
+  const startTimeRef = useRef(globalTimeIn || (draftData?._startTime) || Date.now());
     draftData ? Date.now() - (draftData._elapsedAtSave||0)*1000 : Date.now()
   );
 
@@ -1500,7 +1489,7 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
           "6b":form.backupImages&&form.backupImages.length>0,
           4:step4Done,
           5:form._afterCopied,
-          6:form._screenshotCopied||(form.images&&form.images.length>0),
+          6:!!form._screenshotCopied,
           7:step7Done,
         }}
       />
@@ -1640,7 +1629,7 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
           <CopyName name={afterName} onCopy={()=>setF({_afterCopied:true})}/>
         </StepCard>
 
-        <StepCard num={6} title="Before/After Backup" done={form._screenshotCopied||(form.images&&form.images.length>0)} locked={!step4Done&&!isDraft} {...stepProps}>
+        <StepCard num={6} title="Before/After Backup" done={!!form._screenshotCopied} locked={!step4Done&&!isDraft} {...stepProps}>
           <p style={{fontSize:13,color:"var(--muted)",marginBottom:9}}>Upload screenshot — renamed automatically on download.</p>
           <CopyName name={screenshotName} onCopy={()=>setF({_screenshotCopied:true})}/>
           <div style={{marginTop:12}}><ImageUpload baseName={screenshotName} multiple={false} onImages={imgs=>setF({images:imgs,checklist:{...formRef.current.checklist,backup:imgs.length>0}})} immediateUpload={false} initialImages={form.images||[]}/></div>
@@ -1848,7 +1837,7 @@ function Dashboard({ savedCases, setPage, specialRequestors, addRequestor, remov
 // ─────────────────────────────────────────────────────────────────────────────
 // SavedCaseCard (mini dropdown for PostLive page)
 // ─────────────────────────────────────────────────────────────────────────────
-function SavedCaseCard({ c, openId, setOpenId, idx=0 }) {
+function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
   const cardId = c._id || `local-${idx}`;
   const open = openId === cardId;
   const isSC=c._mode==="siteComment";
@@ -1862,6 +1851,7 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0 }) {
           <div className="saved-meta">{c.amendType} · {c.savedAt}{c.endedAt&&<span style={{marginLeft:8,color:"var(--green)",fontWeight:700}}>✓ {c.endedAt}</span>}</div>
         </div>
         <span className="saved-type">{isSC?"Site Comment":"Inbound Email"}</span>
+        {onEdit&&<button className="btn btn-ghost" style={{fontSize:10,padding:"3px 10px",marginLeft:4}} onClick={e=>{e.stopPropagation();onEdit(c);}}><Icon name="edit" size={11} style={{marginRight:3}}/>Edit</button>}
         <span style={{color:"var(--muted)",fontSize:12,transition:".25s",display:"inline-block",transform:open?"rotate(180deg)":"none"}}>▼</span>
       </div>
       {open&&(
@@ -1911,10 +1901,11 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0 }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // POST LIVE PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function PostLivePage({ onSaveCase, onFormActive, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30 }) {
+function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, globalTimeIn, onTimeIn, onTimeOut }) {
   const [mode,setMode]=useState(null);
   const [backConfirm,setBackConfirm]=useState(false);
   const [openSavedId,setOpenSavedId]=useState(null);
+  const [editCase,setEditCase]=useState(null);
   const [toast,showToast]=useToast();
 
   const enterMode=(m)=>{setMode(m);onFormActive&&onFormActive(true);};
@@ -1935,13 +1926,18 @@ function PostLivePage({ onSaveCase, onFormActive, allSavedCases, dbDrafts, onSav
           <div className="page-sub">{mode==="siteComment"?"Fill in each step. Steps unlock as you progress.":"Assumption-based format with email details."}</div>
         </div>
         <PostLiveForm mode={mode} draftData={currentDraft} user={user} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={alarmMins*60}
+          globalTimeIn={globalTimeIn}
           onSave={f=>{
             const now=new Date();const rec={...f,_mode:mode,savedAt:now.toLocaleString(),endedAt:now.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})};
             if(currentDraft?._id) onDeleteDraft&&onDeleteDraft(currentDraft._id,mode);
             onSaveCase&&onSaveCase(rec);
+            onTimeOut&&onTimeOut(); // reset global timer on save
             exitMode();
           }}
-          onSaveDraftDirect={handleSaveDraft}
+          onSaveDraftDirect={async(fd)=>{
+            const elapsed=fd._elapsedAtSave||0;
+            await onSaveDraft(mode,{...fd,_mode:mode});
+          }}
           onBack={exitMode}/>
         {backConfirm&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="pin" size={40} color="var(--accent)"/></div><h3>Go Back?</h3><p>Your form and timer will keep running. You can resume at any time — your progress is safe.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setBackConfirm(false)}>Keep Editing</button><button className="btn btn-primary" onClick={()=>{setBackConfirm(false);exitMode();}}>Minimise</button></div></div></div>)}
       </div>
@@ -1949,25 +1945,175 @@ function PostLivePage({ onSaveCase, onFormActive, allSavedCases, dbDrafts, onSav
   }
 
   const recentAll = [...allSavedCases].slice(0,6);
+  const [elapsed,setElapsed]=useState(0);
+  useEffect(()=>{
+    if(!globalTimeIn) return;
+    const t=setInterval(()=>setElapsed(Math.floor((Date.now()-globalTimeIn)/1000)),1000);
+    return()=>clearInterval(t);
+  },[globalTimeIn]);
 
   return (
     <div>
-      <div className="page-header">
-        <div className="page-title">Post-Live Amends</div>
-        <div className="page-sub">Choose the type of amend to begin.</div>
-      </div>
-      <div className="choice-row">
-        <button className="choice-btn" onClick={()=>enterMode("siteComment")}><span className="choice-icon"><Icon name="sitecomment" size={28} color="var(--accent)"/></span><div><div className="choice-btn-title">Site Comment</div><div className="choice-btn-sub">Step-by-step with live timer</div></div></button>
-        <button className="choice-btn" onClick={()=>enterMode("inbound")}><span className="choice-icon"><Icon name="inbound" size={28} color="var(--accent)"/></span><div><div className="choice-btn-title">Inbound Email</div><div className="choice-btn-sub">Assumption-based format</div></div></button>
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:24,gap:16,flexWrap:"wrap"}}>
+        <div>
+          <div className="page-title">Post-Live Amends</div>
+          <div style={{color:"var(--muted)",fontSize:13,marginTop:4,fontFamily:"'Poppins',sans-serif"}}>Time in, then choose your amend type.</div>
+        </div>
+        {/* TIME IN / OUT card */}
+        <div style={{background:"var(--card)",border:"1.5px solid var(--border)",padding:"14px 18px",display:"flex",alignItems:"center",gap:16,flexShrink:0}}>
+          {globalTimeIn?(
+            <>
+              <div>
+                <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:2,fontFamily:"'Poppins',sans-serif"}}>Time In</div>
+                <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{new Date(globalTimeIn).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})}</div>
+                <div style={{fontSize:18,fontWeight:800,color:"var(--accent)",fontFamily:"'Plus Jakarta Sans',sans-serif",letterSpacing:"-.5px",marginTop:2}}>{fmtElapsed(elapsed)}</div>
+              </div>
+              <button className="btn btn-danger" style={{fontSize:12,padding:"8px 14px"}} onClick={()=>onTimeOut&&onTimeOut()}>
+                <Icon name="close" size={12} style={{marginRight:4}}/>Time Out
+              </button>
+            </>
+          ):(
+            <button className="btn btn-save" style={{fontSize:13,padding:"11px 22px"}} onClick={()=>onTimeIn&&onTimeIn()}>
+              <Icon name="play" size={14} style={{marginRight:6}}/>Time In
+            </button>
+          )}
+        </div>
       </div>
 
-      {dbDrafts&&dbDrafts.length>0&&(<div style={{marginBottom:22}}><div className="section-title">Drafts <span style={{fontSize:11,color:"var(--muted)",fontWeight:400}}>(auto-saved to database)</span></div>{dbDrafts.map((d,i)=>(<div key={d._id||i} className="draft-row"><div className="draft-dot"/><div className="saved-info"><div className="saved-case">Case #{d.caseNum||"—"} — Account {d.accountNum||"—"}</div><div className="saved-meta">{d.amendType||"No amend type"} · Saved {d.draftAt}</div></div><span className="draft-badge">{d._mode==="siteComment"?"Site Comment":"Inbound Email"}</span><button className="draft-resume" onClick={()=>enterMode(d._mode)}><Icon name="play" size={11} style={{marginRight:4}}/>Resume</button><button className="entry-del" title="Delete draft" onClick={()=>onDeleteDraft&&onDeleteDraft(d._id,d._mode)} style={{marginLeft:4}}><Icon name="trash" size={13} color="var(--red)"/></button></div>))}</div>)}
+      {/* Amend type chooser */}
+      <div style={{display:"flex",gap:14,marginBottom:28,flexWrap:"wrap"}}>
+        <button className="pl-type-btn" disabled={!globalTimeIn} onClick={()=>enterMode("siteComment")} style={{opacity:globalTimeIn?1:.45}}>
+          <div className="pl-type-icon"><Icon name="sitecomment" size={26} color="var(--accent)"/></div>
+          <div>
+            <div className="pl-type-title">Site Comment</div>
+            <div className="pl-type-sub">Step-by-step · live timer</div>
+          </div>
+          <Icon name="back" size={14} color="var(--muted)" style={{marginLeft:"auto",transform:"rotate(180deg)"}}/>
+        </button>
+        <button className="pl-type-btn" disabled={!globalTimeIn} onClick={()=>enterMode("inbound")} style={{opacity:globalTimeIn?1:.45}}>
+          <div className="pl-type-icon"><Icon name="inbound" size={26} color="var(--accent)"/></div>
+          <div>
+            <div className="pl-type-title">Inbound Email</div>
+            <div className="pl-type-sub">Assumption-based format</div>
+          </div>
+          <Icon name="back" size={14} color="var(--muted)" style={{marginLeft:"auto",transform:"rotate(180deg)"}}/>
+        </button>
+      </div>
+      {!globalTimeIn&&<div style={{fontSize:12,color:"var(--muted)",marginTop:-20,marginBottom:20,fontFamily:"'Poppins',sans-serif"}}>⚠ Click <strong>Time In</strong> first to start your session timer before choosing a form.</div>}
+
+      {dbDrafts&&dbDrafts.length>0&&(
+        <div style={{marginBottom:22}}>
+          <div className="section-title">Drafts <span style={{fontSize:11,color:"var(--muted)",fontWeight:400}}>(auto-saved)</span></div>
+          {dbDrafts.map((d,i)=>(
+            <div key={d._id||i} className="draft-row">
+              <div className="draft-dot"/>
+              <div className="saved-info">
+                <div className="saved-case">Case #{d.caseNum||"—"} — {d.accountNum||"—"}</div>
+                <div className="saved-meta">{d.amendType||"No amend type"} · {d.draftAt}</div>
+              </div>
+              <span className="draft-badge">{d._mode==="siteComment"?"Site Comment":"Inbound Email"}</span>
+              <button className="draft-resume" onClick={()=>enterMode(d._mode)}><Icon name="play" size={11} style={{marginRight:4}}/>Resume</button>
+              <button className="entry-del" title="Delete" onClick={()=>onDeleteDraft&&onDeleteDraft(d._id,d._mode)} style={{marginLeft:4}}><Icon name="trash" size={13} color="var(--red)"/></button>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div>
         <div className="section-title">Recently Saved Cases</div>
-        {recentAll.length===0&&<div style={{color:"var(--muted)",fontSize:13,padding:"8px 0"}}>No cases saved yet. Complete a form to see it here.</div>}
-        {recentAll.map((c,i)=>(<SavedCaseCard key={c._id||`local-${i}`} c={c} idx={i} openId={openSavedId} setOpenId={setOpenSavedId}/>))}
+        {recentAll.length===0&&<div style={{color:"var(--muted)",fontSize:13,padding:"8px 0"}}>No cases saved yet.</div>}
+        {recentAll.map((c,i)=>(
+          <SavedCaseCard key={c._id||`local-${i}`} c={c} idx={i} openId={openSavedId} setOpenId={setOpenSavedId}
+            onEdit={(rec)=>{
+              // Open edit modal
+              setEditCase(rec);
+            }}
+          />
+        ))}
       </div>
+      {editCase&&(()=>{
+        const isEditSC = editCase._mode==="siteComment";
+        return (
+        <div className="modal-bg"><div className="modal" style={{maxWidth:520,width:"100%",maxHeight:"85vh",overflowY:"auto"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+            <h3 style={{margin:0}}>Edit Case #{editCase.caseNum}</h3>
+            <span style={{fontSize:11,padding:"2px 10px",background:"var(--entry-accent-bg)",border:"1px solid var(--border)",color:"var(--accent)",fontWeight:700}}>{isEditSC?"Site Comment":"Inbound Email"}</span>
+          </div>
+
+          {/* Core fields */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+            <div className="field" style={{marginBottom:0}}>
+              <label>Case #</label>
+              <input className="inp" value={editCase.caseNum||""} onChange={e=>setEditCase(c=>({...c,caseNum:e.target.value}))}/>
+            </div>
+            <div className="field" style={{marginBottom:0}}>
+              <label>Account #</label>
+              <input className="inp" value={editCase.accountNum||""} onChange={e=>setEditCase(c=>({...c,accountNum:e.target.value}))}/>
+            </div>
+            <div className="field" style={{marginBottom:0}}>
+              <label>Amend Type</label>
+              <input className="inp" value={editCase.amendType||""} onChange={e=>setEditCase(c=>({...c,amendType:e.target.value}))}/>
+            </div>
+            {!isEditSC&&(
+              <div className="field" style={{marginBottom:0}}>
+                <label>Inbound #</label>
+                <input className="inp" value={editCase.inboundNum||""} onChange={e=>setEditCase(c=>({...c,inboundNum:e.target.value}))}/>
+              </div>
+            )}
+            <div className="field" style={{marginBottom:0}}>
+              <label>Time In</label>
+              <input className="inp" value={editCase.savedAt||""} onChange={e=>setEditCase(c=>({...c,savedAt:e.target.value}))}/>
+            </div>
+            <div className="field" style={{marginBottom:0}}>
+              <label>Completed Time</label>
+              <input className="inp" value={editCase.endedAt||""} placeholder="e.g. 02:30 PM" onChange={e=>setEditCase(c=>({...c,endedAt:e.target.value}))}/>
+            </div>
+          </div>
+
+          {/* Inbound email fields */}
+          {!isEditSC&&(
+            <div style={{marginBottom:12,padding:"10px 12px",background:"var(--entry-bg)",border:"1px solid var(--border)"}}>
+              <div style={{fontSize:11,fontWeight:700,color:"var(--muted)",marginBottom:8,textTransform:"uppercase",letterSpacing:".6px"}}>Email Details</div>
+              <div className="field" style={{marginBottom:8}}>
+                <label>Email Address</label>
+                <input className="inp" value={editCase.emailAddress||""} onChange={e=>setEditCase(c=>({...c,emailAddress:e.target.value}))}/>
+              </div>
+              <div style={{display:"flex",gap:8}}>
+                {["clarification","completed"].map(v=>(
+                  <label key={v} className={`radio-label${editCase.emailType===v?" selected-"+(v==="clarification"?"clarif":"complete"):""}`}>
+                    <input type="radio" name="editEmailType" checked={editCase.emailType===v} onChange={()=>setEditCase(c=>({...c,emailType:v}))} style={{display:"none"}}/>
+                    {v==="clarification"?"Clarification":"Completed"}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Entries */}
+          <div style={{marginBottom:12}}>
+            <div style={{fontSize:11,fontWeight:700,color:"var(--muted)",marginBottom:8,textTransform:"uppercase",letterSpacing:".6px"}}>{isEditSC?"Site Comments":"Assumptions"}</div>
+            {(editCase.entries||[]).map((e,ei)=>(
+              <div key={e.id||ei} style={{background:"var(--entry-bg)",border:"1px solid var(--border)",padding:"10px 12px",marginBottom:8}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+                  <span style={{fontSize:11,fontWeight:700,color:"var(--accent)"}}>{isEditSC?`SC #${e.number||ei+1}`:`Assumption ${ei+1}`}</span>
+                  <button className="entry-del" onClick={()=>setEditCase(c=>({...c,entries:c.entries.filter((_,i)=>i!==ei)}))}>
+                    <Icon name="trash" size={12} color="var(--red)"/>
+                  </button>
+                </div>
+                {isEditSC&&<div className="field" style={{marginBottom:6}}><label>SC #</label><input className="inp" value={e.number||""} onChange={ev=>setEditCase(c=>({...c,entries:c.entries.map((x,i)=>i===ei?{...x,number:ev.target.value}:x)}))}/></div>}
+                <div className="field" style={{marginBottom:6}}><label>Note</label><textarea className="inp" rows={2} value={e.note||""} onChange={ev=>setEditCase(c=>({...c,entries:c.entries.map((x,i)=>i===ei?{...x,note:ev.target.value}:x)}))}/></div>
+                <div className="field" style={{marginBottom:0}}><label>Clarification</label><textarea className="inp" rows={2} value={e.clarification||""} onChange={ev=>setEditCase(c=>({...c,entries:c.entries.map((x,i)=>i===ei?{...x,clarification:ev.target.value}:x)}))}/></div>
+              </div>
+            ))}
+          </div>
+
+          <div className="modal-btns">
+            <button className="btn btn-ghost" onClick={()=>setEditCase(null)}>Cancel</button>
+            <button className="btn btn-save" onClick={()=>{onUpdateCase&&onUpdateCase(editCase._id,editCase);setEditCase(null);showToast("Case updated ✅");}}>💾 Save Changes</button>
+          </div>
+        </div></div>
+        );
+      })()}
       <Toast msg={toast.msg} type={toast.type}/>
     </div>
   );
@@ -3097,6 +3243,32 @@ function App() {
   const [allCases,setAllCases]=useState([]);
   const [drafts,setDrafts]=useState([]);
   const [formActive,setFormActive]=useState(false);
+  const [globalTimeIn,setGlobalTimeIn]=useState(()=>{
+    if(typeof window!=="undefined"){const v=localStorage.getItem("ch_timein");return v?parseInt(v):null;}
+    return null;
+  });
+  const doTimeIn=()=>{
+    const now=Date.now();
+    setGlobalTimeIn(now);
+    if(typeof window!=="undefined") localStorage.setItem("ch_timein",String(now));
+  };
+  const doTimeOut=()=>{
+    setGlobalTimeIn(null);
+    if(typeof window!=="undefined") localStorage.removeItem("ch_timein");
+  };
+  const [globalTimeIn,setGlobalTimeIn]=useState(()=>{
+    if(typeof window!=="undefined"){const v=localStorage.getItem("ch_timein");return v?parseInt(v):null;}
+    return null;
+  });
+  const doTimeIn=()=>{
+    const now=Date.now();
+    setGlobalTimeIn(now);
+    if(typeof window!=="undefined") localStorage.setItem("ch_timein",String(now));
+  };
+  const doTimeOut=()=>{
+    setGlobalTimeIn(null);
+    if(typeof window!=="undefined") localStorage.removeItem("ch_timein");
+  };
   // Persist formActive so pill shows even after page switch
   const setFormActivePersist=(v)=>{
     setFormActive(v);
@@ -3566,7 +3738,7 @@ function App() {
           {!dataLoading&&page==="build"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="casebox" size={80} color="var(--muted)"/></div><div className="soon-title">Build</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&page==="prelive"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="prelive" size={80} color="var(--muted)"/></div><div className="soon-title">Pre-Live Amends</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&<div style={{display:page==="postlive"?"block":"none"}}>
-            <PostLivePage onSaveCase={addCase} onFormActive={setFormActivePersist} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins}/>
+            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onFormActive={setFormActivePersist} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} globalTimeIn={globalTimeIn} onTimeIn={doTimeIn} onTimeOut={doTimeOut}/>
           </div>}
           {!dataLoading&&page==="history"&&<CaseHistory cases={allCases} onUpdate={updateCase} onDelete={deleteCase}/>}
           {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} updateAnnouncement={updateAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
