@@ -1899,23 +1899,33 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // POST LIVE PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, globalTimeIn, onTimeIn, onTimeOut }) {
+function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, globalTimeIn, onTimeIn, onTimeOut, sessionLog=[], addSessionLog, closeSessionLog, clearSessionLog }) {
   const [mode,setMode]=useState(null);
   const [backConfirm,setBackConfirm]=useState(false);
   const [openSavedId,setOpenSavedId]=useState(null);
   const [editCase,setEditCase]=useState(null);
+  const [showLog,setShowLog]=useState(false);
   const [toast,showToast]=useToast();
 
-  const enterMode=(m)=>{setMode(m);onFormActive&&onFormActive(true);};
+  const enterMode=(m)=>{
+    setMode(m);
+    onFormActive&&onFormActive(true);
+    addSessionLog&&addSessionLog(m==="siteComment"?"Site Comment":"Inbound Email","Form opened");
+  };
   const exitMode=()=>{setMode(null);onFormActive&&onFormActive(false);};
 
   const currentDraft=dbDrafts?.find(d=>d._mode===mode)||null;
 
+  // ── hooks must be before any conditional return ──
+  const recentAll = [...allSavedCases].slice(0,6);
+  const [elapsed,setElapsed]=useState(0);
+  useEffect(()=>{
+    if(!globalTimeIn) return;
+    const t=setInterval(()=>setElapsed(Math.floor((Date.now()-globalTimeIn)/1000)),1000);
+    return()=>clearInterval(t);
+  },[globalTimeIn]);
+
   if(mode==="siteComment"||mode==="inbound"){
-    const handleSaveDraft=async(formData)=>{
-      const elapsed=formData._elapsedAtSave||0;
-      await onSaveDraft(mode,{...formData,_mode:mode});
-    };
     return (
       <div>
         <div className="page-header">
@@ -1929,11 +1939,10 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, d
             const now=new Date();const rec={...f,_mode:mode,savedAt:now.toLocaleString(),endedAt:now.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})};
             if(currentDraft?._id) onDeleteDraft&&onDeleteDraft(currentDraft._id,mode);
             onSaveCase&&onSaveCase(rec);
-            onTimeOut&&onTimeOut(); // reset global timer on save
+            onTimeOut&&onTimeOut();
             exitMode();
           }}
           onSaveDraftDirect={async(fd)=>{
-            const elapsed=fd._elapsedAtSave||0;
             await onSaveDraft(mode,{...fd,_mode:mode});
           }}
           onBack={exitMode}/>
@@ -1941,14 +1950,6 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, d
       </div>
     );
   }
-
-  const recentAll = [...allSavedCases].slice(0,6);
-  const [elapsed,setElapsed]=useState(0);
-  useEffect(()=>{
-    if(!globalTimeIn) return;
-    const t=setInterval(()=>setElapsed(Math.floor((Date.now()-globalTimeIn)/1000)),1000);
-    return()=>clearInterval(t);
-  },[globalTimeIn]);
 
   return (
     <div>
@@ -1998,6 +1999,60 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, d
         </button>
       </div>
       {!globalTimeIn&&<div style={{fontSize:12,color:"var(--muted)",marginTop:-20,marginBottom:20,fontFamily:"'Poppins',sans-serif"}}>⚠ Click <strong>Time In</strong> first to start your session timer before choosing a form.</div>}
+
+      {/* Session Time Log */}
+      {sessionLog.length>0&&(
+        <div style={{marginBottom:24}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+            <div className="section-title" style={{marginBottom:0}}>Session Time Log</div>
+            <div style={{display:"flex",gap:8}}>
+              <button className="btn btn-ghost" style={{fontSize:11,padding:"4px 10px"}} onClick={()=>setShowLog(s=>!s)}>{showLog?"Hide":"Show"} Log</button>
+              <button className="btn btn-ghost" style={{fontSize:11,padding:"4px 10px",color:"var(--red)"}} onClick={()=>{if(confirm("Clear session log?"))clearSessionLog&&clearSessionLog();}}>Clear</button>
+            </div>
+          </div>
+          {showLog&&(
+            <div style={{background:"var(--card)",border:"1.5px solid var(--border)",overflow:"hidden"}}>
+              {/* Table header */}
+              <div style={{display:"grid",gridTemplateColumns:"130px 1fr 1fr 120px",background:"var(--accent)",color:"#fff",padding:"8px 14px",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".6px",fontFamily:"'Poppins',sans-serif",gap:8}}>
+                <span>Status</span><span>Time Start</span><span>Time End</span><span>Duration</span>
+              </div>
+              {sessionLog.map((entry,i)=>{
+                const start=new Date(entry.startedAt);
+                const end=entry.endedAt?new Date(entry.endedAt):null;
+                const durMs=end?(entry.endedAt-entry.startedAt):null;
+                const durStr=durMs!=null?`${Math.floor(durMs/60000)}m ${Math.floor((durMs%60000)/1000)}s`:"ongoing…";
+                const fmtT=(d)=>d.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+                const statusColors={
+                  "Time In":"var(--accent)","Time Out":"var(--muted)",
+                  "Site Comment":"#0176D3","Inbound Email":"#7c3aed",
+                  "Break":"var(--amber)","Case Saved":"var(--green)",
+                  "Draft Saved":"var(--amber)",
+                };
+                const col=statusColors[entry.status]||"var(--text)";
+                return (
+                  <div key={entry.id} style={{display:"grid",gridTemplateColumns:"130px 1fr 1fr 120px",padding:"9px 14px",gap:8,borderBottom:"1px solid var(--border)",fontSize:12,alignItems:"center",background:i%2===0?"var(--entry-bg)":"var(--card)"}}>
+                    <span style={{fontWeight:700,color:col,fontFamily:"'Poppins',sans-serif",fontSize:11}}>{entry.status}</span>
+                    <span style={{color:"var(--text)",fontFamily:"monospace",fontSize:11}}>{fmtT(start)}</span>
+                    <span style={{color:end?"var(--text)":"var(--muted)",fontFamily:"monospace",fontSize:11}}>{end?fmtT(end):<em>ongoing</em>}{entry.endNote&&<span style={{marginLeft:6,fontSize:10,color:"var(--muted)"}}>({entry.endNote})</span>}</span>
+                    <span style={{color:"var(--muted)",fontSize:11,fontFamily:"monospace"}}>{durStr}</span>
+                  </div>
+                );
+              })}
+              {/* Total row */}
+              {(()=>{
+                const totalMs=sessionLog.reduce((acc,e)=>e.endedAt?acc+(e.endedAt-e.startedAt):acc,0);
+                const h=Math.floor(totalMs/3600000),m=Math.floor((totalMs%3600000)/60000),s=Math.floor((totalMs%60000)/1000);
+                return (
+                  <div style={{display:"grid",gridTemplateColumns:"130px 1fr 1fr 120px",padding:"9px 14px",gap:8,background:"var(--entry-accent-bg)",borderTop:"2px solid var(--accent)"}}>
+                    <span style={{fontWeight:800,fontSize:11,color:"var(--accent)",fontFamily:"'Poppins',sans-serif",gridColumn:"1/4"}}>Total tracked time</span>
+                    <span style={{fontWeight:800,fontSize:12,color:"var(--accent)",fontFamily:"monospace"}}>{h>0?`${h}h `:""}{m}m {s}s</span>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+        </div>
+      )}
 
       {dbDrafts&&dbDrafts.length>0&&(
         <div style={{marginBottom:22}}>
@@ -3249,10 +3304,41 @@ function App() {
     const now=Date.now();
     setGlobalTimeIn(now);
     if(typeof window!=="undefined") localStorage.setItem("ch_timein",String(now));
+    addSessionLog("Time In","Session started");
   };
   const doTimeOut=()=>{
+    addSessionLog("Time Out","Manual time-out");
     setGlobalTimeIn(null);
     if(typeof window!=="undefined") localStorage.removeItem("ch_timein");
+  };
+
+  // ── Session Log ──
+  const [sessionLog,setSessionLog]=useState(()=>{
+    if(typeof window!=="undefined"){
+      try{return JSON.parse(localStorage.getItem("ch_session_log")||"[]");}catch{return [];}
+    }
+    return [];
+  });
+  const addSessionLog=(status,note="",endNote="")=>{
+    const entry={id:Date.now(),status,note,startedAt:Date.now(),endedAt:null,endNote};
+    setSessionLog(prev=>{
+      // close previous open entry
+      const closed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,endedAt:Date.now(),endNote:endNote||e.endNote}:e);
+      const next=[...closed,{...entry,endNote:""}];
+      if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
+      return next;
+    });
+  };
+  const closeSessionLog=(endNote="")=>{
+    setSessionLog(prev=>{
+      const next=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,endedAt:Date.now(),endNote}:e);
+      if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
+      return next;
+    });
+  };
+  const clearSessionLog=()=>{
+    setSessionLog([]);
+    if(typeof window!=="undefined") localStorage.removeItem("ch_session_log");
   };
   // Persist formActive so pill shows even after page switch
   const setFormActivePersist=(v)=>{
@@ -3374,11 +3460,14 @@ function App() {
   function startBreak(label,mins){
     const now=Date.now();
     const endsAt=now+mins*60*1000;
-    // warnAt = 5 min before end, but never in the past
     const warnAt=Math.max(now+1000, endsAt-5*60*1000);
     setBreakTimer({label,mins,endsAt,warnAt,warned:false,ended:false,secsLeft:mins*60});
+    addSessionLog("Break",label);
   }
-  function stopBreak(){ setBreakTimer(null); stopAlarmLoop(); setActiveAlarm(null); }
+  function stopBreak(){
+    closeSessionLog("Break ended");
+    setBreakTimer(null); stopAlarmLoop(); setActiveAlarm(null);
+  }
 
   // ── Case 30-min alarm (passed as prop to PostLiveForm) ──
   const playEndAlarm=useCallback(()=>startAlarmLoop("case"),[]);
@@ -3723,7 +3812,7 @@ function App() {
           {!dataLoading&&page==="build"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="casebox" size={80} color="var(--muted)"/></div><div className="soon-title">Build</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&page==="prelive"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="prelive" size={80} color="var(--muted)"/></div><div className="soon-title">Pre-Live Amends</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&<div style={{display:page==="postlive"?"block":"none"}}>
-            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onFormActive={setFormActivePersist} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} globalTimeIn={globalTimeIn} onTimeIn={doTimeIn} onTimeOut={doTimeOut}/>
+            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onFormActive={setFormActivePersist} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} globalTimeIn={globalTimeIn} onTimeIn={doTimeIn} onTimeOut={doTimeOut} sessionLog={sessionLog} addSessionLog={addSessionLog} closeSessionLog={closeSessionLog} clearSessionLog={clearSessionLog}/>
           </div>}
           {!dataLoading&&page==="history"&&<CaseHistory cases={allCases} onUpdate={updateCase} onDelete={deleteCase}/>}
           {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} updateAnnouncement={updateAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
