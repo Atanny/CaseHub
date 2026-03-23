@@ -1961,16 +1961,11 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, d
         {/* TIME IN / OUT card */}
         <div style={{background:"var(--card)",border:"1.5px solid var(--border)",padding:"14px 18px",display:"flex",alignItems:"center",gap:16,flexShrink:0}}>
           {globalTimeIn?(
-            <>
-              <div>
-                <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:2,fontFamily:"'Poppins',sans-serif"}}>Time In</div>
-                <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{new Date(globalTimeIn).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})}</div>
-                <div style={{fontSize:18,fontWeight:800,color:"var(--accent)",fontFamily:"'Plus Jakarta Sans',sans-serif",letterSpacing:"-.5px",marginTop:2}}>{fmtElapsed(elapsed)}</div>
-              </div>
-              <button className="btn btn-danger" style={{fontSize:12,padding:"8px 14px"}} onClick={()=>onTimeOut&&onTimeOut()}>
-                <Icon name="close" size={12} style={{marginRight:4}}/>Time Out
-              </button>
-            </>
+            <div>
+              <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:2,fontFamily:"'Poppins',sans-serif"}}>Timed In</div>
+              <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{new Date(globalTimeIn).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})}</div>
+              <div style={{fontSize:18,fontWeight:800,color:"var(--accent)",fontFamily:"'Plus Jakarta Sans',sans-serif",letterSpacing:"-.5px",marginTop:2}}>{fmtElapsed(elapsed)}</div>
+            </div>
           ):(
             <button className="btn btn-save" style={{fontSize:13,padding:"11px 22px"}} onClick={()=>onTimeIn&&onTimeIn()}>
               <Icon name="play" size={14} style={{marginRight:6}}/>Time In
