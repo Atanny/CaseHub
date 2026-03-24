@@ -820,6 +820,303 @@ select.inp{cursor:pointer;}
 @keyframes pulse-dot{0%,100%{opacity:1;}50%{opacity:.3;}}
 .db-status.connected{color:var(--green);}
 .db-status.error{color:var(--red);}
+
+/* ══════════════════════ PROFESSIONAL DESIGN ENHANCEMENTS ══════════════════════ */
+
+/* Refined sidebar */
+.sidebar{
+  border-right:1px solid rgba(255,255,255,.06);
+  background:linear-gradient(180deg,rgba(10,14,26,.95) 0%,rgba(8,12,20,.98) 100%);
+  box-shadow:4px 0 24px rgba(0,0,0,.4);
+}
+body.light .sidebar{
+  background:linear-gradient(180deg,rgba(255,248,243,.97) 0%,rgba(253,245,239,.99) 100%);
+  border-right:1px solid rgba(200,130,80,.15);
+  box-shadow:4px 0 24px rgba(180,90,40,.06);
+}
+
+/* Logo polish */
+.logo{
+  padding:6px 10px 24px;
+  border-bottom:1px solid rgba(255,255,255,.05);
+  margin-bottom:8px;
+}
+body.light .logo{border-bottom-color:rgba(200,130,80,.12);}
+
+/* Nav item refinements */
+.nav-item{
+  border-radius:6px;
+  margin-bottom:1px;
+  letter-spacing:.01em;
+}
+.nav-item.active{
+  border-radius:6px;
+  box-shadow:0 2px 8px rgba(1,118,211,.15);
+}
+.nav-item:hover{border-radius:6px;}
+
+/* Sidebar divider */
+.sidebar-divider{height:1px;background:rgba(255,255,255,.06);margin:8px 10px;border:none;}
+body.light .sidebar-divider{background:rgba(180,90,40,.1);}
+
+/* Refined profile card */
+.sidebar-profile{border-radius:8px;transition:.2s;margin-top:auto;}
+.sidebar-profile:hover{border-color:var(--accent);background:var(--card);}
+
+/* Theme toggle refinement */
+.theme-toggle{border-radius:8px;margin-top:4px;}
+
+/* Refined stat cards */
+.stat-card{border-radius:10px;transition:.22s cubic-bezier(.34,1.56,.64,1);}
+.stat-card:hover{transform:translateY(-4px) scale(1.01);box-shadow:0 16px 40px rgba(0,0,0,.35),0 0 0 1px rgba(245,148,92,.15);}
+.stat-card::after{content:'';position:absolute;inset:0;border-radius:10px;background:linear-gradient(135deg,rgba(255,255,255,.04) 0%,transparent 60%);pointer-events:none;}
+
+/* Refined step cards */
+.step-card{border-radius:10px;transition:.22s;}
+.step-header{border-radius:10px;}
+.step-card.open:not(.locked) .step-header{border-radius:10px 10px 0 0;}
+.step-num{box-shadow:0 2px 8px rgba(0,0,0,.2);}
+
+/* Refined buttons */
+.btn{border-radius:8px;letter-spacing:.02em;}
+.btn-save,.btn-primary{
+  background:linear-gradient(135deg,#1a8fe8,#0164b8);
+  box-shadow:0 3px 12px rgba(1,118,211,.35),inset 0 1px 0 rgba(255,255,255,.2);
+}
+.btn-save:hover,.btn-primary:hover{
+  background:linear-gradient(135deg,#2299f8,#0176D3);
+  box-shadow:0 6px 20px rgba(1,118,211,.45),inset 0 1px 0 rgba(255,255,255,.25);
+  transform:translateY(-1px);
+}
+.btn-ghost{border-radius:8px;}
+.btn-cancel,.btn-danger{border-radius:8px;}
+.btn-draft,.btn-amber{border-radius:8px;}
+.btn-green{border-radius:8px;}
+.back-btn{border-radius:7px;}
+.copy-btn,.copy-row-btn,.draft-resume{border-radius:6px;}
+.filter-btn{border-radius:7px;}
+
+/* Time In button — make it pop */
+.btn-save.timein-btn{
+  background:linear-gradient(135deg,#10b981,#059669);
+  box-shadow:0 4px 16px rgba(16,185,129,.4),inset 0 1px 0 rgba(255,255,255,.25);
+  font-size:14px;padding:12px 24px;letter-spacing:.03em;
+}
+.btn-save.timein-btn:hover{
+  background:linear-gradient(135deg,#12c98c,#0aab74);
+  box-shadow:0 8px 24px rgba(16,185,129,.5);
+  transform:translateY(-2px);
+}
+.btn-danger.timeout-btn{
+  border-radius:8px;
+  box-shadow:0 2px 10px rgba(244,63,94,.2);
+}
+.btn-danger.timeout-btn:hover{transform:translateY(-1px);}
+
+/* Time In/Out card */
+.timeinout-card{
+  background:var(--glass-bg);
+  border:1px solid var(--glass-border);
+  backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
+  box-shadow:var(--glass-shadow);
+  border-radius:12px;
+  padding:16px 20px;
+  display:flex;align-items:center;gap:16px;flex-shrink:0;
+  transition:.2s;
+}
+
+/* Refined type chooser buttons */
+.pl-type-btn{
+  border-radius:12px;
+  padding:20px 22px;
+  transition:.2s cubic-bezier(.34,1.56,.64,1);
+  position:relative;overflow:hidden;
+}
+.pl-type-btn::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.04) 0%,transparent 60%);border-radius:12px;pointer-events:none;}
+.pl-type-btn:hover:not(:disabled){
+  border-color:var(--accent);
+  transform:translateY(-3px);
+  box-shadow:0 10px 28px rgba(0,0,0,.2),0 0 0 1px rgba(1,118,211,.15);
+}
+.pl-type-icon{border-radius:10px;width:50px;height:50px;}
+
+/* Refined modals */
+.modal{border-radius:16px;padding:36px;}
+.modal-bg{backdrop-filter:blur(12px);}
+
+/* Refined input fields */
+.inp{border-radius:8px;}
+.inp:focus{box-shadow:0 0 0 3px rgba(1,118,211,.15);}
+.search-inp{border-radius:9px;}
+.search-inp:focus{box-shadow:0 0 0 3px rgba(1,118,211,.12);}
+
+/* Refined radio/check */
+.radio-label{border-radius:8px;}
+.radio-label:hover{border-color:var(--accent);}
+.check-label{border-radius:8px;}
+
+/* Refined cards */
+.quick-card{border-radius:12px;}
+.quick-card:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,.25);}
+.analytics-card{border-radius:12px;}
+.case-card{border-radius:12px;}
+.case-section{border-radius:8px;}
+.announcement-card{border-radius:10px;}
+.link-card{border-radius:10px;}
+.activity-row{border-radius:8px;}
+.right-panel{border-radius:12px;}
+.toc-card{border-radius:12px;}
+.auth-card{border-radius:16px;}
+.profile-card{border-radius:12px;}
+.entry-card{border-radius:10px;}
+.stat-card{border-radius:12px;}
+.copy-row-wrap{border-radius:8px;}
+.copy-name{border-radius:8px;}
+
+/* Session Time Log redesign */
+.session-log-wrap{
+  background:var(--glass-bg);
+  border:1px solid var(--glass-border);
+  backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
+  box-shadow:var(--glass-shadow);
+  border-radius:12px;overflow:hidden;
+  margin-bottom:24px;
+}
+.session-log-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 18px;
+  border-bottom:1px solid var(--border);
+  background:linear-gradient(135deg,rgba(1,118,211,.08),rgba(1,84,160,.06));
+}
+.session-log-table-head{
+  display:grid;grid-template-columns:140px 1fr 1fr 120px;
+  background:rgba(1,118,211,.1);
+  border-bottom:1px solid rgba(1,118,211,.15);
+  padding:9px 16px;
+  font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1px;
+  color:var(--muted);font-family:'Poppins',sans-serif;gap:8px;
+}
+.session-log-row{
+  display:grid;grid-template-columns:140px 1fr 1fr 120px;
+  padding:10px 16px;gap:8px;
+  border-bottom:1px solid var(--border);
+  font-size:12px;align-items:center;
+  transition:.12s;
+}
+.session-log-row:hover{background:var(--card2);}
+.session-log-row:last-child{border-bottom:none;}
+.session-log-status{
+  display:inline-flex;align-items:center;gap:6px;
+  font-weight:700;font-family:'Poppins',sans-serif;font-size:11px;
+}
+.session-log-status-dot{
+  width:7px;height:7px;border-radius:50%;flex-shrink:0;
+}
+.session-log-ongoing{
+  display:inline-flex;align-items:center;gap:5px;
+  font-size:10px;color:var(--muted);font-style:italic;
+}
+.session-log-total{
+  display:grid;grid-template-columns:140px 1fr 1fr 120px;
+  padding:10px 16px;gap:8px;
+  background:linear-gradient(135deg,rgba(1,118,211,.08),rgba(1,84,160,.05));
+  border-top:2px solid rgba(1,118,211,.2);
+}
+
+/* Page-level header area */
+.page-hero{
+  background:var(--glass-bg);
+  border:1px solid var(--glass-border);
+  backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
+  border-radius:14px;padding:22px 24px;margin-bottom:24px;
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  flex-wrap:wrap;
+  box-shadow:var(--glass-shadow);
+}
+
+/* Draft/saved rows */
+.saved-row{border-radius:10px;}
+.draft-row{border-radius:10px;}
+.case-card-header{border-radius:12px;}
+
+/* Break bar */
+.break-bar{border-radius:0;}
+.break-stop{border-radius:6px;}
+
+/* DB dot animation */
+.db-dot.connected{animation:none;}
+
+/* Toast refinement */
+.toast{border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.4);}
+
+/* Sidebar collapse button */
+.sidebar-collapse-btn{border-radius:50%;width:22px;height:22px;}
+
+/* Nav badge refinement */
+.nav-badge{border-radius:4px;}
+
+/* Form progress pill */
+.form-progress-pill{border-radius:50px;padding:10px 18px;}
+
+/* Alarm modal */
+.alarm-modal{border-radius:16px;}
+
+/* Break bar */
+.break-bar{box-shadow:0 -8px 32px rgba(0,0,0,.3);}
+
+/* Right panel meta rows */
+.meta-row{transition:.15s;}
+.meta-row:hover{background:var(--card2);}
+
+/* Field labels */
+.field label{letter-spacing:.06em;}
+
+/* Section titles */
+.section-title{
+  font-size:14px;font-weight:800;
+  letter-spacing:-.2px;
+  padding-bottom:10px;
+  border-bottom:1px solid var(--border);
+  margin-bottom:16px;
+}
+
+/* Edit modal */
+.edit-modal{border-radius:16px;}
+
+/* Saved case card accordion */
+.case-expand-btn{border-radius:7px;}
+
+/* Image thumbnails */
+.img-thumb{border-radius:6px;}
+.img-thumb-del{border-radius:4px;}
+.img-zone{border-radius:10px;}
+.img-add-zone{border-radius:6px;}
+.img-edit-item{border-radius:6px;}
+.img-edit-del{border-radius:4px;}
+
+/* Copy name chip */
+.copy-name{border-radius:8px;}
+.copy-name-text{font-size:13px;}
+
+/* Inline edit */
+.inline-edit-inp{border-radius:7px;}
+.inline-save-btn{border-radius:6px;}
+.inline-cancel-btn{border-radius:6px;}
+
+/* History case */
+.case-entry-card{border-radius:8px;}
+
+/* Highlight ongoing status pulse */
+@keyframes ongoingPulse{0%,100%{opacity:1;}50%{opacity:.5;}}
+.ongoing-dot{animation:ongoingPulse 1.8s ease-in-out infinite;}
+
+/* Refined scrollbar */
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-thumb{border-radius:8px;}
+
+/* Page transition */
+.main-area{animation:pageFade .18s ease;}
+@keyframes pageFade{from{opacity:.7;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}
 `;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1763,9 +2060,25 @@ function Dashboard({ savedCases, setPage, specialRequestors, addRequestor, remov
 
   return (
     <div>
-      <div style={{marginBottom:28}}>
-        <h2 style={{fontSize:26,fontWeight:800,letterSpacing:"-.4px"}}>{greeting}, {user?.name?.split(" ")[0]||"there"}</h2>
-        <p style={{color:"var(--muted)",fontSize:14,marginTop:5}}>{now.toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"})}</p>
+      <div style={{background:"var(--glass-bg)",border:"1px solid var(--glass-border)",backdropFilter:"var(--glass-blur)",WebkitBackdropFilter:"var(--glass-blur)",borderRadius:14,padding:"22px 24px",marginBottom:24,display:"flex",alignItems:"center",justifyContent:"space-between",gap:16,flexWrap:"wrap",boxShadow:"var(--glass-shadow)"}}>
+        <div>
+          <h2 style={{fontSize:24,fontWeight:800,letterSpacing:"-.5px",marginBottom:4}}>{greeting}, {user?.name?.split(" ")[0]||"there"} 👋</h2>
+          <p style={{color:"var(--muted)",fontSize:13,fontFamily:"'Poppins',sans-serif"}}>{now.toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"})}</p>
+        </div>
+        <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+          <div style={{background:"var(--entry-bg)",border:"1px solid var(--border)",borderRadius:10,padding:"10px 16px",textAlign:"center",minWidth:70}}>
+            <div style={{fontSize:22,fontWeight:800,color:"var(--accent)",lineHeight:1}}>{today}</div>
+            <div style={{fontSize:10,color:"var(--muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:".6px",marginTop:3}}>Today</div>
+          </div>
+          <div style={{background:"var(--entry-bg)",border:"1px solid var(--border)",borderRadius:10,padding:"10px 16px",textAlign:"center",minWidth:70}}>
+            <div style={{fontSize:22,fontWeight:800,color:"var(--green)",lineHeight:1}}>{rate}%</div>
+            <div style={{fontSize:10,color:"var(--muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:".6px",marginTop:3}}>Complete</div>
+          </div>
+          <div style={{background:"var(--entry-bg)",border:"1px solid var(--border)",borderRadius:10,padding:"10px 16px",textAlign:"center",minWidth:70}}>
+            <div style={{fontSize:22,fontWeight:800,color:"var(--text)",lineHeight:1}}>{total}</div>
+            <div style={{fontSize:10,color:"var(--muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:".6px",marginTop:3}}>Total</div>
+          </div>
+        </div>
       </div>
 
       <div className="stat-grid">
@@ -1841,7 +2154,7 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
   const isSC=c._mode==="siteComment";
   const allImages=[...(c.images||[]),...(c.backupImages||[])];
   return (
-    <div style={{background:"var(--card)",border:"1.5px solid var(--border)",borderRadius:0,marginBottom:10,overflow:"hidden",transition:".2s",boxShadow:"var(--shadow-sm)"}}>
+    <div style={{background:"var(--card)",border:"1.5px solid var(--border)",borderRadius:12,marginBottom:10,overflow:"hidden",transition:".2s",boxShadow:"var(--shadow-sm)"}}>
       <div style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",cursor:"pointer"}} onClick={()=>setOpenId(open ? null : cardId)}>
         <div className="saved-dot"/>
         <div className="saved-info">
@@ -1910,7 +2223,12 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, d
   const enterMode=(m)=>{
     setMode(m);
     onFormActive&&onFormActive(true);
-    addSessionLog&&addSessionLog(m==="siteComment"?"Site Comment":"Inbound Email","Form opened");
+    // Update the ongoing entry to reflect the chosen form type, don't create a new stack
+    if(addSessionLog){
+      const label=m==="siteComment"?"Site Comment":"Inbound Email";
+      // Close the current open entry and add a new one with form type as status
+      addSessionLog(label,"Form opened");
+    }
   };
   const exitMode=()=>{setMode(null);onFormActive&&onFormActive(false);};
 
@@ -1956,103 +2274,127 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, d
 
   return (
     <div>
-      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:24,gap:16,flexWrap:"wrap"}}>
+      {/* Page Hero — title + Time In card */}
+      <div className="page-hero">
         <div>
-          <div className="page-title">Post-Live Amends</div>
-          <div style={{color:"var(--muted)",fontSize:13,marginTop:4,fontFamily:"'Poppins',sans-serif"}}>Time in, then choose your amend type.</div>
+          <div className="page-title" style={{fontSize:22,marginBottom:4}}>Post-Live Amends</div>
+          <div style={{color:"var(--muted)",fontSize:13,fontFamily:"'Poppins',sans-serif"}}>
+            {timedIn ? "Session active — choose your amend type below." : "Clock in to begin your session."}
+          </div>
         </div>
         {/* TIME IN / OUT card */}
-        <div style={{background:"var(--card)",border:"1.5px solid var(--border)",padding:"14px 18px",display:"flex",alignItems:"center",gap:16,flexShrink:0}}>
+        <div className="timeinout-card">
           {timedIn?(
-            <div style={{display:"flex",alignItems:"center",gap:14}}>
-              <div style={{display:"flex",alignItems:"center",gap:8}}>
-                <span style={{fontSize:11,color:"var(--muted)",fontFamily:"'Poppins',sans-serif"}}>In:</span>
-                <span style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{globalTimeIn?new Date(globalTimeIn).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"}):""}</span>
-                <span style={{fontSize:15,fontWeight:800,color:"var(--accent)",fontFamily:"'Plus Jakarta Sans',sans-serif",letterSpacing:"-.5px"}}>{fmtElapsed(elapsed)}</span>
+            <div style={{display:"flex",alignItems:"center",gap:16}}>
+              <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                <span style={{fontSize:10,color:"var(--muted)",fontFamily:"'Poppins',sans-serif",textTransform:"uppercase",letterSpacing:".8px",fontWeight:700}}>Session Active</span>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{fontSize:11,color:"var(--muted)",fontFamily:"'Poppins',sans-serif"}}>Since:</span>
+                  <span style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{globalTimeIn?new Date(globalTimeIn).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"}):""}</span>
+                </div>
+                <span style={{fontSize:20,fontWeight:800,color:"var(--green)",fontFamily:"'Plus Jakarta Sans',sans-serif",letterSpacing:"-.8px",lineHeight:1}}>{fmtElapsed(elapsed)}</span>
               </div>
-              <button className="btn btn-danger" style={{fontSize:11,padding:"6px 12px"}} onClick={()=>onTimeOut&&onTimeOut()}>
-                Time Out
+              <div style={{width:1,height:40,background:"var(--border)",flexShrink:0}}/>
+              <button className="btn btn-danger timeout-btn" style={{fontSize:12,padding:"9px 16px"}} onClick={()=>onTimeOut&&onTimeOut()}>
+                <Icon name="stop" size={12} style={{marginRight:5}}/>Time Out
               </button>
             </div>
           ):(
-            <button className="btn btn-save" style={{fontSize:13,padding:"10px 20px"}} onClick={()=>onTimeIn&&onTimeIn()}>
-              <Icon name="play" size={13} style={{marginRight:6}}/>Time In
-            </button>
+            <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8}}>
+              <button className="btn btn-save timein-btn" onClick={()=>onTimeIn&&onTimeIn()}>
+                <Icon name="play" size={14} style={{marginRight:7}}/>Clock In
+              </button>
+              <span style={{fontSize:10,color:"var(--muted)",fontFamily:"'Poppins',sans-serif"}}>Start your session</span>
+            </div>
           )}
         </div>
       </div>
 
       {/* Amend type chooser */}
       <div style={{display:"flex",gap:14,marginBottom:28,flexWrap:"wrap"}}>
-        <button className="pl-type-btn" disabled={!timedIn} onClick={()=>enterMode("siteComment")} style={{opacity:timedIn?1:.45}}>
+        <button className="pl-type-btn" disabled={!timedIn} onClick={()=>enterMode("siteComment")} style={{opacity:timedIn?1:.4,flex:1,minWidth:220}}>
           <div className="pl-type-icon"><Icon name="sitecomment" size={26} color="var(--accent)"/></div>
-          <div>
+          <div style={{flex:1}}>
             <div className="pl-type-title">Site Comment</div>
             <div className="pl-type-sub">Step-by-step · live timer</div>
           </div>
-          <Icon name="back" size={14} color="var(--muted)" style={{marginLeft:"auto",transform:"rotate(180deg)"}}/>
+          <Icon name="back" size={14} color="var(--muted)" style={{transform:"rotate(180deg)",opacity:.5}}/>
         </button>
-        <button className="pl-type-btn" disabled={!timedIn} onClick={()=>enterMode("inbound")} style={{opacity:timedIn?1:.45}}>
-          <div className="pl-type-icon"><Icon name="inbound" size={26} color="var(--accent)"/></div>
-          <div>
+        <button className="pl-type-btn" disabled={!timedIn} onClick={()=>enterMode("inbound")} style={{opacity:timedIn?1:.4,flex:1,minWidth:220}}>
+          <div className="pl-type-icon" style={{background:"rgba(124,58,237,.12)",borderColor:"rgba(124,58,237,.25)"}}><Icon name="inbound" size={26} color="#7c3aed"/></div>
+          <div style={{flex:1}}>
             <div className="pl-type-title">Inbound Email</div>
             <div className="pl-type-sub">Assumption-based format</div>
           </div>
-          <Icon name="back" size={14} color="var(--muted)" style={{marginLeft:"auto",transform:"rotate(180deg)"}}/>
+          <Icon name="back" size={14} color="var(--muted)" style={{transform:"rotate(180deg)",opacity:.5}}/>
         </button>
       </div>
-      {!timedIn&&<div style={{fontSize:12,color:"var(--muted)",marginTop:-20,marginBottom:20,fontFamily:"'Poppins',sans-serif",padding:"8px 12px",background:"var(--entry-bg)",border:"1px solid var(--border)"}}>Click <strong>Time In</strong> to begin your session.</div>}
+      {!timedIn&&<div style={{fontSize:12,color:"var(--muted)",marginTop:-16,marginBottom:24,fontFamily:"'Poppins',sans-serif",padding:"10px 14px",background:"var(--entry-bg)",border:"1px solid var(--border)",borderRadius:8,display:"flex",alignItems:"center",gap:8}}>
+        <span style={{fontSize:16}}>⏰</span> Click <strong style={{color:"var(--text)"}}>Clock In</strong> above to start your session and unlock amend types.
+      </div>}
 
       {/* Session Time Log */}
       {sessionLog.length>0&&(
-        <div style={{marginBottom:24}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-            <div className="section-title" style={{marginBottom:0}}>Session Time Log</div>
+        <div className="session-log-wrap">
+          <div className="session-log-header">
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <span style={{fontSize:16}}>🕐</span>
+              <div className="section-title" style={{marginBottom:0,borderBottom:"none",paddingBottom:0,fontSize:13}}>Session Time Log</div>
+              <span style={{fontSize:10,padding:"2px 8px",background:"rgba(1,118,211,.12)",color:"var(--accent)",borderRadius:20,fontWeight:700,fontFamily:"'Poppins',sans-serif"}}>{sessionLog.length} entries</span>
+            </div>
             <div style={{display:"flex",gap:8}}>
-              <button className="btn btn-ghost" style={{fontSize:11,padding:"4px 10px"}} onClick={()=>setShowLog(s=>!s)}>{showLog?"Hide":"Show"} Log</button>
-              <button className="btn btn-ghost" style={{fontSize:11,padding:"4px 10px",color:"var(--red)"}} onClick={()=>{if(confirm("Clear session log?"))clearSessionLog&&clearSessionLog();}}>Clear</button>
+              <button className="btn btn-ghost" style={{fontSize:11,padding:"5px 12px",borderRadius:7}} onClick={()=>setShowLog(s=>!s)}>{showLog?"▲ Hide":"▼ Show"} Log</button>
+              <button className="btn btn-ghost" style={{fontSize:11,padding:"5px 12px",borderRadius:7,color:"var(--red)"}} onClick={()=>{if(confirm("Clear session log?"))clearSessionLog&&clearSessionLog();}}>Clear</button>
             </div>
           </div>
           {showLog&&(
-            <div style={{background:"var(--card)",border:"1.5px solid var(--border)",overflow:"hidden"}}>
-              {/* Table header */}
-              <div style={{display:"grid",gridTemplateColumns:"130px 1fr 1fr 120px",background:"var(--accent)",color:"#fff",padding:"8px 14px",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".6px",fontFamily:"'Poppins',sans-serif",gap:8}}>
+            <>
+              <div className="session-log-table-head">
                 <span>Status</span><span>Time Start</span><span>Time End</span><span>Duration</span>
               </div>
               {sessionLog.map((entry,i)=>{
                 const start=new Date(entry.startedAt);
                 const end=entry.endedAt?new Date(entry.endedAt):null;
                 const durMs=end?(entry.endedAt-entry.startedAt):null;
-                const durStr=durMs!=null?`${Math.floor(durMs/60000)}m ${Math.floor((durMs%60000)/1000)}s`:"ongoing…";
+                const durStr=durMs!=null?`${Math.floor(durMs/60000)}m ${Math.floor((durMs%60000)/1000)}s`:"–";
                 const fmtT=(d)=>d.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
                 const statusColors={
-                  "Time In":"var(--accent)","Time Out":"var(--muted)",
+                  "Time In":"var(--green)","Time Out":"#6b7280",
+                  "Ongoing":"var(--accent)",
                   "Site Comment":"#0176D3","Inbound Email":"#7c3aed",
                   "Break":"var(--amber)","Case Saved":"var(--green)",
                   "Draft Saved":"var(--amber)",
                 };
                 const col=statusColors[entry.status]||"var(--text)";
+                const isOngoing=!end;
                 return (
-                  <div key={entry.id} style={{display:"grid",gridTemplateColumns:"130px 1fr 1fr 120px",padding:"9px 14px",gap:8,borderBottom:"1px solid var(--border)",fontSize:12,alignItems:"center",background:i%2===0?"var(--entry-bg)":"var(--card)"}}>
-                    <span style={{fontWeight:700,color:col,fontFamily:"'Poppins',sans-serif",fontSize:11}}>{entry.status}</span>
+                  <div key={entry.id} className="session-log-row" style={{background:i%2===0?"var(--entry-bg)":"transparent"}}>
+                    <div className="session-log-status" style={{color:col}}>
+                      <span className={`session-log-status-dot${isOngoing?" ongoing-dot":""}`} style={{background:col,boxShadow:`0 0 6px ${col}55`}}/>
+                      {entry.status}
+                    </div>
                     <span style={{color:"var(--text)",fontFamily:"monospace",fontSize:11}}>{fmtT(start)}</span>
-                    <span style={{color:end?"var(--text)":"var(--muted)",fontFamily:"monospace",fontSize:11}}>{end?fmtT(end):<em>ongoing</em>}{entry.endNote&&<span style={{marginLeft:6,fontSize:10,color:"var(--muted)"}}>({entry.endNote})</span>}</span>
-                    <span style={{color:"var(--muted)",fontSize:11,fontFamily:"monospace"}}>{durStr}</span>
+                    <span style={{color:end?"var(--text)":"var(--accent)",fontFamily:"monospace",fontSize:11}}>
+                      {end?fmtT(end):<span className="session-log-ongoing">● live</span>}
+                      {entry.endNote&&<span style={{marginLeft:6,fontSize:10,color:"var(--muted)"}}>({entry.endNote})</span>}
+                    </span>
+                    <span style={{color:isOngoing?"var(--accent)":"var(--muted)",fontSize:11,fontFamily:"monospace",fontWeight:isOngoing?700:400}}>
+                      {isOngoing?"ongoing…":durStr}
+                    </span>
                   </div>
                 );
               })}
-              {/* Total row */}
               {(()=>{
                 const totalMs=sessionLog.reduce((acc,e)=>e.endedAt?acc+(e.endedAt-e.startedAt):acc,0);
                 const h=Math.floor(totalMs/3600000),m=Math.floor((totalMs%3600000)/60000),s=Math.floor((totalMs%60000)/1000);
                 return (
-                  <div style={{display:"grid",gridTemplateColumns:"130px 1fr 1fr 120px",padding:"9px 14px",gap:8,background:"var(--entry-accent-bg)",borderTop:"2px solid var(--accent)"}}>
-                    <span style={{fontWeight:800,fontSize:11,color:"var(--accent)",fontFamily:"'Poppins',sans-serif",gridColumn:"1/4"}}>Total tracked time</span>
+                  <div className="session-log-total">
+                    <span style={{fontWeight:800,fontSize:11,color:"var(--accent)",fontFamily:"'Poppins',sans-serif",gridColumn:"1/4"}}>⏱ Total tracked time</span>
                     <span style={{fontWeight:800,fontSize:12,color:"var(--accent)",fontFamily:"monospace"}}>{h>0?`${h}h `:""}{m}m {s}s</span>
                   </div>
                 );
               })()}
-            </div>
+            </>
           )}
         </div>
       )}
@@ -3221,7 +3563,7 @@ function LoginPage({ onLogin, goSignup }) {
         <AuthLogo/>
         <div className="auth-title">Welcome back</div>
         <div className="auth-sub">Sign in to your CaseHub workspace</div>
-        {err&&<div style={{background:"var(--btn-cancel-bg)",border:"1px solid var(--btn-cancel-border)",color:"var(--btn-cancel-text)",borderRadius:0,padding:"10px 14px",fontSize:13,marginBottom:16,textAlign:"center"}}>{err}</div>}
+        {err&&<div style={{background:"var(--btn-cancel-bg)",border:"1px solid var(--btn-cancel-border)",color:"var(--btn-cancel-text)",borderRadius:8,padding:"10px 14px",fontSize:13,marginBottom:16,textAlign:"center"}}>{err}</div>}
         <div className="field"><label>Email</label><input className="inp" type="email" placeholder="you@email.com" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&submit()} disabled={loading}/></div>
         <div className="field"><label>Password</label><input className="inp" type="password" placeholder="••••••••" value={form.password} onChange={e=>setForm(f=>({...f,password:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&submit()} disabled={loading}/></div>
         <button className="btn btn-save" style={{width:"100%",justifyContent:"center",marginTop:4}} onClick={submit} disabled={loading}>{loading?"Signing in...":"Sign In →"}</button>
@@ -3264,7 +3606,7 @@ function SignupPage({ onSignup, goLogin }) {
         <AuthLogo/>
         <div className="auth-title">Create account</div>
         <div className="auth-sub">Join your CaseHub workspace</div>
-        {err&&<div style={{background:"var(--btn-cancel-bg)",border:"1px solid var(--btn-cancel-border)",color:"var(--btn-cancel-text)",borderRadius:0,padding:"10px 14px",fontSize:13,marginBottom:16,textAlign:"center"}}>{err}</div>}
+        {err&&<div style={{background:"var(--btn-cancel-bg)",border:"1px solid var(--btn-cancel-border)",color:"var(--btn-cancel-text)",borderRadius:8,padding:"10px 14px",fontSize:13,marginBottom:16,textAlign:"center"}}>{err}</div>}
         {form._confirmed&&<div style={{background:"rgba(16,185,129,.1)",border:"1px solid var(--green)",color:"var(--green)",borderRadius:0,padding:"14px",fontSize:13,marginBottom:16,textAlign:"center",lineHeight:1.6}}>✅ Account created!<br/><span style={{opacity:.8,fontSize:12}}>{form._msg}</span><br/><button className="auth-link" style={{marginTop:8,display:"block",textAlign:"center"}} onClick={goLogin}>← Back to Sign In</button></div>}
         {!form._confirmed&&<><div className="field"><label>Full Name</label><input className="inp" placeholder="Your name" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} disabled={loading}/></div>
         <div className="field"><label>Email</label><input className="inp" type="email" placeholder="you@email.com" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} disabled={loading}/></div>
@@ -3281,6 +3623,9 @@ function SignupPage({ onSignup, goLogin }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // APP
 // ─────────────────────────────────────────────────────────────────────────────
+// Track when the app JS first loads — used for Time In duration calculation
+const APP_LOAD_TIME = Date.now();
+
 function App() {
   const [authPage,setAuthPage]=useState("login");
   const [user,setUser]=useState(null);
@@ -3323,7 +3668,15 @@ function App() {
       localStorage.setItem("ch_timed_in","1");
       localStorage.setItem("ch_timein",String(now));
     }
-    addSessionLog("Time In","Session started");
+    // Time In entry: duration from page open → button click
+    const timeInEntry={id:APP_LOAD_TIME,status:"Time In",note:"Session started",startedAt:APP_LOAD_TIME,endedAt:now,endNote:""};
+    // Immediately follow with Ongoing entry
+    const ongoingEntry={id:now+1,status:"Ongoing",note:"Waiting for amend type",startedAt:now,endedAt:null,endNote:""};
+    setSessionLog(prev=>{
+      const next=[...prev,timeInEntry,ongoingEntry];
+      if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
+      return next;
+    });
     // Write to DB
     fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({action:'time_in',email:user?.email})
@@ -3337,7 +3690,15 @@ function App() {
     if(typeof window!=="undefined") localStorage.setItem("ch_timein",String(now));
   };
   const doTimeOut=()=>{
-    addSessionLog("Time Out","Manual time-out");
+    // Close the current open entry first, then add Time Out entry
+    const now=Date.now();
+    setSessionLog(prev=>{
+      const closed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,endedAt:now,endNote:""}:e);
+      const timeOutEntry={id:now+2,status:"Time Out",note:"Manual time-out",startedAt:now,endedAt:now,endNote:""};
+      const next=[...closed,timeOutEntry];
+      if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
+      return next;
+    });
     setTimedIn(false);
     setGlobalTimeIn(null);
     if(typeof window!=="undefined"){
@@ -4001,90 +4362,93 @@ function SessionLogPage({ user }) {
 
   return (
     <div>
-      <div className="page-header">
-        <div className="page-title">Session Log</div>
+      <div style={{marginBottom:24}}>
+        <div className="page-title" style={{display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontSize:22}}>📊</span> Session Log
+        </div>
         <div className="page-sub">Time in/out records and case activity by day.</div>
       </div>
 
       {/* Date picker + summary */}
-      <div style={{display:'flex',alignItems:'center',gap:16,marginBottom:24,flexWrap:'wrap'}}>
-        <div style={{display:'flex',alignItems:'center',gap:8}}>
-          <label style={{fontSize:12,color:'var(--muted)',fontFamily:"'Poppins',sans-serif"}}>Date</label>
-          <input type="date" className="inp" style={{width:160,fontSize:13}} value={date} onChange={e=>setDate(e.target.value)}/>
+      <div style={{background:"var(--glass-bg)",border:"1px solid var(--glass-border)",backdropFilter:"var(--glass-blur)",WebkitBackdropFilter:"var(--glass-blur)",borderRadius:12,padding:"16px 20px",marginBottom:24,display:"flex",alignItems:"center",gap:20,flexWrap:"wrap",boxShadow:"var(--glass-shadow)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontSize:16}}>📅</span>
+          <label style={{fontSize:11,color:"var(--muted)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".6px"}}>Date</label>
+          <input type="date" className="inp" style={{width:160,fontSize:13,borderRadius:8}} value={date} onChange={e=>setDate(e.target.value)}/>
         </div>
-        <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>
+        <div style={{display:"flex",gap:10,flexWrap:"wrap",marginLeft:"auto"}}>
           {[
-            {label:'Sessions', val: sessions.length},
-            {label:'Cases Worked', val: totalCases},
-            {label:'Break Time', val: `${totalBreakMins}m`},
-          ].map(({label,val})=>(
-            <div key={label} style={{background:'var(--card)',border:'1.5px solid var(--border)',padding:'8px 16px',minWidth:100,textAlign:'center'}}>
-              <div style={{fontSize:18,fontWeight:800,color:'var(--accent)',fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{val}</div>
-              <div style={{fontSize:10,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.8px',fontFamily:"'Poppins',sans-serif"}}>{label}</div>
+            {label:"Sessions", val: sessions.length, color:"var(--accent)"},
+            {label:"Cases Worked", val: totalCases, color:"var(--green)"},
+            {label:"Break Time", val: `${totalBreakMins}m`, color:"var(--amber)"},
+          ].map(({label,val,color})=>(
+            <div key={label} style={{background:"var(--entry-bg)",border:"1.5px solid var(--border)",padding:"10px 18px",minWidth:100,textAlign:"center",borderRadius:10}}>
+              <div style={{fontSize:20,fontWeight:800,color,fontFamily:"'Plus Jakarta Sans',sans-serif",lineHeight:1}}>{val}</div>
+              <div style={{fontSize:9,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".8px",fontFamily:"'Poppins',sans-serif",marginTop:4,fontWeight:700}}>{label}</div>
             </div>
           ))}
         </div>
       </div>
 
-      {loading && <div style={{color:'var(--muted)',fontSize:13,padding:'20px 0'}}>Loading...</div>}
-      {!loading && sessions.length === 0 && <div style={{color:'var(--muted)',fontSize:13,padding:'20px 0'}}>No sessions found for this date.</div>}
+      {loading && <div style={{color:"var(--muted)",fontSize:13,padding:"20px 0",display:"flex",alignItems:"center",gap:8}}><span style={{animation:"float 1s ease-in-out infinite",display:"inline-block"}}>⏳</span> Loading sessions...</div>}
+      {!loading && sessions.length === 0 && <div style={{color:"var(--muted)",fontSize:14,padding:"60px 0",textAlign:"center"}}><div style={{fontSize:40,marginBottom:12}}>📭</div>No sessions found for this date.</div>}
 
       {sessions.map(s => {
         const isOpen = openId === s.id;
         const cases = s.session_cases || [];
         const breaks = s.session_breaks || [];
         return (
-          <div key={s.id} style={{background:'var(--card)',border:'1.5px solid var(--border)',marginBottom:12,overflow:'hidden'}}>
+          <div key={s.id} style={{background:"var(--glass-bg)",border:"1.5px solid var(--glass-border)",backdropFilter:"var(--glass-blur)",WebkitBackdropFilter:"var(--glass-blur)",marginBottom:12,overflow:"hidden",borderRadius:12,boxShadow:"var(--glass-shadow)",transition:".2s"}}>
             {/* Session header */}
-            <div style={{display:'flex',alignItems:'center',gap:12,padding:'14px 16px',cursor:'pointer',userSelect:'none'}} onClick={()=>setOpenId(isOpen?null:s.id)}>
-              <div style={{width:8,height:8,borderRadius:'50%',background:s.status==='active'?'var(--green)':'var(--muted)',flexShrink:0}}/>
+            <div style={{display:"flex",alignItems:"center",gap:12,padding:"16px 18px",cursor:"pointer",userSelect:"none"}} onClick={()=>setOpenId(isOpen?null:s.id)}>
+              <div style={{width:10,height:10,borderRadius:"50%",background:s.status==="active"?"var(--green)":"var(--muted)",flexShrink:0,boxShadow:s.status==="active"?"0 0 8px var(--green)":"none"}}/>
               <div style={{flex:1}}>
-                <div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
-                  <span style={{fontSize:13,fontWeight:700}}>In: {fmtTime(s.time_in)}</span>
-                  <span style={{fontSize:13,color:'var(--muted)'}}>Out: {fmtTime(s.time_out)}</span>
-                  <span style={{fontSize:12,color:'var(--accent)',fontWeight:600}}>Duration: {fmtDur(s.time_in, s.time_out)}</span>
+                <div style={{display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
+                  <span style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>In: <span style={{color:"var(--accent)"}}>{fmtTime(s.time_in)}</span></span>
+                  <span style={{fontSize:13,color:"var(--muted)"}}>Out: {fmtTime(s.time_out)}</span>
+                  <span style={{fontSize:12,color:"var(--green)",fontWeight:700,background:"rgba(16,185,129,.1)",padding:"2px 10px",borderRadius:20}}>⏱ {fmtDur(s.time_in, s.time_out)}</span>
                 </div>
               </div>
-              <div style={{display:'flex',gap:8,alignItems:'center'}}>
-                {cases.length>0 && <span style={{fontSize:10,padding:'2px 8px',background:'var(--entry-accent-bg)',border:'1px solid var(--border)',color:'var(--accent)',fontWeight:700}}>{cases.length} case{cases.length!==1?'s':''}</span>}
-                {breaks.length>0 && <span style={{fontSize:10,padding:'2px 8px',background:'var(--entry-bg)',border:'1px solid var(--border)',color:'var(--muted)',fontWeight:700}}>{breaks.length} break{breaks.length!==1?'s':''}</span>}
-                <span style={{color:'var(--muted)',fontSize:12,transform:isOpen?'rotate(180deg)':'none',display:'inline-block',transition:'.2s'}}>▼</span>
+              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                {cases.length>0 && <span style={{fontSize:10,padding:"3px 10px",background:"var(--entry-accent-bg)",border:"1px solid rgba(1,118,211,.25)",color:"var(--accent)",fontWeight:700,borderRadius:20}}>{cases.length} case{cases.length!==1?"s":""}</span>}
+                {breaks.length>0 && <span style={{fontSize:10,padding:"3px 10px",background:"var(--entry-bg)",border:"1px solid var(--border)",color:"var(--amber)",fontWeight:700,borderRadius:20}}>{breaks.length} break{breaks.length!==1?"s":""}</span>}
+                <span style={{color:"var(--muted)",fontSize:12,transform:isOpen?"rotate(180deg)":"none",display:"inline-block",transition:".2s"}}>▼</span>
               </div>
             </div>
 
             {isOpen && (
-              <div style={{borderTop:'1px solid var(--border)',padding:'12px 16px',background:'var(--entry-bg)'}}>
+              <div style={{borderTop:"1px solid var(--border)",padding:"14px 18px",background:"var(--entry-bg)"}}>
                 {cases.length > 0 && (
-                  <div style={{marginBottom:12}}>
-                    <div style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.8px',color:'var(--muted)',marginBottom:8,fontFamily:"'Poppins',sans-serif"}}>Cases</div>
+                  <div style={{marginBottom:14}}>
+                    <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:8,fontFamily:"'Poppins',sans-serif",display:"flex",alignItems:"center",gap:6}}>📁 Cases</div>
                     {cases.map((c,i)=>(
-                      <div key={c.id||i} style={{display:'flex',alignItems:'center',gap:12,padding:'8px 10px',background:'var(--card)',border:'1px solid var(--border)',marginBottom:6}}>
-                        <div style={{width:6,height:6,borderRadius:'50%',background:c.case_type==='siteComment'?'var(--accent)':'var(--green)',flexShrink:0}}/>
+                      <div key={c.id||i} style={{display:"flex",alignItems:"center",gap:12,padding:"9px 12px",background:"var(--card)",border:"1px solid var(--border)",marginBottom:6,borderRadius:8}}>
+                        <div style={{width:8,height:8,borderRadius:"50%",background:c.case_type==="siteComment"?"var(--accent)":"#7c3aed",flexShrink:0}}/>
                         <div style={{flex:1}}>
-                          <span style={{fontWeight:700,fontSize:13}}>Case #{c.case_num||'—'}</span>
-                          <span style={{fontSize:11,color:'var(--muted)',marginLeft:8}}>{c.case_type==='siteComment'?'Site Comment':'Inbound Email'}</span>
-                          {c.note && <span style={{fontSize:11,color:'var(--muted)',marginLeft:8}}>· {c.note}</span>}
+                          <span style={{fontWeight:700,fontSize:13}}>Case #{c.case_num||"—"}</span>
+                          <span style={{fontSize:11,color:"var(--muted)",marginLeft:8}}>{c.case_type==="siteComment"?"Site Comment":"Inbound Email"}</span>
+                          {c.note && <span style={{fontSize:11,color:"var(--muted)",marginLeft:8}}>· {c.note}</span>}
                         </div>
-                        <span style={{fontSize:11,color:'var(--muted)'}}>{fmtTime(c.started_at)} → {fmtTime(c.ended_at)}</span>
-                        <span style={{fontSize:11,fontWeight:600,color:'var(--accent)'}}>{fmtDur(c.started_at,c.ended_at)}</span>
+                        <span style={{fontSize:11,color:"var(--muted)",fontFamily:"monospace"}}>{fmtTime(c.started_at)} → {fmtTime(c.ended_at)}</span>
+                        <span style={{fontSize:11,fontWeight:700,color:"var(--accent)",background:"var(--entry-accent-bg)",padding:"2px 8px",borderRadius:20}}>{fmtDur(c.started_at,c.ended_at)}</span>
                       </div>
                     ))}
                   </div>
                 )}
                 {breaks.length > 0 && (
                   <div>
-                    <div style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.8px',color:'var(--muted)',marginBottom:8,fontFamily:"'Poppins',sans-serif"}}>Breaks</div>
+                    <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:8,fontFamily:"'Poppins',sans-serif"}}>☕ Breaks</div>
                     {breaks.map((b,i)=>(
-                      <div key={b.id||i} style={{display:'flex',alignItems:'center',gap:12,padding:'8px 10px',background:'var(--card)',border:'1px solid var(--border)',marginBottom:6}}>
+                      <div key={b.id||i} style={{display:"flex",alignItems:"center",gap:12,padding:"9px 12px",background:"var(--card)",border:"1px solid var(--border)",marginBottom:6,borderRadius:8}}>
                         <Icon name="coffee" size={13} color="var(--amber)"/>
                         <span style={{flex:1,fontSize:12,fontWeight:600}}>{b.break_type}</span>
-                        <span style={{fontSize:11,color:'var(--muted)'}}>{fmtTime(b.started_at)} → {fmtTime(b.ended_at)}</span>
-                        <span style={{fontSize:11,fontWeight:600,color:'var(--amber)'}}>{fmtDur(b.started_at,b.ended_at)}</span>
+                        <span style={{fontSize:11,color:"var(--muted)",fontFamily:"monospace"}}>{fmtTime(b.started_at)} → {fmtTime(b.ended_at)}</span>
+                        <span style={{fontSize:11,fontWeight:700,color:"var(--amber)",background:"rgba(245,158,11,.1)",padding:"2px 8px",borderRadius:20}}>{fmtDur(b.started_at,b.ended_at)}</span>
                       </div>
                     ))}
                   </div>
                 )}
-                {cases.length===0 && breaks.length===0 && <div style={{fontSize:12,color:'var(--muted)'}}>No activity recorded for this session.</div>}
+                {cases.length===0 && breaks.length===0 && <div style={{fontSize:12,color:"var(--muted)",textAlign:"center",padding:"16px 0"}}>No activity recorded for this session.</div>}
               </div>
             )}
           </div>
