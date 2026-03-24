@@ -2001,7 +2001,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, d
           <Icon name="back" size={14} color="var(--muted)" style={{marginLeft:"auto",transform:"rotate(180deg)"}}/>
         </button>
       </div>
-      {!timedIn&&<div style={{fontSize:12,color:"var(--muted)",marginTop:-20,marginBottom:20,fontFamily:"'Poppins',sans-serif"}}>⚠ Click <strong>Time In</strong> first to start your session timer before choosing a form.</div>}
+      {!timedIn&&<div style={{fontSize:12,color:"var(--muted)",marginTop:-20,marginBottom:20,fontFamily:"'Poppins',sans-serif",padding:"8px 12px",background:"var(--entry-bg)",border:"1px solid var(--border)"}}>Click <strong>Time In</strong> to begin your session.</div>}
 
       {/* Session Time Log */}
       {sessionLog.length>0&&(
@@ -3307,6 +3307,10 @@ function App() {
     if(typeof window!=="undefined") return localStorage.getItem("ch_timed_in")==="1";
     return false;
   });
+  // Safety sync — restore timedIn from localStorage in case state was lost
+  useEffect(()=>{
+    if(typeof window!=="undefined"&&localStorage.getItem("ch_timed_in")==="1") setTimedIn(true);
+  },[]);
   const [sessionDbId,setSessionDbId]=useState(()=>{
     if(typeof window!=="undefined") return localStorage.getItem("ch_session_db_id")||null;
     return null;
