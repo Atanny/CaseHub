@@ -3762,17 +3762,21 @@ function App() {
   const addSessionLog=(status,note="",endNote="")=>{
     const now=Date.now();
     setSessionLog(prev=>{
-      // Special case: "renameOngoing" — rename last open Ongoing to the new status,
-      // close it, then add a fresh Ongoing as the live entry
+      // "renameOngoing": find last open Ongoing entry, rename it to the new status and close it.
+      // No new Ongoing is added — Ongoing only exists while waiting for the next action.
       if(endNote==="renameOngoing"){
-        const updated=prev.map((e,i)=>{
-          if(i===prev.length-1&&!e.endedAt&&e.status==="Ongoing"){
-            return {...e,status,endedAt:now,endNote:""};
-          }
-          return e;
-        });
-        const freshOngoing={id:now+1,status:"Ongoing",note:"",startedAt:now,endedAt:null,endNote:""};
-        const next=[...updated,freshOngoing];
+        const lastOngoingIdx=prev.map(e=>e.status).lastIndexOf("Ongoing");
+        if(lastOngoingIdx!==-1&&!prev[lastOngoingIdx].endedAt){
+          // Rename that entry in-place and close it
+          const updated=prev.map((e,i)=>
+            i===lastOngoingIdx ? {...e,status,endedAt:now,endNote:""} : e
+          );
+          if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(updated));
+          return updated;
+        }
+        // No open Ongoing found — just append a closed entry
+        const entry={id:now,status,note,startedAt:now,endedAt:now,endNote:""};
+        const next=[...prev,entry];
         if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
         return next;
       }
@@ -3919,10 +3923,19 @@ function App() {
     const endsAt=now+mins*60*1000;
     const warnAt=Math.max(now+1000, endsAt-5*60*1000);
     setBreakTimer({label,mins,endsAt,warnAt,warned:false,ended:false,secsLeft:mins*60});
-    addSessionLog("Break",label);
+    // Rename current Ongoing to "Break" (same pattern as choosing Site Comment/Inbound)
+    addSessionLog("Break",label,"renameOngoing");
   }
   function stopBreak(){
-    closeSessionLog("Break ended");
+    // Close the Break entry and add a fresh Ongoing (back to waiting)
+    const now=Date.now();
+    setSessionLog(prev=>{
+      const closed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,endedAt:now,endNote:"Break ended"}:e);
+      const freshOngoing={id:now+1,status:"Ongoing",note:"",startedAt:now,endedAt:null,endNote:""};
+      const next=[...closed,freshOngoing];
+      if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
+      return next;
+    });
     setBreakTimer(null); stopAlarmLoop(); setActiveAlarm(null);
     setCancelBreakConfirm(false);
   }
@@ -4239,26 +4252,7 @@ function App() {
               </button>
             ))}
           </div>
-          {/* Break start confirmation */}
-          {breakPending&&(<div className="modal-bg"><div className="modal">
-            <div style={{marginBottom:14}}><Icon name="coffee" size={40} color="var(--accent)"/></div>
-            <h3>Start {breakPending.label} Break?</h3>
-            <p style={{color:"var(--muted)",fontSize:13,marginBottom:20}}>Your session timer will reset when the break starts and again when it ends.</p>
-            <div className="modal-btns">
-              <button className="btn btn-ghost" onClick={()=>setBreakPending(null)}>Cancel</button>
-              <button className="btn btn-save" onClick={()=>{startBreak(breakPending.label,breakPending.mins);setBreakPending(null);}}>Start Break</button>
-            </div>
-          </div></div>)}
-          {/* Break cancel confirmation */}
-          {cancelBreakConfirm&&(<div className="modal-bg"><div className="modal">
-            <div style={{marginBottom:14}}><Icon name="close" size={40} color="var(--red)"/></div>
-            <h3>End Break Early?</h3>
-            <p style={{color:"var(--muted)",fontSize:13,marginBottom:20}}>Are you sure you want to end your break now?</p>
-            <div className="modal-btns">
-              <button className="btn btn-ghost" onClick={()=>setCancelBreakConfirm(false)}>Keep Break</button>
-              <button className="btn btn-danger" onClick={stopBreak}>End Break</button>
-            </div>
-          </div></div>)}
+          {/* Break start confirmation — rendered at root level to avoid sidebar clipping */}
           <div className="sidebar-divider" style={{height:1,background:"var(--border)",margin:"4px 0 10px"}}/>
           <div className="sidebar-profile" onClick={()=>handleNav("profile")}>
             <div className="profile-avatar" style={{overflow:"hidden",padding:0,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
@@ -4329,6 +4323,26 @@ function App() {
           </div>
         );
       })()}
+
+      {/* ── Break Modals (at root level so they overlay the full screen) ── */}
+      {breakPending&&(<div className="modal-bg"><div className="modal">
+        <div style={{marginBottom:14}}><Icon name="coffee" size={40} color="var(--accent)"/></div>
+        <h3>Start {breakPending.label} Break?</h3>
+        <p style={{color:"var(--muted)",fontSize:13,marginBottom:20}}>A break entry will be added to your session log.</p>
+        <div className="modal-btns">
+          <button className="btn btn-ghost" onClick={()=>setBreakPending(null)}>Cancel</button>
+          <button className="btn btn-save" onClick={()=>{startBreak(breakPending.label,breakPending.mins);setBreakPending(null);}}>Start Break</button>
+        </div>
+      </div></div>)}
+      {cancelBreakConfirm&&(<div className="modal-bg"><div className="modal">
+        <div style={{marginBottom:14}}><Icon name="close" size={40} color="var(--red)"/></div>
+        <h3>End Break Early?</h3>
+        <p style={{color:"var(--muted)",fontSize:13,marginBottom:20}}>Are you sure you want to end your break now?</p>
+        <div className="modal-btns">
+          <button className="btn btn-ghost" onClick={()=>setCancelBreakConfirm(false)}>Keep Break</button>
+          <button className="btn btn-danger" onClick={stopBreak}>End Break</button>
+        </div>
+      </div></div>)}
 
       {/* ── Alarm Overlay ── */}
       {activeAlarm&&(
