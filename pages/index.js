@@ -2223,11 +2223,11 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, d
   const enterMode=(m)=>{
     setMode(m);
     onFormActive&&onFormActive(true);
-    // Update the ongoing entry to reflect the chosen form type, don't create a new stack
+    // Rename the last "Ongoing" entry to the chosen type (keeping its startedAt),
+    // then add a brand-new "Ongoing" as the live entry
     if(addSessionLog){
       const label=m==="siteComment"?"Site Comment":"Inbound Email";
-      // Close the current open entry and add a new one with form type as status
-      addSessionLog(label,"Form opened");
+      addSessionLog(label,"Form opened","renameOngoing");
     }
   };
   const exitMode=()=>{setMode(null);onFormActive&&onFormActive(false);};
@@ -3660,6 +3660,7 @@ function App() {
     if(typeof window!=="undefined") return localStorage.getItem("ch_session_db_id")||null;
     return null;
   });
+  const [sessionRefreshKey,setSessionRefreshKey]=useState(0);
   const doTimeIn=()=>{
     const now=Date.now();
     setTimedIn(true);
@@ -3695,9 +3696,51 @@ function App() {
     setSessionLog(prev=>{
       const closed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,endedAt:now,endNote:""}:e);
       const timeOutEntry={id:now+2,status:"Time Out",note:"Manual time-out",startedAt:now,endedAt:now,endNote:""};
-      const next=[...closed,timeOutEntry];
-      if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
-      return next;
+      const finalLog=[...closed,timeOutEntry];
+      if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(finalLog));
+
+      // Write time_out to DB, then save all session_cases from the log, then clear local log
+      const currentDbId=sessionDbId;
+      if(currentDbId){
+        fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({action:'time_out',session_id:currentDbId,email:user?.email})
+        }).then(()=>{
+          // Save each case/form entry from the session log to DB
+          const caseEntries=finalLog.filter(e=>e.status==="Site Comment"||e.status==="Inbound Email");
+          return Promise.all(caseEntries.map(e=>
+            fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({
+                action:'log_case',
+                session_id:currentDbId,
+                email:user?.email,
+                case_num:e.caseNum||null,
+                case_type:e.status==="Site Comment"?"siteComment":"inbound",
+                note:e.note||""
+              })
+            }).catch(()=>{})
+          ));
+        }).then(()=>{
+          // Trigger Session Log page refresh and navigate to it
+          setSessionRefreshKey(k=>k+1);
+          setPage("sessions");
+          if(typeof window!=="undefined") localStorage.setItem("ch_page","sessions");
+        }).catch(()=>{
+          setSessionRefreshKey(k=>k+1);
+        });
+      } else {
+        // No DB session, still navigate and refresh
+        setSessionRefreshKey(k=>k+1);
+        setPage("sessions");
+        if(typeof window!=="undefined") localStorage.setItem("ch_page","sessions");
+      }
+
+      // Clear local session log after saving
+      setTimeout(()=>{
+        setSessionLog([]);
+        if(typeof window!=="undefined") localStorage.removeItem("ch_session_log");
+      },400);
+
+      return finalLog;
     });
     setTimedIn(false);
     setGlobalTimeIn(null);
@@ -3705,14 +3748,8 @@ function App() {
       localStorage.removeItem("ch_timed_in");
       localStorage.removeItem("ch_timein");
     }
-    // Write to DB
-    if(sessionDbId){
-      fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({action:'time_out',session_id:sessionDbId,email:user?.email})
-      }).catch(()=>{});
-      setSessionDbId(null);
-      if(typeof window!=="undefined") localStorage.removeItem("ch_session_db_id");
-    }
+    setSessionDbId(null);
+    if(typeof window!=="undefined") localStorage.removeItem("ch_session_db_id");
   };
 
   // ── Session Log ──
@@ -3723,11 +3760,26 @@ function App() {
     return [];
   });
   const addSessionLog=(status,note="",endNote="")=>{
-    const entry={id:Date.now(),status,note,startedAt:Date.now(),endedAt:null,endNote};
+    const now=Date.now();
     setSessionLog(prev=>{
-      // close previous open entry
-      const closed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,endedAt:Date.now(),endNote:endNote||e.endNote}:e);
-      const next=[...closed,{...entry,endNote:""}];
+      // Special case: "renameOngoing" — rename last open Ongoing to the new status,
+      // close it, then add a fresh Ongoing as the live entry
+      if(endNote==="renameOngoing"){
+        const updated=prev.map((e,i)=>{
+          if(i===prev.length-1&&!e.endedAt&&e.status==="Ongoing"){
+            return {...e,status,endedAt:now,endNote:""};
+          }
+          return e;
+        });
+        const freshOngoing={id:now+1,status:"Ongoing",note:"",startedAt:now,endedAt:null,endNote:""};
+        const next=[...updated,freshOngoing];
+        if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
+        return next;
+      }
+      // Default: close previous open entry, add new one
+      const entry={id:now,status,note,startedAt:now,endedAt:null,endNote:""};
+      const closed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,endedAt:now,endNote:endNote||e.endNote}:e);
+      const next=[...closed,entry];
       if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
       return next;
     });
@@ -4247,9 +4299,9 @@ function App() {
           {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} updateAnnouncement={updateAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
           {!dataLoading&&page==="links"&&<LinksPage links={links} setLinks={setLinks} addLink={addLink} updateLink={updateLink} removeLink={removeLink}/>}
           {!dataLoading&&page==="profile"&&<ProfilePage user={user} setUser={setUser} onLogout={logout} timerLimit={timerLimit} saveTimerLimit={saveTimerLimit} specialRequestors={specialRequestors} addRequestor={addRequestor} removeRequestor={removeRequestor}/>}
-          {!dataLoading&&page==="sessions"&&<SessionLogPage user={user}/>}
+          {!dataLoading&&page==="sessions"&&<SessionLogPage user={user} refreshKey={sessionRefreshKey}/>}
           {!dataLoading&&page==="filenames"&&<FileNameGeneratorPage/>}
-          {!dataLoading&&page==="sessions"&&<SessionLogPage user={user}/>}
+          {!dataLoading&&page==="sessions"&&<SessionLogPage user={user} refreshKey={sessionRefreshKey}/>}
           {!dataLoading&&page==="filenames"&&<FileNameGeneratorPage/>}
         </main>
       </div>
@@ -4324,7 +4376,7 @@ function App() {
 // ─────────────────────────────────────────────────────────────────────────────
 // SESSION LOG PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function SessionLogPage({ user }) {
+function SessionLogPage({ user, refreshKey=0 }) {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [date, setDate] = useState(new Date().toISOString().slice(0,10));
@@ -4342,7 +4394,7 @@ function SessionLogPage({ user }) {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, [date]);
+  useEffect(() => { load(); }, [date, refreshKey]);
 
   const fmtTime = (ts) => ts ? new Date(ts).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}) : '—';
   const fmtDur = (start, end) => {
