@@ -1498,12 +1498,12 @@ function GreetingRow({ greetingMessages, caseNum, inboundNum, isSC }) {
       <div className="copy-row-label">Messages</div>
       <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:4,marginBottom:4}}>
         {msgs.map(m=>(
-          <div key={m.id} style={{background:"var(--entry-bg)",border:"1.5px solid var(--border)",padding:"8px 10px",display:"flex",flexDirection:"column",gap:4}}>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:6}}>
-              <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".6px",color:"var(--accent)",fontFamily:"'Poppins',sans-serif"}}>{m.label||"Message"}</span>
-              <button className={copiedId===m.id?"copy-row-btn done":"copy-row-btn"} onClick={()=>copy(m)} style={{flexShrink:0,padding:"2px 8px",fontSize:10}}>{copiedId===m.id?"✓ Copied":"📋 Copy"}</button>
+          <div key={m.id} className="copy-row-wrap" style={{marginBottom:0}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:6,marginBottom:4}}>
+              <div className="copy-row-label" style={{margin:0}}>{m.label||"Message"}</div>
+              <button className={copiedId===m.id?"copy-row-btn done":"copy-row-btn"} onClick={()=>copy(m)} style={{flexShrink:0}}>{copiedId===m.id?"✓":"📋"}</button>
             </div>
-            <div style={{fontSize:12,color:"var(--text)",lineHeight:1.5,wordBreak:"break-word"}}>{buildMsg(m)}</div>
+            <div className="copy-row-val">{buildMsg(m)}</div>
           </div>
         ))}
       </div>
@@ -1687,7 +1687,7 @@ function TocPanel({ openStep, setOpenStep, isSC, page, doneMap={}, specialReques
     </div>
   );
 }
-function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, onAutoSaveDraft, draftData, user, onTimerEnd, specialRequestors, timerLimitSecs, globalTimeIn }) {
+function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, onAutoSaveDraft, onStartBreak, draftData, user, onTimerEnd, specialRequestors, timerLimitSecs, globalTimeIn }) {
   const isSC = mode==="siteComment";
   const entryLabel = isSC?"Site Comment":"Assumption";
   const rawName = user?.name || "User";
@@ -1821,6 +1821,9 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, onAutoSaveDraft
 
   return (
     <div className="form-cols">
+      <div className="form-right" style={{width:280}}>
+        <StickyPanel startTimeRef={startTimeRef} form={form} isSC={isSC} buildEntriesText={buildEntriesText} buildEmailText={buildEmailText} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={timerLimitSecs} greetingMessages={user?.greetingMessages}/>
+      </div>
       <TocPanel openStep={openStep} setOpenStep={setOpenStep} isSC={isSC} page="postlive"
         specialRequestors={specialRequestors}
         doneMap={{
@@ -1830,7 +1833,7 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, onAutoSaveDraft
           "3b":form.backupImages&&form.backupImages.length>0,
           4:step4Done,
           5:form._afterCopied,
-          6:!!form._screenshotCopied,
+          6:!!form._screenshotCopied||form.images?.length>0,
           7:step7Done,
         }}
       />
@@ -1970,10 +1973,10 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, onAutoSaveDraft
           <CopyName name={afterName} onCopy={()=>setF({_afterCopied:true})}/>
         </StepCard>
 
-        <StepCard num={6} title="Before/After Backup" done={!!form._screenshotCopied} locked={!step4Done&&!isDraft} {...stepProps}>
+        <StepCard num={6} title="Before/After Backup" done={!!form._screenshotCopied||form.images?.length>0} locked={!step4Done&&!isDraft} {...stepProps}>
           <p style={{fontSize:13,color:"var(--muted)",marginBottom:9}}>Upload screenshot — renamed automatically on download.</p>
           <CopyName name={screenshotName} onCopy={()=>setF({_screenshotCopied:true})}/>
-          <div style={{marginTop:12}}><ImageUpload baseName={screenshotName} multiple={false} onImages={imgs=>setF({images:imgs})} immediateUpload={false} initialImages={form.images||[]}/></div>
+          <div style={{marginTop:12}}><ImageUpload baseName={screenshotName} multiple={false} onImages={imgs=>{setF({images:imgs,_screenshotCopied:imgs&&imgs.length>0?true:form._screenshotCopied});}} immediateUpload={false} initialImages={form.images||[]}/></div>
         </StepCard>
 
         <StepCard num={7} title="Final Checklist" done={step7Done} locked={!step4Done&&!isDraft} {...stepProps}>
@@ -1983,18 +1986,32 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, onAutoSaveDraft
           </div>
         </StepCard>
 
-        <div className="action-bar">
-          <button className="btn btn-cancel" onClick={()=>setModal("cancel")}>✕ Cancel</button>
-          <button className="btn btn-ghost" onClick={()=>setModal("clear")}>🧹 Clear</button>
+        <div className="action-bar" style={{flexWrap:"wrap",gap:8}}>
+          {/* LEFT: Cancel + Clear */}
+          <button className="btn btn-cancel" style={{borderRadius:8}} onClick={()=>setModal("cancel")}>✕ Cancel</button>
+          <button className="btn btn-ghost" style={{borderRadius:8}} onClick={()=>setModal("clear")}>🧹 Clear</button>
           <div className="spacer"/>
-          <button className="btn btn-draft" onClick={openDraftModal}> Save Draft</button>
-          {autoSaved&&<span style={{fontSize:11,color:"var(--muted)",alignSelf:"center",marginLeft:4}}>✓ Auto-saved {autoSaved}</span>}
-          <button className="btn btn-save" onClick={handleSave}>💾 Save Case</button>
+          {/* RIGHT: Draft + Save + Break buttons */}
+          <button className="btn btn-draft" style={{borderRadius:8}} onClick={openDraftModal}>💾 Save Draft</button>
+          {autoSaved&&<span style={{fontSize:11,color:"var(--muted)",alignSelf:"center"}}>✓ {autoSaved}</span>}
+          <button className="btn btn-save" style={{borderRadius:8}} onClick={handleSave}>✅ Save Case</button>
+          {/* Break buttons — save case then start break */}
+          {onStartBreak&&[{label:"☕ 15m",mins:15},{label:"🧘 30m",mins:30},{label:"🍱 1h",mins:60}].map(({label,mins})=>(
+            <button key={mins} className="btn btn-amber" style={{borderRadius:8,fontSize:12,padding:"8px 12px"}} title={`Save case then start ${label} break`}
+              onClick={()=>{
+                if(!form.caseNum){showToast("Enter a case number first","error");return;}
+                setModal(null);
+                onSave&&onSave(formRef.current);
+                onStartBreak(label.replace(/[☕🧘🍱]/g,"").trim()+" break",mins);
+              }}>
+              {label}
+            </button>
+          ))}
         </div>
 
-        {modal==="cancel"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="warn" size={40} color="var(--amber)"/></div><h3>Discard Form?</h3><p>Going back will delete all entered data.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Keep Editing</button><button className="btn btn-danger" onClick={()=>{setModal(null);onBack();}}>Yes, Discard</button></div></div></div>)}
-        {modal==="clear"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="clear" size={40} color="var(--red)"/></div><h3>Clear All Fields?</h3><p>This resets every field. Cannot be undone.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Cancel</button><button className="btn btn-danger" onClick={()=>{setForm(emptyBase());setModal(null);showToast("Cleared","info");}}>Clear</button></div></div></div>)}
-        {modal==="save"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="save" size={40} color="var(--accent)"/></div><h3>Save Case?</h3><p>Case <strong style={{color:"var(--text)"}}>#{form.caseNum}</strong> — confirm everything is complete.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Go Back</button><button className="btn btn-primary" onClick={()=>{setModal(null);showToast("Case saved! ✅");onSave&&onSave(formRef.current);}}>Confirm Save</button></div></div></div>)}
+        {modal==="cancel"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="warn" size={40} color="var(--amber)"/></div><h3>Cancel Form?</h3><p style={{color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6}}>The form will be discarded. Your session timer will <strong>continue running</strong> — only the form is cancelled.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Keep Editing</button><button className="btn btn-danger" onClick={()=>{setModal(null);onBack&&onBack();}}>Yes, Cancel</button></div></div></div>)}
+        {modal==="clear"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="clear" size={40} color="var(--red)"/></div><h3>Clear All Fields?</h3><p style={{color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6}}>All entered data will be cleared. The form stays open and the timer keeps running.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Cancel</button><button className="btn btn-danger" onClick={()=>{setForm(emptyBase());setModal(null);showToast("All fields cleared","info");}}>Clear All</button></div></div></div>)}
+        {modal==="save"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="save" size={40} color="var(--accent)"/></div><h3>Save Case?</h3><p style={{color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6}}>Case <strong style={{color:"var(--text)"}}>#{form.caseNum}</strong> — confirm everything is complete. The timer will reset.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Go Back</button><button className="btn btn-primary" onClick={()=>{setModal(null);showToast("Case saved! ✅");onSave&&onSave(formRef.current);}}>✅ Save Case</button></div></div></div>)}
         {modal==="draft"&&(<div className="modal-bg"><div className="modal">
           <div style={{marginBottom:14}}><Icon name="draft" size={44} color="var(--amber)"/></div>
           <h3 style={{marginBottom:8}}>Save as Draft?</h3>
@@ -2013,9 +2030,6 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, onAutoSaveDraft
         </div></div>)}
         <Toast msg={toast.msg} type={toast.type}/>
 
-      </div>
-      <div className="form-right">
-        <StickyPanel startTimeRef={startTimeRef} form={form} isSC={isSC} buildEntriesText={buildEntriesText} buildEmailText={buildEmailText} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={timerLimitSecs} greetingMessages={user?.greetingMessages}/>
       </div>
     </div>
   );
@@ -2258,7 +2272,7 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // POST LIVE PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, globalTimeIn, timedIn, onTimeIn, onTimeOut, onTimerReset, sessionDbId, sessionLog=[], addSessionLog, closeWithOutcome, closeSessionLog, clearSessionLog }) {
+function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, globalTimeIn, timedIn, onTimeIn, onTimeOut, onTimerReset, sessionDbId, sessionLog=[], addSessionLog, closeWithOutcome, closeSessionLog, clearSessionLog, onStartBreak }) {
   const [mode,setMode]=useState(null);
   const [backConfirm,setBackConfirm]=useState(false);
   const [openSavedId,setOpenSavedId]=useState(null);
@@ -2299,7 +2313,6 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
         <PostLiveForm mode={mode} draftData={currentDraft} user={user} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={alarmMins*60}
           globalTimeIn={globalTimeIn}
           onAutoSaveDraft={async(fd)=>{
-            // Silent background auto-save — only persists to DB, no session log changes
             await onSaveDraft(mode,{...fd,_mode:mode});
           }}
           onSave={f=>{
@@ -2307,8 +2320,8 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
             if(currentDraft?._id) onDeleteDraft&&onDeleteDraft(currentDraft._id,mode);
             onSaveCase&&onSaveCase(rec);
             onTimerReset&&onTimerReset();
-            // If this was resumed from a draft, label it "Continued Draft Saved"
-            const outcomeLabel=currentDraft?._id?"Continued Draft Saved":"Case Saved";
+            // "Draft completed" if resumed from draft, otherwise "Case Completed"
+            const outcomeLabel=currentDraft?._id?"Draft Completed":"Case Completed";
             closeWithOutcome&&closeWithOutcome(outcomeLabel,f.caseNum||"");
             setTimeout(()=>addSessionLog&&addSessionLog("Ongoing",""),50);
             exitMode();
@@ -2317,20 +2330,18 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
           onSaveDraftDirect={async(fd)=>{
             await onSaveDraft(mode,{...fd,_mode:mode});
             onTimerReset&&onTimerReset();
-            // Close current entry with "Draft Saved", reset timer, add fresh Ongoing
-            closeWithOutcome&&closeWithOutcome("Draft Saved",fd.caseNum||"");
+            closeWithOutcome&&closeWithOutcome("Saved as Draft",fd.caseNum||"");
             setTimeout(()=>addSessionLog&&addSessionLog("Ongoing",""),50);
             if(sessionDbId) fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'log_case',session_id:sessionDbId,email:user?.email,case_num:fd.caseNum,case_type:mode,note:'draft'})}).catch(()=>{});
           }}
           onBack={()=>{
-            // If last log entry already has an outcome (e.g. Draft Saved), don't double-log
             const lastLog=sessionLog[sessionLog.length-1];
             if(lastLog&&lastLog.outcome){exitMode();return;}
-            // Cancelled — close entry, no timer reset, add fresh Ongoing
             closeWithOutcome&&closeWithOutcome("Cancelled","");
             setTimeout(()=>addSessionLog&&addSessionLog("Ongoing",""),50);
             exitMode();
-          }}/>
+          }}
+          onStartBreak={onStartBreak}/>
         {backConfirm&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="pin" size={40} color="var(--accent)"/></div><h3>Go Back?</h3><p>Your form and timer will keep running. You can resume at any time — your progress is safe.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setBackConfirm(false)}>Keep Editing</button><button className="btn btn-primary" onClick={()=>{setBackConfirm(false);exitMode();}}>Minimise</button></div></div></div>)}
       </div>
     );
@@ -2432,9 +2443,11 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
                   "Break":"var(--amber)",
                 };
                 const outcomeColors={
-                  "Case Saved":"var(--green)",
+                  "Case Completed":"var(--green)",
+                  "Draft Completed":"var(--green)",
+                  "Saved as Draft":"var(--amber)",
+                  "Continued Draft Saved":"var(--amber)",
                   "Draft Saved":"var(--amber)",
-                  "Continued Draft Saved":"#f59e0b",
                   "Cancelled":"var(--red)",
                 };
                 const col=statusColors[entry.status]||"var(--text)";
@@ -2493,7 +2506,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
                 <div className="saved-meta">{d.amendType||"No amend type"} · {d.draftAt}</div>
               </div>
               <span className="draft-badge">{d._mode==="siteComment"?"Site Comment":"Inbound Email"}</span>
-              <button className="draft-resume" onClick={()=>enterMode(d._mode)}><Icon name="play" size={11} style={{marginRight:4}}/>Resume</button>
+              <button className="draft-resume" onClick={()=>enterMode(d._mode)}><Icon name="play" size={11} style={{marginRight:4}}/>Continue Draft</button>
               <button className="entry-del" title="Delete" onClick={()=>onDeleteDraft&&onDeleteDraft(d._id,d._mode)} style={{marginLeft:4}}><Icon name="trash" size={13} color="var(--red)"/></button>
             </div>
           ))}
@@ -4396,7 +4409,7 @@ function App() {
           {!dataLoading&&page==="build"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="casebox" size={80} color="var(--muted)"/></div><div className="soon-title">Build</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&page==="prelive"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="prelive" size={80} color="var(--muted)"/></div><div className="soon-title">Pre-Live Amends</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&<div style={{display:page==="postlive"?"block":"none"}}>
-            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onFormActive={setFormActivePersist} onFormInFields={setFormInFields} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} globalTimeIn={globalTimeIn} timedIn={timedIn} onTimeIn={doTimeIn} onTimeOut={doTimeOut} onTimerReset={doTimerReset} sessionDbId={sessionDbId} sessionLog={sessionLog} addSessionLog={addSessionLog} closeWithOutcome={closeWithOutcome} closeSessionLog={closeSessionLog} clearSessionLog={clearSessionLog}/>
+            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onFormActive={setFormActivePersist} onFormInFields={setFormInFields} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} globalTimeIn={globalTimeIn} timedIn={timedIn} onTimeIn={doTimeIn} onTimeOut={doTimeOut} onTimerReset={doTimerReset} sessionDbId={sessionDbId} sessionLog={sessionLog} addSessionLog={addSessionLog} closeWithOutcome={closeWithOutcome} closeSessionLog={closeSessionLog} clearSessionLog={clearSessionLog} onStartBreak={startBreak}/>
           </div>}
           {!dataLoading&&page==="history"&&<CaseHistory cases={allCases} onUpdate={updateCase} onDelete={deleteCase}/>}
           {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} updateAnnouncement={updateAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
