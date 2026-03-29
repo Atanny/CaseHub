@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, createContext, useContext } from 'react'
 import Head from 'next/head'
 import dynamic from 'next/dynamic'
 
@@ -4764,10 +4764,10 @@ function SessionLogPage({ user, refreshKey=0 }) {
 // FILE NAME GENERATOR PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 // ── File Name Generator: shared context so CopyCell/Section/DynList are stable top-level components ──
-const FngCtx = React.createContext({});
+const FngCtx = createContext({});
 
 function CopyCell({val,id}){
-  const {copy,copied}=React.useContext(FngCtx);
+  const {copy,copied}=useContext(FngCtx);
   return (
     <div style={{display:'flex',alignItems:'center',gap:8,padding:'6px 12px',background:'var(--entry-bg)',border:'1px solid var(--border)',marginBottom:4,minHeight:34,borderRadius:7}}>
       <span style={{flex:1,fontSize:12,fontFamily:'monospace',color:val?'var(--text)':'var(--muted)',wordBreak:'break-all'}}>{val||'—'}</span>
@@ -4777,7 +4777,7 @@ function CopyCell({val,id}){
 }
 
 function FngSection({title,vals,sk,children}){
-  const {copyAll,copiedAll}=React.useContext(FngCtx);
+  const {copyAll,copiedAll}=useContext(FngCtx);
   return (
     <div style={{marginBottom:20}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8,borderBottom:'1px solid var(--border)',paddingBottom:6}}>
@@ -4790,7 +4790,7 @@ function FngSection({title,vals,sk,children}){
 }
 
 function DynList({field,placeholder}){
-  const {form,setItem,removeItem,addItem}=React.useContext(FngCtx);
+  const {form,setItem,removeItem,addItem}=useContext(FngCtx);
   return (
     <div>
       {form[field].map((val,i)=>(
