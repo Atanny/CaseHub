@@ -1824,19 +1824,6 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
       <div className="form-right" style={{width:280}}>
         <StickyPanel startTimeRef={startTimeRef} form={form} isSC={isSC} buildEntriesText={buildEntriesText} buildEmailText={buildEmailText} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={timerLimitSecs} greetingMessages={user?.greetingMessages}/>
       </div>
-      <TocPanel openStep={openStep} setOpenStep={setOpenStep} isSC={isSC} page="postlive"
-        specialRequestors={specialRequestors}
-        doneMap={{
-          1:step1Done,
-          2:form._beforeCopied,
-          3:step3Done,
-          "3b":form.backupImages&&form.backupImages.length>0,
-          4:step4Done,
-          5:form._afterCopied,
-          6:!!form._screenshotCopied||form.images?.length>0,
-          7:step7Done,
-        }}
-      />
       <div className="form-left">
 
         <StepCard num={1} title="Case Information" done={step1Done} locked={false} {...stepProps}>
@@ -2267,6 +2254,20 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
           )}
         </div>
       )}
+      </div>
+      <TocPanel openStep={openStep} setOpenStep={setOpenStep} isSC={isSC} page="postlive"
+        specialRequestors={specialRequestors}
+        doneMap={{
+          1:step1Done,
+          2:form._beforeCopied,
+          3:step3Done,
+          "3b":form.backupImages&&form.backupImages.length>0,
+          4:step4Done,
+          5:form._afterCopied,
+          6:!!form._screenshotCopied||form.images?.length>0,
+          7:step7Done,
+        }}
+      />
     </div>
   );
 }
@@ -3338,7 +3339,7 @@ function LinksPage({ links, setLinks, addLink, updateLink, removeLink }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // PROFILE PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, shiftEndTime="", saveShiftEndTime, shiftWarnMins=10, saveShiftWarnMins, specialRequestors=[], addRequestor, removeRequestor }) {
+function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, shiftEndTime="", saveShiftEndTime, shiftStartTime="", saveShiftStartTime, shiftWarnMins=10, saveShiftWarnMins, specialRequestors=[], addRequestor, removeRequestor }) {
   const [editing,setEditing]=useState(false);
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
@@ -3370,6 +3371,7 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, shif
   const [pwForm,setPwForm]=useState({next:"",confirm:""});
   const [timerInput,setTimerInput]=useState(String(timerLimit||30));
   const [shiftEndInput,setShiftEndInput]=useState(shiftEndTime||"");
+  const [shiftStartInput,setShiftStartInput]=useState(shiftStartTime||"");
   const [shiftWarnInput,setShiftWarnInput]=useState(String(shiftWarnMins||10));
 
   // ── Load latest profile from DB on mount ──
@@ -3647,6 +3649,39 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, shif
           </button>
         </div>
         <div style={{fontSize:11,color:"var(--muted)",marginTop:8}}>Currently: <strong style={{color:"var(--accent)"}}>{timerLimit} min</strong></div>
+      </div>
+
+      {/* ── Shift Start Alarm card ── */}
+      <div className="profile-card">
+        <h3 style={{fontSize:16,fontWeight:700,marginBottom:4}}>🔔 Before Shift Reminder</h3>
+        <p style={{fontSize:12,color:"var(--muted)",marginBottom:16}}>Set your shift start time and you'll be alerted early — same minutes as your shift-end warning. Leave blank to disable.</p>
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+          <div className="field" style={{marginBottom:0,flex:1}}>
+            <label>Shift Start Time</label>
+            <input className="inp" type="time" value={shiftStartInput} onChange={e=>setShiftStartInput(e.target.value)}/>
+            <div style={{fontSize:10,color:"var(--muted)",marginTop:3}}>e.g. 20:00 for 8:00 PM</div>
+          </div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <button className="btn btn-primary" style={{padding:"8px 18px",fontSize:12}} onClick={()=>{
+            saveShiftStartTime(shiftStartInput);
+            showToast("Before-shift reminder updated ✅");
+          }}>Save</button>
+          {shiftStartTime&&<button className="btn btn-ghost" style={{fontSize:12}} onClick={()=>{
+            setShiftStartInput(""); saveShiftStartTime(""); showToast("Before-shift reminder disabled");
+          }}>Disable</button>}
+        </div>
+        {shiftStartTime&&<div style={{fontSize:11,color:"var(--muted)",marginTop:10}}>
+          Active: reminder fires at <strong style={{color:"var(--accent)"}}>{(()=>{
+            const [hh,mm]=shiftStartTime.split(":").map(Number);
+            const warn=new Date();warn.setHours(hh,mm,0,0);
+            warn.setMinutes(warn.getMinutes()-shiftWarnMins);
+            return warn.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
+          })()}</strong> ({shiftWarnMins} min before {(()=>{
+            const [hh,mm]=shiftStartTime.split(":").map(Number);
+            return new Date(0,0,0,hh,mm).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
+          })()})
+        </div>}
       </div>
 
       {/* ── Shift End Alarm card ── */}
@@ -4095,6 +4130,15 @@ function App() {
     setShiftWarnMins(v);
     if(typeof window!=="undefined") localStorage.setItem("ch_shift_warn",v);
   };
+  // ── Shift Start Alarm: fires shiftWarnMins before the configured shift start time ──
+  const [shiftStartTime,setShiftStartTime]=useState(()=>{
+    if(typeof window!=="undefined") return localStorage.getItem("ch_shift_start")||"";
+    return "";
+  });
+  const saveShiftStartTime=(t)=>{
+    setShiftStartTime(t);
+    if(typeof window!=="undefined") localStorage.setItem("ch_shift_start",t);
+  };
 
   const [announcements,setAnnouncements]=useState([]); // always loaded from DB
   const [links,setLinks]=useState([]);
@@ -4134,6 +4178,25 @@ function App() {
     const t=schedule();
     return()=>{ if(t) clearTimeout(t); };
   },[shiftEndTime,shiftWarnMins]);
+
+  // ── Shift Start Alarm: fires shiftWarnMins before the configured shift start time ──
+  useEffect(()=>{
+    if(!shiftStartTime) return;
+    const schedule=()=>{
+      const now=new Date();
+      const [hh,mm]=shiftStartTime.split(":").map(Number);
+      const start=new Date(now);
+      start.setHours(hh,mm,0,0);
+      // If start time already passed today, schedule for tomorrow
+      if(start<=now) start.setDate(start.getDate()+1);
+      const alarmAt=new Date(start.getTime()-shiftWarnMins*60*1000);
+      const delay=alarmAt-now;
+      if(delay<=0){ startAlarmLoop("case"); return null; }
+      return setTimeout(()=>startAlarmLoop("case"),delay);
+    };
+    const t=schedule();
+    return()=>{ if(t) clearTimeout(t); };
+  },[shiftStartTime,shiftWarnMins]);
 
   useEffect(()=>{document.body.classList.toggle("light",lightMode);if(typeof window!=="undefined") localStorage.setItem("ch_theme",lightMode?"light":"dark");},[lightMode]);
 
@@ -4614,7 +4677,7 @@ function App() {
           {!dataLoading&&page==="history"&&<CaseHistory cases={allCases} onUpdate={updateCase} onDelete={deleteCase}/>}
           {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} updateAnnouncement={updateAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
           {!dataLoading&&page==="links"&&<LinksPage links={links} setLinks={setLinks} addLink={addLink} updateLink={updateLink} removeLink={removeLink}/>}
-          {!dataLoading&&page==="profile"&&<ProfilePage user={user} setUser={setUser} onLogout={logout} timerLimit={timerLimit} saveTimerLimit={saveTimerLimit} shiftEndTime={shiftEndTime} saveShiftEndTime={saveShiftEndTime} shiftWarnMins={shiftWarnMins} saveShiftWarnMins={saveShiftWarnMins} specialRequestors={specialRequestors} addRequestor={addRequestor} removeRequestor={removeRequestor}/>}
+          {!dataLoading&&page==="profile"&&<ProfilePage user={user} setUser={setUser} onLogout={logout} timerLimit={timerLimit} saveTimerLimit={saveTimerLimit} shiftEndTime={shiftEndTime} saveShiftEndTime={saveShiftEndTime} shiftStartTime={shiftStartTime} saveShiftStartTime={saveShiftStartTime} shiftWarnMins={shiftWarnMins} saveShiftWarnMins={saveShiftWarnMins} specialRequestors={specialRequestors} addRequestor={addRequestor} removeRequestor={removeRequestor}/>}
           {!dataLoading&&page==="sessions"&&<SessionLogPage user={user} refreshKey={sessionRefreshKey}/>}
           {!dataLoading&&page==="filenames"&&<FileNameGeneratorPage/>}
         </main>
