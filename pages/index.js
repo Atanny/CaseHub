@@ -3919,15 +3919,6 @@ function App() {
     if(typeof window!=="undefined") localStorage.removeItem("ch_session_db_id");
   };
 
-  // ── Session duration alarm (fires when timedIn duration hits timeInAlarm) ──
-  useEffect(()=>{
-    if(!timedIn||!globalTimeIn||!timeInAlarm) return;
-    const remaining=globalTimeIn+(timeInAlarm*60*1000)-Date.now();
-    if(remaining<=0){ startAlarmLoop("case"); return; }
-    const t=setTimeout(()=>startAlarmLoop("case"),remaining);
-    return()=>clearTimeout(t);
-  },[timedIn,globalTimeIn,timeInAlarm]);
-
   // ── Warn before closing tab/window while session is active ──
   useEffect(()=>{
     const handleBeforeUnload=(e)=>{
@@ -4094,6 +4085,15 @@ function App() {
   // timerLimit (mins) is the single source of truth — also aliased as alarmMins for legacy compat
   const alarmMins = timerLimit;
   const saveAlarmMins = saveTimerLimit;
+
+  // ── Session duration alarm (fires when timedIn duration hits timeInAlarm) ──
+  useEffect(()=>{
+    if(!timedIn||!globalTimeIn||!timeInAlarm) return;
+    const remaining=globalTimeIn+(timeInAlarm*60*1000)-Date.now();
+    if(remaining<=0){ startAlarmLoop("case"); return; }
+    const t=setTimeout(()=>startAlarmLoop("case"),remaining);
+    return()=>clearTimeout(t);
+  },[timedIn,globalTimeIn,timeInAlarm]);
 
   useEffect(()=>{document.body.classList.toggle("light",lightMode);if(typeof window!=="undefined") localStorage.setItem("ch_theme",lightMode?"light":"dark");},[lightMode]);
 
