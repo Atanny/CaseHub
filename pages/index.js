@@ -3338,7 +3338,7 @@ function LinksPage({ links, setLinks, addLink, updateLink, removeLink }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // PROFILE PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, specialRequestors=[], addRequestor, removeRequestor }) {
+function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, timeInAlarm=0, saveTimeInAlarm, specialRequestors=[], addRequestor, removeRequestor }) {
   const [editing,setEditing]=useState(false);
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
@@ -3369,6 +3369,7 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, spec
   });
   const [pwForm,setPwForm]=useState({next:"",confirm:""});
   const [timerInput,setTimerInput]=useState(String(timerLimit||30));
+  const [timeInAlarmInput,setTimeInAlarmInput]=useState(String(timeInAlarm||0));
 
   // ── Load latest profile from DB on mount ──
   useEffect(()=>{
@@ -3647,6 +3648,29 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, spec
         <div style={{fontSize:11,color:"var(--muted)",marginTop:8}}>Currently: <strong style={{color:"var(--accent)"}}>{timerLimit} min</strong></div>
       </div>
 
+      {/* ── Session Duration Alarm card ── */}
+      <div className="profile-card">
+        <h3 style={{fontSize:16,fontWeight:700,marginBottom:4}}>Session Duration Alarm</h3>
+        <p style={{fontSize:12,color:"var(--muted)",marginBottom:16}}>Alarm fires after this many minutes since clocking in. Set to 0 to disable.</p>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <input className="inp" type="number" min="0" max="480" style={{width:90,textAlign:"center",fontWeight:700,fontSize:15}}
+            value={timeInAlarmInput}
+            onChange={e=>setTimeInAlarmInput(e.target.value)}
+            onKeyDown={e=>e.key==="Enter"&&(saveTimeInAlarm(timeInAlarmInput),showToast("Session alarm updated ✅"))}
+          />
+          <span style={{fontSize:13,color:"var(--muted)"}}>minutes</span>
+          <button className="btn btn-primary" style={{marginLeft:"auto",padding:"8px 18px",fontSize:12}}
+            onClick={()=>{saveTimeInAlarm(timeInAlarmInput);showToast("Session alarm updated ✅");}}>
+            Save
+          </button>
+        </div>
+        <div style={{fontSize:11,color:"var(--muted)",marginTop:8}}>
+          {timeInAlarm>0
+            ? <>Currently: <strong style={{color:"var(--accent)"}}>{timeInAlarm} min</strong></>
+            : <span style={{color:"var(--muted)"}}>Currently disabled (0)</span>}
+        </div>
+      </div>
+
       {/* ── Danger zone ── */}
       <div className="profile-card" style={{borderColor:"rgba(244,63,94,.3)"}}>
         <h3 style={{fontSize:16,fontWeight:700,marginBottom:8,color:"var(--red)"}}>Danger Zone</h3>
@@ -3895,6 +3919,27 @@ function App() {
     if(typeof window!=="undefined") localStorage.removeItem("ch_session_db_id");
   };
 
+  // ── Session duration alarm (fires when timedIn duration hits timeInAlarm) ──
+  useEffect(()=>{
+    if(!timedIn||!globalTimeIn||!timeInAlarm) return;
+    const remaining=globalTimeIn+(timeInAlarm*60*1000)-Date.now();
+    if(remaining<=0){ startAlarmLoop("case"); return; }
+    const t=setTimeout(()=>startAlarmLoop("case"),remaining);
+    return()=>clearTimeout(t);
+  },[timedIn,globalTimeIn,timeInAlarm]);
+
+  // ── Warn before closing tab/window while session is active ──
+  useEffect(()=>{
+    const handleBeforeUnload=(e)=>{
+      if(!timedIn) return;
+      e.preventDefault();
+      e.returnValue="You have an active session. Please Time Out before closing.";
+      return e.returnValue;
+    };
+    window.addEventListener("beforeunload",handleBeforeUnload);
+    return()=>window.removeEventListener("beforeunload",handleBeforeUnload);
+  },[timedIn]);
+
   // ── Session Log ──
   const [sessionLog,setSessionLog]=useState(()=>{
     if(typeof window!=="undefined"){
@@ -4020,6 +4065,16 @@ function App() {
     const v=Math.max(1,Math.min(240,parseInt(mins)||30));
     setTimerLimit(v);
     if(typeof window!=="undefined") localStorage.setItem("ch_timer_limit",v);
+  };
+  // ── Time-In session duration alarm ──
+  const [timeInAlarm,setTimeInAlarm]=useState(()=>{
+    if(typeof window!=="undefined"){const v=parseInt(localStorage.getItem("ch_timein_alarm"));return isNaN(v)?0:v;}
+    return 0; // 0 = disabled
+  });
+  const saveTimeInAlarm=(mins)=>{
+    const v=Math.max(0,Math.min(480,parseInt(mins)||0));
+    setTimeInAlarm(v);
+    if(typeof window!=="undefined") localStorage.setItem("ch_timein_alarm",v);
   };
   const [announcements,setAnnouncements]=useState([]); // always loaded from DB
   const [links,setLinks]=useState([]);
@@ -4507,7 +4562,7 @@ function App() {
           {!dataLoading&&page==="history"&&<CaseHistory cases={allCases} onUpdate={updateCase} onDelete={deleteCase}/>}
           {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} updateAnnouncement={updateAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
           {!dataLoading&&page==="links"&&<LinksPage links={links} setLinks={setLinks} addLink={addLink} updateLink={updateLink} removeLink={removeLink}/>}
-          {!dataLoading&&page==="profile"&&<ProfilePage user={user} setUser={setUser} onLogout={logout} timerLimit={timerLimit} saveTimerLimit={saveTimerLimit} specialRequestors={specialRequestors} addRequestor={addRequestor} removeRequestor={removeRequestor}/>}
+          {!dataLoading&&page==="profile"&&<ProfilePage user={user} setUser={setUser} onLogout={logout} timerLimit={timerLimit} saveTimerLimit={saveTimerLimit} timeInAlarm={timeInAlarm} saveTimeInAlarm={saveTimeInAlarm} specialRequestors={specialRequestors} addRequestor={addRequestor} removeRequestor={removeRequestor}/>}
           {!dataLoading&&page==="sessions"&&<SessionLogPage user={user} refreshKey={sessionRefreshKey}/>}
           {!dataLoading&&page==="filenames"&&<FileNameGeneratorPage/>}
         </main>
