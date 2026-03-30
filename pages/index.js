@@ -1644,9 +1644,9 @@ function TocPanel({ openStep, setOpenStep, isSC, page, doneMap={}, specialReques
   const steps=[
     {num:1,label:"Case Info"},
     {num:2,label:"Before Name"},
-    {num:3,label:isSC?"Amends Notepad":"Assumptions"},
-    {num:"3b",label:"Extra Backups"},
-    {num:4,label:"Device Check"},
+    {num:3,label:"Device Check"},
+    {num:4,label:isSC?"Amends Notepad":"Assumptions"},
+    {num:"4b",label:"Extra Backups"},
     {num:5,label:"After Name"},
     {num:6,label:"Before/After"},
     {num:7,label:"Checklist"},
@@ -1839,7 +1839,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
           <CopyName name={beforeName} onCopy={()=>setF({_beforeCopied:true})}/>
         </StepCard>
 
-        <StepCard num={3} title={isSC?"Post-Live Amends Notepad":"Assumptions Notepad"} done={step3Done} locked={!step1Done&&!isDraft} {...stepProps}>
+        <StepCard num={4} title={isSC?"Post-Live Amends Notepad":"Assumptions Notepad"} done={step3Done} locked={!step4Done&&!isDraft} {...stepProps}>
           <div id="entries-list">
           {form.entries.map((e,i)=>(
             <div key={e.id} className="entry-drag-row" data-entryid={e.id}>
@@ -1943,12 +1943,12 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
           <button className={cls("copy-all-btn",copiedAll&&"copied")} onClick={handleCopyAll}>{copiedAll?"✓ Copied!":"📋 Copy All "+(isSC?"Site Comments":"Assumptions + Email")}</button>
         </StepCard>
 
-        <StepCard num="3b" title={`Additional Backup Screenshots${form.backupImages?.length>0?" ("+form.backupImages.length+")":""}`} done={form.backupImages?.length>0} locked={!step1Done&&!isDraft} {...stepProps}>
+        <StepCard num="4b" title={`Additional Backup Screenshots${form.backupImages?.length>0?" ("+form.backupImages.length+")":""}`} done={form.backupImages?.length>0} locked={!step3Done&&!isDraft} {...stepProps}>
           <p style={{fontSize:13,color:"var(--muted)",marginBottom:11}}>Each renamed <span style={{color:"var(--accent)",fontWeight:600}}>backup-screenshot-N</span> on download.</p>
           <ImageUpload baseName="backup-screenshot" multiple onImages={imgs=>setF({backupImages:imgs,checklist:{...formRef.current.checklist}})} immediateUpload={false} initialImages={form.backupImages||[]}/>
         </StepCard>
 
-        <StepCard num={4} title="Device Check" done={step4Done} locked={!step3Done&&!isDraft} {...stepProps}>
+        <StepCard num={3} title="Device Check" done={step4Done} locked={!step1Done&&!isDraft} {...stepProps}>
           <p style={{fontSize:12,color:"var(--muted)",marginBottom:11}}>All three must be checked <span className="req">*</span></p>
           <div className="check-group">
             {[["mobile","Mobile"],["tablet","Tablet"],["desktop","Desktop"]].map(([k,l])=>(<label key={k} className={cls("check-label",form.devices[k]&&"checked")}><input type="checkbox" checked={form.devices[k]} onChange={e=>setF({devices:{...form.devices,[k]:e.target.checked}})}/>{l}</label>))}
@@ -1973,6 +1973,21 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
           </div>
         </StepCard>
 
+      </div>
+      <TocPanel openStep={openStep} setOpenStep={setOpenStep} isSC={isSC} page="postlive"
+        specialRequestors={specialRequestors}
+        doneMap={{
+          1:step1Done,
+          2:form._beforeCopied,
+          3:step3Done,
+          "4b":form.backupImages&&form.backupImages.length>0,
+          3:step4Done,
+          5:form._afterCopied,
+          6:!!form._screenshotCopied||form.images?.length>0,
+          7:step7Done,
+        }}
+      />
+      <div>
         <div className="action-bar" style={{flexWrap:"wrap",gap:8}}>
           {/* LEFT: Cancel + Clear */}
           <button className="btn btn-cancel" style={{borderRadius:8}} onClick={()=>setModal("cancel")}>✕ Cancel</button>
@@ -2254,20 +2269,6 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
           )}
         </div>
       )}
-      </div>
-      <TocPanel openStep={openStep} setOpenStep={setOpenStep} isSC={isSC} page="postlive"
-        specialRequestors={specialRequestors}
-        doneMap={{
-          1:step1Done,
-          2:form._beforeCopied,
-          3:step3Done,
-          "3b":form.backupImages&&form.backupImages.length>0,
-          4:step4Done,
-          5:form._afterCopied,
-          6:!!form._screenshotCopied||form.images?.length>0,
-          7:step7Done,
-        }}
-      />
     </div>
   );
 }
@@ -3339,7 +3340,7 @@ function LinksPage({ links, setLinks, addLink, updateLink, removeLink }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // PROFILE PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, shiftEndTime="", saveShiftEndTime, shiftStartTime="", saveShiftStartTime, shiftWarnMins=10, saveShiftWarnMins, specialRequestors=[], addRequestor, removeRequestor }) {
+function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, shiftStartTime="", saveShiftStartTime, shiftStartWarnMins=10, saveShiftStartWarnMins, shiftEndTime="", saveShiftEndTime, shiftWarnMins=10, saveShiftWarnMins, specialRequestors=[], addRequestor, removeRequestor }) {
   const [editing,setEditing]=useState(false);
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
@@ -3370,8 +3371,9 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, shif
   });
   const [pwForm,setPwForm]=useState({next:"",confirm:""});
   const [timerInput,setTimerInput]=useState(String(timerLimit||30));
-  const [shiftEndInput,setShiftEndInput]=useState(shiftEndTime||"");
   const [shiftStartInput,setShiftStartInput]=useState(shiftStartTime||"");
+  const [shiftStartWarnInput,setShiftStartWarnInput]=useState(String(shiftStartWarnMins||10));
+  const [shiftEndInput,setShiftEndInput]=useState(shiftEndTime||"");
   const [shiftWarnInput,setShiftWarnInput]=useState(String(shiftWarnMins||10));
 
   // ── Load latest profile from DB on mount ──
@@ -3653,31 +3655,37 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, shif
 
       {/* ── Shift Start Alarm card ── */}
       <div className="profile-card">
-        <h3 style={{fontSize:16,fontWeight:700,marginBottom:4}}>🔔 Before Shift Reminder</h3>
-        <p style={{fontSize:12,color:"var(--muted)",marginBottom:16}}>Set your shift start time and you'll be alerted early — same minutes as your shift-end warning. Leave blank to disable.</p>
-        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
-          <div className="field" style={{marginBottom:0,flex:1}}>
+        <h3 style={{fontSize:16,fontWeight:700,marginBottom:4}}>⏰ Shift Start Alarm</h3>
+        <p style={{fontSize:12,color:"var(--muted)",marginBottom:16}}>Get alerted before your shift starts so you have time to prepare. Leave blank to disable.</p>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+          <div className="field" style={{marginBottom:0}}>
             <label>Shift Start Time</label>
             <input className="inp" type="time" value={shiftStartInput} onChange={e=>setShiftStartInput(e.target.value)}/>
             <div style={{fontSize:10,color:"var(--muted)",marginTop:3}}>e.g. 20:00 for 8:00 PM</div>
+          </div>
+          <div className="field" style={{marginBottom:0}}>
+            <label>Warn me this many minutes before</label>
+            <input className="inp" type="number" min="1" max="60" value={shiftStartWarnInput} onChange={e=>setShiftStartWarnInput(e.target.value)}/>
+            <div style={{fontSize:10,color:"var(--muted)",marginTop:3}}>Default: 10 minutes</div>
           </div>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <button className="btn btn-primary" style={{padding:"8px 18px",fontSize:12}} onClick={()=>{
             saveShiftStartTime(shiftStartInput);
-            showToast("Before-shift reminder updated ✅");
+            saveShiftStartWarnMins(shiftStartWarnInput);
+            showToast("Shift start alarm updated ✅");
           }}>Save</button>
           {shiftStartTime&&<button className="btn btn-ghost" style={{fontSize:12}} onClick={()=>{
-            setShiftStartInput(""); saveShiftStartTime(""); showToast("Before-shift reminder disabled");
+            setShiftStartInput(""); saveShiftStartTime(""); showToast("Shift start alarm disabled");
           }}>Disable</button>}
         </div>
         {shiftStartTime&&<div style={{fontSize:11,color:"var(--muted)",marginTop:10}}>
-          Active: reminder fires at <strong style={{color:"var(--accent)"}}>{(()=>{
+          Active: alarm fires at <strong style={{color:"var(--accent)"}}>{(()=>{
             const [hh,mm]=shiftStartTime.split(":").map(Number);
             const warn=new Date();warn.setHours(hh,mm,0,0);
-            warn.setMinutes(warn.getMinutes()-shiftWarnMins);
+            warn.setMinutes(warn.getMinutes()-shiftStartWarnMins);
             return warn.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
-          })()}</strong> ({shiftWarnMins} min before {(()=>{
+          })()}</strong> ({shiftStartWarnMins} min before {(()=>{
             const [hh,mm]=shiftStartTime.split(":").map(Number);
             return new Date(0,0,0,hh,mm).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
           })()})
@@ -3958,9 +3966,11 @@ function App() {
 
       return finalLog;
     });
-    // Stop any active break when timing out
+    // Stop any active break/open hour when timing out
     setBreakTimer(null); stopAlarmLoop(); setActiveAlarm(null);
     if(typeof window!=="undefined") localStorage.removeItem("ch_break");
+    setOpenHourActive(false);
+    if(typeof window!=="undefined") localStorage.removeItem("ch_openhour");
     setTimedIn(false);
     setGlobalTimeIn(null);
     if(typeof window!=="undefined"){
@@ -3971,20 +3981,7 @@ function App() {
     if(typeof window!=="undefined") localStorage.removeItem("ch_session_db_id");
   };
 
-  // ── Warn before closing tab/window while session is active ──
-  const [showLeaveModal,setShowLeaveModal]=useState(false);
-  useEffect(()=>{
-    const handleBeforeUnload=(e)=>{
-      if(!timedIn) return;
-      e.preventDefault();
-      // Show our custom modal as a fallback visual
-      setShowLeaveModal(true);
-      e.returnValue="You have an active session. Please Time Out before closing.";
-      return e.returnValue;
-    };
-    window.addEventListener("beforeunload",handleBeforeUnload);
-    return()=>window.removeEventListener("beforeunload",handleBeforeUnload);
-  },[timedIn]);
+
 
   // ── Session Log ──
   const [sessionLog,setSessionLog]=useState(()=>{
@@ -4113,6 +4110,23 @@ function App() {
     if(typeof window!=="undefined") localStorage.setItem("ch_timer_limit",v);
   };
   // ── Shift End Alarm: shiftEndTime = "HH:MM" (24h), shiftWarnMins = minutes before end to alarm ──
+  const [shiftStartTime,setShiftStartTime]=useState(()=>{
+    if(typeof window!=="undefined") return localStorage.getItem("ch_shift_start")||"";
+    return "";
+  });
+  const saveShiftStartTime=(t)=>{
+    setShiftStartTime(t);
+    if(typeof window!=="undefined") localStorage.setItem("ch_shift_start",t);
+  };
+  const [shiftStartWarnMins,setShiftStartWarnMins]=useState(()=>{
+    if(typeof window!=="undefined"){const v=parseInt(localStorage.getItem("ch_shift_start_warn"));return isNaN(v)?10:v;}
+    return 10;
+  });
+  const saveShiftStartWarnMins=(m)=>{
+    const v=Math.max(1,Math.min(60,parseInt(m)||10));
+    setShiftStartWarnMins(v);
+    if(typeof window!=="undefined") localStorage.setItem("ch_shift_start_warn",v);
+  };
   const [shiftEndTime,setShiftEndTime]=useState(()=>{
     if(typeof window!=="undefined") return localStorage.getItem("ch_shift_end")||"";
     return "";
@@ -4129,15 +4143,6 @@ function App() {
     const v=Math.max(1,Math.min(60,parseInt(m)||10));
     setShiftWarnMins(v);
     if(typeof window!=="undefined") localStorage.setItem("ch_shift_warn",v);
-  };
-  // ── Shift Start Alarm: fires shiftWarnMins before the configured shift start time ──
-  const [shiftStartTime,setShiftStartTime]=useState(()=>{
-    if(typeof window!=="undefined") return localStorage.getItem("ch_shift_start")||"";
-    return "";
-  });
-  const saveShiftStartTime=(t)=>{
-    setShiftStartTime(t);
-    if(typeof window!=="undefined") localStorage.setItem("ch_shift_start",t);
   };
 
   const [announcements,setAnnouncements]=useState([]); // always loaded from DB
@@ -4160,6 +4165,23 @@ function App() {
   const saveAlarmMins = saveTimerLimit;
 
 
+  // ── Shift-start alarm: fires shiftStartWarnMins before shift start ──
+  useEffect(()=>{
+    if(!shiftStartTime) return;
+    const schedule=()=>{
+      const now=new Date();
+      const [hh,mm]=shiftStartTime.split(":").map(Number);
+      const start=new Date(now);start.setHours(hh,mm,0,0);
+      if(start<=now) start.setDate(start.getDate()+1);
+      const alarmAt=new Date(start.getTime()-shiftStartWarnMins*60*1000);
+      const delay=alarmAt-now;
+      if(delay<=0){ startAlarmLoop("case"); return null; }
+      return setTimeout(()=>startAlarmLoop("case"),delay);
+    };
+    const t=schedule();
+    return()=>{ if(t) clearTimeout(t); };
+  },[shiftStartTime,shiftStartWarnMins]);
+
   // ── Shift-end alarm: fires shiftWarnMins before the configured shift end time ──
   useEffect(()=>{
     if(!shiftEndTime) return;
@@ -4178,25 +4200,6 @@ function App() {
     const t=schedule();
     return()=>{ if(t) clearTimeout(t); };
   },[shiftEndTime,shiftWarnMins]);
-
-  // ── Shift Start Alarm: fires shiftWarnMins before the configured shift start time ──
-  useEffect(()=>{
-    if(!shiftStartTime) return;
-    const schedule=()=>{
-      const now=new Date();
-      const [hh,mm]=shiftStartTime.split(":").map(Number);
-      const start=new Date(now);
-      start.setHours(hh,mm,0,0);
-      // If start time already passed today, schedule for tomorrow
-      if(start<=now) start.setDate(start.getDate()+1);
-      const alarmAt=new Date(start.getTime()-shiftWarnMins*60*1000);
-      const delay=alarmAt-now;
-      if(delay<=0){ startAlarmLoop("case"); return null; }
-      return setTimeout(()=>startAlarmLoop("case"),delay);
-    };
-    const t=schedule();
-    return()=>{ if(t) clearTimeout(t); };
-  },[shiftStartTime,shiftWarnMins]);
 
   useEffect(()=>{document.body.classList.toggle("light",lightMode);if(typeof window!=="undefined") localStorage.setItem("ch_theme",lightMode?"light":"dark");},[lightMode]);
 
@@ -4294,6 +4297,38 @@ function App() {
     if(typeof window!=="undefined") localStorage.setItem("ch_break",JSON.stringify(bt));
     // Rename the current open Ongoing → "Break" (keeps it open, no outcome yet)
     addSessionLog("Break",label,"renameOngoing");
+  }
+  const [openHourPending,setOpenHourPending]=useState(false);
+  const [openHourActive,setOpenHourActive]=useState(()=>{
+    if(typeof window!=="undefined") return localStorage.getItem("ch_openhour")==="1";
+    return false;
+  });
+  function startOpenHour(){
+    const now=Date.now();
+    setOpenHourActive(true);
+    if(typeof window!=="undefined") localStorage.setItem("ch_openhour","1");
+    // Rename last Ongoing -> Open Hour (keep open, no outcome)
+    setSessionLog(prev=>{
+      const renamed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,status:"Open Hour"}:e);
+      if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(renamed));
+      return renamed;
+    });
+    setOpenHourPending(false);
+  }
+  function stopOpenHour(){
+    const now=Date.now();
+    setOpenHourActive(false);
+    if(typeof window!=="undefined") localStorage.removeItem("ch_openhour");
+    // Close Open Hour entry, reset timer, add fresh Ongoing
+    setSessionLog(prev=>{
+      const closed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,endedAt:now,outcome:"Open Hour Ended"}:e);
+      const fresh={id:now+1,status:"Ongoing",note:"",startedAt:now,endedAt:null,outcome:"",endNote:""};
+      const next=[...closed,fresh];
+      if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
+      return next;
+    });
+    setGlobalTimeIn(now);
+    if(typeof window!=="undefined") localStorage.setItem("ch_timein",String(now));
   }
   function stopBreak(){
     // Close the Break entry (no outcome needed), reset timer, add fresh Ongoing
@@ -4500,7 +4535,6 @@ function App() {
     if(typeof window!=="undefined") localStorage.setItem("ch_page",id);
   };
 
-  const [showLogoutConfirm,setShowLogoutConfirm]=useState(false);
   const logout=()=>{
     // If session is active, time out first
     if(timedIn) doTimeOut();
@@ -4515,7 +4549,6 @@ function App() {
     localStorage.removeItem("ch_session_db_id");
     setUser(null);setAuthPage("login");setPage("dashboard");
     setAllCases([]);setDrafts([]);setLinks([]);setAnnouncements([]);setSpecialRequestors([]);
-    setShowLogoutConfirm(false);
   };
 
   // ── Show nothing while checking stored session (prevents login flash) ──
@@ -4621,6 +4654,8 @@ function App() {
           </>)}
 
           <div className="sidebar-divider" style={{height:1,background:"var(--border)",margin:"12px 0 10px"}}/>
+          {/* ── Shift Timer ── */}
+          {timedIn&&globalTimeIn&&<SidebarShiftTimer globalTimeIn={globalTimeIn} shiftEndTime={shiftEndTime}/>}
           {/* Break Timers */}
           <div className="nav-group">Breaks</div>
           <div className="break-btns">
@@ -4632,6 +4667,12 @@ function App() {
                 {breakTimer?.mins===mins&&<Icon name="play" size={9} color="var(--accent)"/>}
               </button>
             ))}
+          {timedIn&&!breakTimer&&(
+            <button className="break-btn" style={{borderColor:"rgba(124,58,237,.4)",color:"var(--accent2)"}} onClick={()=>setOpenHourPending(true)}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span style={{flex:1}}>Open Hour</span>
+            </button>
+          )}
           </div>
           {/* Break start confirmation — rendered at root level to avoid sidebar clipping */}
           <div className="sidebar-divider" style={{height:1,background:"var(--border)",margin:"4px 0 10px"}}/>
@@ -4641,7 +4682,7 @@ function App() {
             </div>
             <div className="profile-text"><div className="profile-name">{user.name}</div><div className="profile-role">{user.role||"User"}</div></div>
           </div>
-          <button onClick={()=>setShowLogoutConfirm(true)} style={{display:"flex",alignItems:"center",gap:8,width:"100%",background:"none",border:"none",padding:"7px 10px",borderRadius:7,cursor:"pointer",color:"var(--red)",fontSize:12,fontWeight:600,fontFamily:"'Poppins',sans-serif",transition:".15s",marginTop:2}} onMouseOver={e=>e.currentTarget.style.background="rgba(244,63,94,.1)"} onMouseOut={e=>e.currentTarget.style.background="none"}>
+          <button onClick={()=>logout()} style={{display:"flex",alignItems:"center",gap:8,width:"100%",background:"none",border:"none",padding:"7px 10px",borderRadius:7,cursor:"pointer",color:"var(--red)",fontSize:12,fontWeight:600,fontFamily:"'Poppins',sans-serif",transition:".15s",marginTop:2}} onMouseOver={e=>e.currentTarget.style.background="rgba(244,63,94,.1)"} onMouseOut={e=>e.currentTarget.style.background="none"}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             <span className="nav-label">Sign Out</span>
           </button>
@@ -4677,7 +4718,7 @@ function App() {
           {!dataLoading&&page==="history"&&<CaseHistory cases={allCases} onUpdate={updateCase} onDelete={deleteCase}/>}
           {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} updateAnnouncement={updateAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
           {!dataLoading&&page==="links"&&<LinksPage links={links} setLinks={setLinks} addLink={addLink} updateLink={updateLink} removeLink={removeLink}/>}
-          {!dataLoading&&page==="profile"&&<ProfilePage user={user} setUser={setUser} onLogout={logout} timerLimit={timerLimit} saveTimerLimit={saveTimerLimit} shiftEndTime={shiftEndTime} saveShiftEndTime={saveShiftEndTime} shiftStartTime={shiftStartTime} saveShiftStartTime={saveShiftStartTime} shiftWarnMins={shiftWarnMins} saveShiftWarnMins={saveShiftWarnMins} specialRequestors={specialRequestors} addRequestor={addRequestor} removeRequestor={removeRequestor}/>}
+          {!dataLoading&&page==="profile"&&<ProfilePage user={user} setUser={setUser} onLogout={logout} timerLimit={timerLimit} saveTimerLimit={saveTimerLimit} shiftStartTime={shiftStartTime} saveShiftStartTime={saveShiftStartTime} shiftStartWarnMins={shiftStartWarnMins} saveShiftStartWarnMins={saveShiftStartWarnMins} shiftEndTime={shiftEndTime} saveShiftEndTime={saveShiftEndTime} shiftWarnMins={shiftWarnMins} saveShiftWarnMins={saveShiftWarnMins} specialRequestors={specialRequestors} addRequestor={addRequestor} removeRequestor={removeRequestor}/>}
           {!dataLoading&&page==="sessions"&&<SessionLogPage user={user} refreshKey={sessionRefreshKey}/>}
           {!dataLoading&&page==="filenames"&&<FileNameGeneratorPage/>}
         </main>
@@ -4707,42 +4748,6 @@ function App() {
         );
       })()}
 
-      {/* ── Logout confirmation modal ── */}
-      {showLogoutConfirm&&(
-        <div className="modal-bg" style={{zIndex:9999}}>
-          <div className="modal" style={{maxWidth:420,textAlign:"center"}}>
-            <div style={{fontSize:48,marginBottom:12}}>👋</div>
-            <h3 style={{fontSize:18,fontWeight:800,marginBottom:8}}>Sign Out?</h3>
-            {timedIn
-              ? <p style={{color:"var(--muted)",fontSize:13,lineHeight:1.7,marginBottom:20}}>You have an <strong style={{color:"var(--amber)"}}>active session</strong>.<br/>Signing out will automatically <strong>Time Out</strong> your session first, then log you out.</p>
-              : <p style={{color:"var(--muted)",fontSize:13,lineHeight:1.7,marginBottom:20}}>You'll be logged out and returned to the login screen.</p>
-            }
-            <div className="modal-btns">
-              <button className="btn btn-ghost" onClick={()=>setShowLogoutConfirm(false)}>Cancel</button>
-              <button className="btn btn-danger" style={{gap:8}} onClick={logout}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                {timedIn?"Time Out & Sign Out":"Sign Out"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Custom Leave Site modal (styled overlay before browser dialog) ── */}
-      {showLeaveModal&&timedIn&&(
-        <div style={{position:"fixed",inset:0,zIndex:99999,background:"rgba(0,0,0,.85)",backdropFilter:"blur(12px)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-          <div style={{background:"var(--glass-bg)",border:"1px solid var(--glass-border)",borderRadius:20,padding:"40px 44px",maxWidth:440,width:"90%",textAlign:"center",boxShadow:"0 32px 80px rgba(0,0,0,.6)"}}>
-            <div style={{fontSize:56,marginBottom:16}}>⚠️</div>
-            <h2 style={{fontSize:22,fontWeight:800,marginBottom:8,color:"var(--text)"}}>Active Session</h2>
-            <p style={{color:"var(--muted)",fontSize:14,lineHeight:1.7,marginBottom:8}}>You have an active session running.<br/>Please <strong style={{color:"var(--amber)"}}>Time Out</strong> before leaving.</p>
-            <p style={{color:"var(--muted)",fontSize:12,marginBottom:28,opacity:.7}}>If you close now, your session will not be properly closed in the database.</p>
-            <div style={{display:"flex",gap:12,justifyContent:"center"}}>
-              <button onClick={()=>setShowLeaveModal(false)} style={{padding:"12px 24px",background:"var(--card2)",border:"1px solid var(--border)",borderRadius:10,color:"var(--text)",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:"'Poppins',sans-serif"}}>Stay & Time Out</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ── Break Modals (at root level so they overlay the full screen) ── */}
       {breakPending&&(<div className="modal-bg"><div className="modal">
         <div style={{marginBottom:14}}><Icon name="coffee" size={40} color="var(--accent)"/></div>
@@ -4751,6 +4756,15 @@ function App() {
         <div className="modal-btns">
           <button className="btn btn-ghost" onClick={()=>setBreakPending(null)}>Cancel</button>
           <button className="btn btn-save" onClick={()=>{startBreak(breakPending.label,breakPending.mins);setBreakPending(null);}}>Start Break</button>
+        </div>
+      </div></div>)}
+      {openHourPending&&(<div className="modal-bg"><div className="modal">
+        <div style={{marginBottom:14,fontSize:36}}>🕐</div>
+        <h3>Start Open Hour?</h3>
+        <p style={{color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6}}>The current ongoing entry will be renamed to <strong>Open Hour</strong> in your session log. Your session timer will reset when you end it.</p>
+        <div className="modal-btns">
+          <button className="btn btn-ghost" onClick={()=>setOpenHourPending(false)}>Cancel</button>
+          <button className="btn btn-primary" onClick={startOpenHour}>Start Open Hour</button>
         </div>
       </div></div>)}
       {cancelBreakConfirm&&(<div className="modal-bg"><div className="modal">
@@ -4785,6 +4799,18 @@ function App() {
       )}
 
       {/* Nav no longer shows discard warning — form state preserved on page switch */}
+
+      {/* ── Open Hour bar ── */}
+      {openHourActive&&(
+        <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:1200,background:"linear-gradient(90deg,#7c3aed,#6d28d9)",padding:"10px 24px",display:"flex",alignItems:"center",gap:16,boxShadow:"0 -4px 24px rgba(124,58,237,.4)"}}>
+          <div style={{fontSize:22,flexShrink:0}}>🕐</div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:13,fontWeight:700,color:"#fff"}}>Open Hour Active</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,.75)"}}>Helping a customer outside normal amends</div>
+          </div>
+          <button onClick={stopOpenHour} style={{padding:"8px 18px",background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.3)",borderRadius:8,color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"'Poppins',sans-serif",backdropFilter:"blur(4px)"}}>End Open Hour</button>
+        </div>
+      )}
 
       {/* ── Floating in-progress pill — shows everywhere except inside form fields ── */}
       <div className="form-progress-pill"
@@ -5006,6 +5032,47 @@ function DynList({field,placeholder}){
         </div>
       ))}
       <button onClick={()=>addItem(field)} style={{background:'none',border:'2px dashed var(--border)',borderRadius:7,color:'var(--muted)',padding:'7px 14px',fontSize:12,fontWeight:600,cursor:'pointer',width:'100%',transition:'.15s',fontFamily:"'Poppins',sans-serif"}} onMouseOver={e=>{e.currentTarget.style.borderColor='var(--accent)';e.currentTarget.style.color='var(--accent)';}} onMouseOut={e=>{e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.color='var(--muted)';}}>+ Add {placeholder}</button>
+    </div>
+  );
+}
+
+// ── Sidebar shift timer — proper component so hooks are valid ──
+function SidebarShiftTimer({globalTimeIn, shiftEndTime}){
+  const [elapsed,setElapsed]=useState(Math.floor((Date.now()-globalTimeIn)/1000));
+  useEffect(()=>{
+    const t=setInterval(()=>setElapsed(Math.floor((Date.now()-globalTimeIn)/1000)),1000);
+    return()=>clearInterval(t);
+  },[globalTimeIn]);
+  const h=Math.floor(elapsed/3600);
+  const m=Math.floor((elapsed%3600)/60);
+  const s=elapsed%60;
+  const pct=shiftEndTime?(()=>{
+    const [hh,mm]=shiftEndTime.split(":").map(Number);
+    const end=new Date();end.setHours(hh,mm,0,0);
+    if(end<=new Date()) end.setDate(end.getDate()+1);
+    const total=end.getTime()-globalTimeIn;
+    const spent=Date.now()-globalTimeIn;
+    return Math.min(100,Math.round((spent/total)*100));
+  })():null;
+  const isWarn=pct!==null&&pct>=80;
+  return (
+    <div style={{margin:"0 2px 10px",padding:"10px 12px",background:"var(--entry-bg)",border:`1px solid ${isWarn?"var(--amber)":"var(--border)"}`,borderRadius:10,transition:"border-color .3s"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:5}}>
+        <span style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:isWarn?"var(--amber)":"var(--muted)",fontFamily:"'Poppins',sans-serif"}}>
+          {isWarn?"⚠ Shift ending soon":"⏱ Shift Time"}
+        </span>
+        <span style={{fontSize:9,color:"var(--muted)",fontFamily:"monospace"}}>
+          {new Date(globalTimeIn).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})} →
+        </span>
+      </div>
+      <div style={{fontSize:22,fontWeight:800,letterSpacing:"-1px",color:isWarn?"var(--amber)":"var(--green)",fontFamily:"monospace",lineHeight:1,marginBottom:pct!==null?7:0}}>
+        {String(h).padStart(2,"0")}:{String(m).padStart(2,"0")}:{String(s).padStart(2,"0")}
+      </div>
+      {pct!==null&&(
+        <div style={{height:3,background:"var(--border)",borderRadius:99,overflow:"hidden",marginTop:2}}>
+          <div style={{height:"100%",width:`${pct}%`,background:isWarn?"var(--amber)":"var(--green)",borderRadius:99,transition:"width 1s linear"}}/>
+        </div>
+      )}
     </div>
   );
 }
