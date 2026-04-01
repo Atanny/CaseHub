@@ -1791,12 +1791,12 @@ function TocPanel({ openStep, setOpenStep, isSC, page, doneMap={}, specialReques
           </button>
         );
       })}
-      {specialRequestors.length>0&&(
+      {(specialRequestors||[]).length>0&&(
         <div className="toc-requestors">
           <div className="toc-req-title">Requestors</div>
-          {specialRequestors.map((name,i)=>(
+          {(specialRequestors||[]).map((name,i)=>(
             <div key={i} className="toc-req-chip">
-              <span className="toc-req-avatar">{name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}</span>
+              <span className="toc-req-avatar">{(name||"").split(" ").map(w=>w&&w[0]).filter(Boolean).join("").slice(0,2).toUpperCase()}</span>
               {name}
             </div>
           ))}
@@ -2674,7 +2674,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
   const isEditingFromLog=!!editingCase;
 
   // ── hooks must be before any conditional return ──
-  const recentAll = [...allSavedCases].slice(0,6);
+  const recentAll = [...(allSavedCases||[])].slice(0,6);
   const [elapsed,setElapsed]=useState(0);
   useEffect(()=>{
     if(!timedIn) return;
@@ -4190,9 +4190,9 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, shif
         </div>
         <p style={{fontSize:12,color:"var(--muted)",marginBottom:14}}>Names shown in the Live Summary panel as a reminder during active cases.</p>
         <div className="requestor-grid">
-          {specialRequestors.map((name,i)=>(
+          {(specialRequestors||[]).map((name,i)=>(
             <div key={i} className="requestor-chip">
-              <div className="requestor-avatar">{name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}</div>
+              <div className="requestor-avatar">{(name||"").split(" ").map(w=>w&&w[0]).filter(Boolean).join("").slice(0,2).toUpperCase()}</div>
               <span>{name}</span>
               <button className="requestor-del" onClick={()=>removeRequestor(name)}>✕</button>
             </div>
@@ -5211,7 +5211,7 @@ function App() {
     {id:"filenames",label:"File Name Generator",icon:"draft"},
   ];
 
-  const initials=user.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+  const initials=(user.name||user.email||"U").split(" ").map(w=>w&&w[0]).filter(Boolean).join("").slice(0,2).toUpperCase();
 
   return (
     <>
