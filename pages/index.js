@@ -1828,7 +1828,7 @@ function TocPanel({ openStep, setOpenStep, isSC, page, doneMap={}, specialReques
     </div>
   );
 }
-function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, onAutoSaveDraft, onStartBreak, draftData, user, onTimerEnd, specialRequestors, timerLimitSecs, globalTimeIn, isEditMode=false, externalFormRef=null }) {
+function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, onAutoSaveDraft, onStartBreak, draftData, user, onTimerEnd, specialRequestors, timerLimitSecs, globalTimeIn, isEditMode=false, isMinimisedResume=false, caseStartTime=null, externalFormRef=null }) {
   const isSC = mode==="siteComment";
   const entryLabel = isSC?"Site Comment":"Assumption";
   const rawName = user?.name || "User";
@@ -1842,12 +1842,12 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
   useEffect(()=>{formRef.current=form; if(externalFormRef) externalFormRef.current=form;},[form]);
 
   // Prefer draftData._startTime (resuming minimised/suspended) over globalTimeIn (shift start) over now
-  // Prefer draftData._startTime (resuming minimised/suspended) over a fresh Date.now().
-  // Never use globalTimeIn as case start — that's the shift start, not the case start.
-  const startTimeRef = useRef((draftData?._startTime) || Date.now());
+  // Priority: draftData._startTime (suspended/minimised) → caseStartTime (shared across form-type switches) → now
+  const startTimeRef = useRef((draftData?._startTime) || caseStartTime || Date.now());
 
-  // isDraft: true if this is a resumed draft with real content — unlock steps accordingly
-  const isDraft = !!(draftData && (draftData.caseNum || draftData.accountNum || draftData._elapsedAtSave));
+  // isDraft: true only for resumed *suspended* drafts — locks case info fields.
+  // Minimised resume is NOT a draft lock — user should be able to edit case info.
+  const isDraft = !isMinimisedResume && !!(draftData && (draftData.caseNum || draftData.accountNum || draftData._elapsedAtSave));
 
   const [openStep,setOpenStep] = useState(1);
   const [modal,setModal] = useState(null);
@@ -2111,7 +2111,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
         <StepCard num={8} title="Final Checklist" done={step7Done} locked={!step7NameDone&&!isDraft} {...stepProps}>
           <p style={{fontSize:12,color:"var(--muted)",marginBottom:11}}>All items must be checked <span className="req">*</span></p>
           <div className="check-group" style={{flexDirection:"column"}}>
-            {[["backup","Before/After Backup?"],["caseComment","Case Comment"],["combinedTracker","Combined Tracker?"],["qaChecklist","QA Checklist?"],["completeJob","Complete Job?"],...(!isSC?[["closeInboundCase","Close Inbound Case?"]]:[[]]),...[["emailSales","Email Sales?"],["trackerChecklist","Complete Status Tracker?"],["completeStatus","Tracker Checklist?"]]].map(([k,l])=>(<label key={k} className={cls("check-label",form.checklist[k]&&"checked")} style={{width:"fit-content"}}><input type="checkbox" checked={!!form.checklist[k]} onChange={e=>setF({checklist:{...form.checklist,[k]:e.target.checked}})}/>{l}</label>))}
+            {[["backup","Before/After Backup?"],["caseComment","Case Comment"],["combinedTracker","Combined Tracker?"],["qaChecklist","QA Checklist?"],...(!isSC?[["completeJob","Complete Job?"],["closeInboundCase","Close Inbound Case?"]]:[[]]),...[["emailSales","Email Sales?"],["trackerChecklist","Complete Status Tracker?"],["completeStatus","Tracker Checklist?"]]].map(([k,l])=>(<label key={k} className={cls("check-label",form.checklist[k]&&"checked")} style={{width:"fit-content"}}><input type="checkbox" checked={!!form.checklist[k]} onChange={e=>setF({checklist:{...form.checklist,[k]:e.target.checked}})}/>{l}</label>))}
           </div>
         </StepCard>
 
@@ -2529,12 +2529,38 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
   const [toast,showToast]=useToast();
   const handledResumeTick=useRef(0);
   const sharedFormRef=useRef(null); // shared ref so minimiseMode can access PostLiveForm's current fields
+  // Tracks when the current case was started — persists across Site Comment ↔ Inbound switches
+  const caseStartTimeRef=useRef((()=>{
+    if(typeof window==="undefined") return Date.now();
+    const v=localStorage.getItem("ch_case_start_time");
+    return v?Number(v):Date.now();
+  })());
 
   const enterMode = (m, withDraft = false, draftId = null) => {
     if (breakActive) {
       showToast("Finish your break first before opening an amend form", "error");
       return;
     }
+
+    const isResumingMinimised = minimisedFormData && minimisedFormData._mode === m && !withDraft;
+
+    // Persist the case start time across Site Comment ↔ Inbound switches.
+    // Only stamp a fresh start time when opening a completely new form (not resuming anything).
+    const isResumingAny = isResumingMinimised || withDraft;
+    if (!isResumingAny) {
+      // Fresh form (Site Comment or Inbound clicked directly, not resuming) — always stamp a new start time
+      const now = Date.now();
+      caseStartTimeRef.current = now;
+      if(typeof window !== "undefined") localStorage.setItem("ch_case_start_time", String(now));
+    } else if (isResumingMinimised && minimisedFormData?._startTime) {
+      // Resuming minimised — restore its start time
+      caseStartTimeRef.current = minimisedFormData._startTime;
+    } else if (withDraft && draftId) {
+      // Resuming a suspended draft — start time will come from draftData._startTime in PostLiveForm
+      // Leave caseStartTimeRef as-is; PostLiveForm will use draftData._startTime directly
+    }
+    // If mode is already set (switching between siteComment ↔ inbound), keep existing caseStartTimeRef
+
     setMode(m);
     setUseDraft(withDraft);
     setActiveDraftId(draftId || null);
@@ -2545,8 +2571,6 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
     }
     onFormActive && onFormActive(true);
     onFormInFields && onFormInFields(true);
-
-    const isResumingMinimised = minimisedFormData && minimisedFormData._mode === m && !withDraft;
     
     // Only update session log when resuming a suspended draft — not for new forms or minimised resume.
     // Status rename (Site Comment / Inbound Email) happens on Save or Suspend, not on open.
@@ -2587,6 +2611,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       localStorage.removeItem("ch_active_form_mode");
       localStorage.removeItem("ch_active_form_use_draft");
       localStorage.removeItem("ch_minimised_form");
+      localStorage.removeItem("ch_case_start_time");
     }
     onFormActive&&onFormActive(false);
     onFormInFields&&onFormInFields(false);
@@ -2732,10 +2757,10 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       <div>
         <div className="page-header">
           <button className="back-btn" onClick={()=>setBackConfirm(true)}>← Back</button>
-          <div className="page-title">{isEditingFromLog?`Editing Case #${editingCase.savedCase.caseNum}`:currentDraft?`Continuing Suspended Case #${currentDraft.caseNum||""}`:mode==="siteComment"?"Post-Live — Site Comment":"Post-Live — Inbound Email"}</div>
-          <div className="page-sub">{isEditingFromLog?"Editing saved case — case information is locked.":currentDraft?"Resuming suspended case — case information is locked.":mode==="siteComment"?"Fill in each step. Steps unlock as you progress.":"Assumption-based format with email details."}</div>
+          <div className="page-title">{isEditingFromLog?`Editing Case #${editingCase.savedCase.caseNum}`:currentDraft&&!isResumingMinimised?`Continuing Suspended Case #${currentDraft.caseNum||""}`:mode==="siteComment"?"Post-Live — Site Comment":"Post-Live — Inbound Email"}</div>
+          <div className="page-sub">{isEditingFromLog?"Editing saved case — case information is locked.":currentDraft&&!isResumingMinimised?"Resuming suspended case — case information is locked.":mode==="siteComment"?"Fill in each step. Steps unlock as you progress.":"Assumption-based format with email details."}</div>
         </div>
-        <PostLiveForm mode={mode} draftData={currentDraft} user={user} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={alarmMins*60} isEditMode={isEditingFromLog} externalFormRef={sharedFormRef}
+        <PostLiveForm key={`${mode}-${activeDraftId||"new"}-${isEditingFromLog?"edit":"new"}`} mode={mode} draftData={currentDraft} user={user} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={alarmMins*60} isEditMode={isEditingFromLog} isMinimisedResume={isResumingMinimised} caseStartTime={caseStartTimeRef.current} externalFormRef={sharedFormRef}
           onSave={f=>{
   const now=new Date();const rec={...f,_mode:mode,savedAt:now.toLocaleString(),endedAt:now.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})};
   if(isEditingFromLog){
@@ -3034,10 +3059,11 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
     }
   });
   
-  // Display: open Time In entry pinned first, rest reversed (newest first)
+  // Display: open Time In entry pinned first, rest in chronological order (newest at bottom)
   const openEntry = sessionLog.find(e => e.status === "Time In" && !e.endedAt);
   const otherEntries = sessionLog.filter(e => !(e.status === "Time In" && !e.endedAt));
-  const displayLog = openEntry ? [openEntry, ...[...otherEntries].reverse()] : [...sessionLog].reverse();
+  // Newest at bottom: closed entries in chronological order, open entry pinned at bottom
+  const displayLog = openEntry ? [...otherEntries, openEntry] : [...sessionLog];
 
   // Find the latest entry per case by endedAt time (on original sessionLog for correctness)
   const caseNumLastIdx={};
