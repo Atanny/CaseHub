@@ -2531,9 +2531,9 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
   const sharedFormRef=useRef(null); // shared ref so minimiseMode can access PostLiveForm's current fields
   // Tracks when the current case was started — persists across Site Comment ↔ Inbound switches
   const caseStartTimeRef=useRef((()=>{
-    if(typeof window==="undefined") return Date.now();
+    if(typeof window==="undefined") return globalTimeIn||Date.now();
     const v=localStorage.getItem("ch_case_start_time");
-    return v?Number(v):Date.now();
+    return v?Number(v):(globalTimeIn||Date.now());
   })());
 
   const enterMode = (m, withDraft = false, draftId = null) => {
@@ -2548,10 +2548,11 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
     // Only stamp a fresh start time when opening a completely new form (not resuming anything).
     const isResumingAny = isResumingMinimised || withDraft;
     if (!isResumingAny) {
-      // Fresh form (Site Comment or Inbound clicked directly, not resuming) — always stamp a new start time
-      const now = Date.now();
-      caseStartTimeRef.current = now;
-      if(typeof window !== "undefined") localStorage.setItem("ch_case_start_time", String(now));
+      // Fresh form (Site Comment or Inbound clicked directly, not resuming).
+      // Use globalTimeIn (session clock-in time) so the form timer is consistent with the session timer.
+      const t = globalTimeIn || Date.now();
+      caseStartTimeRef.current = t;
+      if(typeof window !== "undefined") localStorage.setItem("ch_case_start_time", String(t));
     } else if (isResumingMinimised && minimisedFormData?._startTime) {
       // Resuming minimised — restore its start time
       caseStartTimeRef.current = minimisedFormData._startTime;
