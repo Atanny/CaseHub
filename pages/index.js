@@ -3073,7 +3073,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
                          !isOngoing && 
                          (!isDuplicate || isLatestForCase);
       
-      const isContinueSuspended = isSuspended;
+      const isContinueSuspended = outcome === "Suspended";
       const buttonText = isContinueSuspended ? "Continue Suspended" : "Edit";
    
       return (
