@@ -2921,6 +2921,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
               <button
                 className="entry-del"
                 title="Delete"
+                disabled={breakActive||isMinimised}
                 onClick={() => setDeleteDraftConfirm({ id: d._id, mode: d._mode })}
                 style={{
                   marginLeft: 4,
@@ -2928,15 +2929,16 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
                   backgroundColor: "var(--red)",
                   padding: "10px 10px",
                   border: "white 1px solid",
-                  cursor: "pointer",
+                  cursor: (breakActive||isMinimised)?"not-allowed":"pointer",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   transition: "all 0.2s ease",
-                  fontSize: "clamp(12px, 1vw, 14px)" // responsive font size
+                  opacity: (breakActive||isMinimised)?0.45:1,
+                  fontSize: "clamp(12px, 1vw, 14px)"
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.boxShadow = "0 0 8px 2px rgba(255, 0, 0, 0.14)";
+                  if(!breakActive&&!isMinimised) e.currentTarget.style.boxShadow = "0 0 8px 2px rgba(255, 0, 0, 0.14)";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.boxShadow = "none";
@@ -2957,7 +2959,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
             <div style={{display:"flex",alignItems:"center",gap:10}}>
               <span style={{fontSize:16}}>🕐</span>
               <div className="section-title" style={{marginBottom:0,borderBottom:"none",paddingBottom:0,fontSize:13}}>Session Time Log</div>
-              <span style={{fontSize:10,padding:"2px 8px",background:"rgba(1,118,211,.12)",color:"var(--accent)",borderRadius:20,fontWeight:700,fontFamily:"'Poppins',sans-serif"}}>{sessionLog.length} entries</span>
+              <span style={{fontSize:10,padding:"2px 8px",background:"rgba(1,118,211,.12)",color:"var(--accent)",borderRadius:20,fontWeight:700,fontFamily:"'Poppins',sans-serif"}}>{new Set(sessionLog.filter(e=>e.caseNum).map(e=>e.caseNum)).size} cases</span>
             </div>
             <div style={{display:"flex",gap:8}}>
               <button className="btn btn-ghost" style={{fontSize:11,padding:"5px 12px",borderRadius:7}} onClick={()=>setShowLog(s=>!s)}>{showLog?"▲ Hide":"▼ Show"} Log</button>
@@ -3071,7 +3073,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
                          !isOngoing && 
                          (!isDuplicate || isLatestForCase);
       
-      const isContinueSuspended = isSuspended && hasSuspendedDraft;
+      const isContinueSuspended = isSuspended;
       const buttonText = isContinueSuspended ? "Continue Suspended" : "Edit";
    
       return (
@@ -5457,15 +5459,17 @@ function App() {
 function SessionLogPage({ user, refreshKey=0 }) {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [date, setDate] = useState(new Date().toISOString().slice(0,10));
+  const [date, setDate] = useState("");
   const [openId, setOpenId] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
   const [toast, showToast] = useToast();
 
-  const load = async () => {
+  const load = async (filterDate) => {
     setLoading(true);
     try {
-      const q = `?email=${encodeURIComponent(user.email)}&date=${date}`;
+      const q = filterDate
+        ? `?email=${encodeURIComponent(user.email)}&date=${filterDate}`
+        : `?email=${encodeURIComponent(user.email)}`;
       const res = await fetch(`/api/sessions${q}`);
       const data = await res.json();
       setSessions(Array.isArray(data) ? data : []);
@@ -5482,7 +5486,7 @@ function SessionLogPage({ user, refreshKey=0 }) {
     setDeleteId(null);
   };
 
-  useEffect(() => { load(); }, [date, refreshKey]);
+  useEffect(() => { load(date); }, [date, refreshKey]);
 
   const fmtTime = (ts) => ts ? new Date(ts).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}) : '—';
   const fmtDur = (start, end) => {
@@ -5492,7 +5496,11 @@ function SessionLogPage({ user, refreshKey=0 }) {
     return h > 0 ? `${h}h ${m%60}m` : `${m}m`;
   };
 
-  const totalCases = sessions.reduce((a,s) => a + (s.session_cases?.length||0), 0);
+  const totalCases = (() => {
+    const seen = new Set();
+    sessions.forEach(s => (s.session_cases||[]).forEach(c => { if(c.case_num) seen.add(c.case_num); }));
+    return seen.size;
+  })();
   const totalBreakMins = sessions.reduce((a,s) => {
     return a + (s.session_breaks||[]).reduce((b,br) => {
       if (!br.started_at || !br.ended_at) return b;
@@ -5514,7 +5522,7 @@ function SessionLogPage({ user, refreshKey=0 }) {
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <span style={{fontSize:16}}>📅</span>
           <label style={{fontSize:11,color:"var(--muted)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".6px"}}>Date</label>
-          <input type="date" className="inp" style={{width:160,fontSize:13,borderRadius:8}} value={date} onChange={e=>setDate(e.target.value)}/>
+          <input type="date" className="inp" style={{width:160,fontSize:13,borderRadius:8}} value={date} onChange={e=>setDate(e.target.value)} placeholder="Filter by date"/>
         </div>
         <div style={{display:"flex",gap:10,flexWrap:"wrap",marginLeft:"auto"}}>
           {[
