@@ -1828,6 +1828,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
   const [toast,showToast] = useToast();
   const [copiedAll,setCopiedAll] = useState(false);
   const [draftSaving,setDraftSaving] = useState(false);
+  const [breakConfirmData,setBreakConfirmData] = useState(null); // {label,mins} for break confirmation
   // ── Drag: track by entry ID not index ──
   const dragFromId  = useRef(null);
   const dragToId    = useRef(null);
@@ -2119,8 +2120,8 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
           <button key={mins} className="btn btn-amber" style={{borderRadius:8,fontSize:12,padding:"8px 12px"}}
             onClick={() => {
               if(!form.caseNum){showToast("Enter a case number first","error");return;}
-              onSave && onSave(formRef.current);
-              setTimeout(() => onStartBreak(label.replace(/[☕🧘🍱]/g,"").trim()+" break",mins), 80);
+              setBreakConfirmData({label,mins});
+              setModal("breakConfirm");
             }}>
             {label}
           </button>
@@ -2151,6 +2152,60 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
           <div className="modal-btns">
             <button className="btn btn-ghost" onClick={()=>setModal(null)}>Keep Editing</button>
             <button className="btn btn-draft" onClick={confirmSaveDraft} disabled={draftSaving} style={{opacity:draftSaving?.6:1}}>{draftSaving?"Saving…":"💾 Save & Go Back"}</button>
+          </div>
+        </div></div>)}
+        {modal==="breakConfirm"&&breakConfirmData&&(<div className="modal-bg"><div className="modal">
+          <div style={{marginBottom:14,fontSize:36}}>{breakConfirmData.label.split(" ")[0]}</div>
+          <h3 style={{marginBottom:6}}>Starting {breakConfirmData.label} Break</h3>
+          <p style={{color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6}}>How would you like to save your current case before going on break?</p>
+          <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:18}}>
+            <button
+              className="btn btn-draft"
+              style={{borderRadius:8,justifyContent:"flex-start",padding:"12px 16px",textAlign:"left",display:"flex",alignItems:"center",gap:10}}
+              onClick={async()=>{
+                if(!step1Done){showToast("Fill in Case Information (Step 1) first","error");return;}
+                setModal(null);
+                const data=breakConfirmData;
+                setBreakConfirmData(null);
+                setDraftSaving(true);
+                try{
+                  await onSaveDraftDirect(getCleanForm());
+                  setTimeout(()=>onStartBreak&&onStartBreak(data.label.replace(/[☕🧘🍱]/g,"").trim()+" break",data.mins),80);
+                }catch(e){
+                  setDraftSaving(false);
+                  showToast("❌ Failed to suspend case — check connection","error");
+                }
+              }}
+            >
+              <span style={{fontSize:18}}>💾</span>
+              <div>
+                <div style={{fontWeight:700,fontSize:13}}>Save as Suspended / Draft</div>
+                <div style={{fontSize:11,opacity:.75,fontWeight:400}}>Requires Case Information (Step 1)</div>
+              </div>
+            </button>
+            <button
+              className="btn btn-save"
+              style={{borderRadius:8,justifyContent:"flex-start",padding:"12px 16px",textAlign:"left",display:"flex",alignItems:"center",gap:10}}
+              onClick={()=>{
+                if(!step1Done){showToast("Complete Step 1 (Case Information) first","error");return;}
+                if(!step4Done){showToast("All 3 devices must be checked","error");return;}
+                if(!step7Done){showToast("Complete the Final Checklist first","error");return;}
+                const data=breakConfirmData;
+                setModal(null);
+                setBreakConfirmData(null);
+                onSave&&onSave(formRef.current);
+                setTimeout(()=>onStartBreak&&onStartBreak(data.label.replace(/[☕🧘🍱]/g,"").trim()+" break",data.mins),80);
+              }}
+            >
+              <span style={{fontSize:18}}>✅</span>
+              <div>
+                <div style={{fontWeight:700,fontSize:13}}>Save Case</div>
+                <div style={{fontSize:11,opacity:.75,fontWeight:400}}>Requires all steps complete</div>
+              </div>
+            </button>
+          </div>
+          <div className="modal-btns" style={{justifyContent:"center"}}>
+            <button className="btn btn-ghost" style={{borderRadius:8}} onClick={()=>{setModal(null);setBreakConfirmData(null);}}>Cancel</button>
           </div>
         </div></div>)}
       </div>
