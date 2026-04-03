@@ -108,12 +108,12 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 .sidebar .sidebar-divider,
 .sidebar .nav-custom-link,
 .sidebar .sidebar-shift-timer{opacity:1;max-width:200px;transition:opacity .2s ease,max-width .25s cubic-bezier(.4,0,.2,1);}
-.sidebar.collapsed .nav-item{justify-content:center;padding:10px 0;gap:0;border-radius:30px;}
-.sidebar.collapsed .sidebar-profile{justify-content:center;padding:10px 0;border-radius:30px;margin-bottom:4px;}
-.sidebar.collapsed .theme-toggle{justify-content:center;padding:10px 0;gap:0;border-radius:30px;margin-top:auto;margin-bottom:6px;}
-.sidebar.collapsed .logo{justify-content:center;padding-left:0;padding-right:0;padding-bottom:20px;}
-.sidebar.collapsed .db-status{justify-content:center;padding:8px 0;}
-.sidebar.collapsed .break-btns{padding:8px 0 4px;}
+.sidebar.collapsed .nav-item{justify-content:center;padding:10px 12px;gap:0;}
+.sidebar.collapsed .sidebar-profile{justify-content:center;padding:10px 12px;margin-bottom:4px;}
+.sidebar.collapsed .sidebar-profile .profile-text{display:none;}
+.sidebar.collapsed .theme-toggle{justify-content:center;padding:10px 12px;gap:0;}
+.sidebar.collapsed .logo{justify-content:center;padding:4px 0 20px;}
+.sidebar.collapsed .db-status{justify-content:center;padding:8px 12px;}
 .sidebar.collapsed .sidebar-shift-timer{display:none;}
 .sidebar-collapse-btn{
   position:absolute;top:50%;right:-12px;transform:translateY(-50%);
@@ -434,19 +434,20 @@ body.light .action-bar{background:rgba(255,248,243,.92);}
 /* Form layout */
 .form-cols{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;}
 .form-left{flex:1;min-width:300px;padding-bottom:140px;overflow-wrap:break-word;word-break:break-word;}
-.form-right{width:280px;flex-shrink:0;position:sticky;top:16px;align-self:flex-start;max-height:calc(100vh - 80px);overflow-y:auto;display:flex;flex-direction:column;gap:12px;}
+.form-right{width:280px;flex-shrink:0;position:sticky;top:16px;align-self:flex-start;max-height:calc(100vh - 100px);overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding-bottom:16px;}
 .summary-panel{padding:14px 16px;overflow-y:auto;flex:1;}
-@media(max-width:1366px){.form-right{width:100%;position:relative;max-height:none;flex-shrink:1;top:0;}}
+@media(max-width:1366px){.form-right{width:100%;position:relative;max-height:none;flex-shrink:1;top:0;padding-bottom:0;}}
 @media(max-width:900px){.form-left{min-width:0;width:100%;}.form-cols{flex-direction:column;}.form-right{width:100%;position:relative;max-height:none;top:0;}}
-@media(max-width:600px){.form-cols{flex-direction:column;gap:12px;}.form-right{width:100%;max-height:60vh;overflow-y:auto;position:relative;top:0;}}
+@media(max-width:600px){.form-cols{flex-direction:column;gap:12px;}.form-right{width:100%;max-height:none;overflow-y:visible;position:relative;top:0;}}
 
 /* Right panel */
-.right-panel{background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius);overflow:hidden;backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);box-shadow:var(--glass-shadow);display:flex;flex-direction:column;}
+.right-panel{background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius);overflow:visible;backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);box-shadow:var(--glass-shadow);display:flex;flex-direction:column;}
 .right-panel-header{
   padding:16px 18px;border-bottom:1px solid var(--border);
   font-size:15px;font-weight:800;display:flex;align-items:center;gap:10px;
   background:linear-gradient(135deg,rgba(245,148,92,.1),rgba(212,114,74,.08));
   font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-.2px;
+  border-radius:var(--radius) var(--radius) 0 0;
 }
 .meta-stack{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;border-bottom:1px solid var(--border);}
 .meta-row{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px 10px;gap:5px;text-align:center;border-right:1px solid var(--border);}
@@ -454,7 +455,7 @@ body.light .action-bar{background:rgba(255,248,243,.92);}
 .meta-row .meta-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);white-space:nowrap;}
 .meta-row .meta-val{color:var(--text);font-weight:700;font-size:11px;font-family:'Poppins',sans-serif;line-height:1.3;text-align:center;}
 .meta-row .timer-val{color:var(--accent);font-weight:800;font-size:22px;font-variant-numeric:tabular-nums;font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-.5px;line-height:1.1;}
-.summary-panel{padding:14px 16px;}
+.summary-panel{padding:14px 16px;overflow-y:auto;}
 .summary-locked{text-align:center;padding:24px 0;}
 .summary-locked-icon{font-size:32px;margin-bottom:8px;}
 
@@ -861,8 +862,10 @@ select.inp{cursor:pointer;}
 /* Break buttons in sidebar */
 .break-btns{display:flex;flex-direction:column;gap:4px;padding:8px 0 4px;}
 .break-btn{display:flex;align-items:center;gap:8px;padding:8px 12px;font-size:12px;font-weight:600;color:var(--muted);background:none;border:1px solid var(--border);cursor:pointer;transition:.18s;width:100%;text-align:left;font-family:'Poppins',sans-serif;}
-.sidebar.collapsed .break-btn{justify-content:center;padding:10px 0;gap:0;border-radius:30px;}
-.sidebar.collapsed .break-btn span,.sidebar.collapsed .break-btn svg:not(:first-child){display:none;}
+.sidebar.collapsed .break-btn{justify-content:center;padding:10px 12px;gap:0;}
+.sidebar.collapsed .break-btn>span,.sidebar.collapsed .break-btn>svg:last-child{display:none;max-width:0;overflow:hidden;}
+.sidebar.collapsed .sidebar-logout-btn{justify-content:center;padding:7px 12px;gap:0;}
+.sidebar.collapsed .sidebar-logout-btn .nav-label{display:none;max-width:0;overflow:hidden;}
 .break-btn:hover{background:var(--card2);color:var(--text);border-color:var(--accent);}
 .break-btn.active{background:var(--entry-accent-bg);color:var(--accent);border-color:var(--accent);}
 
@@ -1909,8 +1912,11 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
   const [resumeElapsed,setResumeElapsed] = useState(0); // seconds since this resume started
   useEffect(()=>{
     const t=setInterval(()=>{
-      setFooterElapsed(Math.floor((Date.now()-startTimeRef.current)/1000));
-      setResumeElapsed(Math.floor((Date.now()-resumeStartRef.current)/1000));
+      // Once phase2 starts, freeze footerElapsed and resumeElapsed — phase2 timer takes over
+      if(phase2StartRef.current===null){
+        setFooterElapsed(Math.floor((Date.now()-startTimeRef.current)/1000));
+        setResumeElapsed(Math.floor((Date.now()-resumeStartRef.current)/1000));
+      }
       if(phase2StartRef.current!==null){
         setPhase2Elapsed(Math.floor((Date.now()-phase2StartRef.current)/1000));
       }
@@ -2168,7 +2174,23 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
         <StepCard num={8} title="Final Checklist" done={step7Done} locked={!step7NameDone&&!isDraft} {...stepProps}>
           <p style={{fontSize:12,color:"var(--muted)",marginBottom:11}}>All items must be checked <span className="req">*</span></p>
           <div className="check-group" style={{flexDirection:"column"}}>
-            {[["backup","Before/After Backup?"],["caseComment","Case Comment"],["combinedTracker","Combined Tracker?"],["qaChecklist","QA Checklist?"],...(isSC?[["completeJob","Complete Job?"]]:[["completeJob","Complete Job?"],["closeInboundCase","Close Inbound Case?"]]),...[["emailSales","Email Sales?"],["trackerChecklist","Complete Status Tracker?"],["completeStatus","Tracker Checklist?"]]].map(([k,l])=>(<label key={k} className={cls("check-label",form.checklist[k]&&"checked")} style={{width:"fit-content"}}><input type="checkbox" checked={!!form.checklist[k]} onChange={e=>{if(k==="combinedTracker"&&e.target.checked&&phase2StartRef.current===null){const t=Date.now();phase2StartRef.current=t;if(typeof window!=="undefined")localStorage.setItem("ch_phase2_start",String(t));setPhase2Elapsed(0);}setF({checklist:{...form.checklist,[k]:e.target.checked}})}}/>{l}</label>))}
+            {[["backup","Before/After Backup?"],["caseComment","Case Comment"],["combinedTracker","Combined Tracker?"],["qaChecklist","QA Checklist?"],...(isSC?[["completeJob","Complete Job?"]]:[["completeJob","Complete Job?"],["closeInboundCase","Close Inbound Case?"]]),...[["emailSales","Email Sales?"],["trackerChecklist","Complete Status Tracker?"],["completeStatus","Tracker Checklist?"]]].map(([k,l])=>(<label key={k} className={cls("check-label",form.checklist[k]&&"checked")} style={{width:"fit-content"}}><input type="checkbox" checked={!!form.checklist[k]} onChange={e=>{
+              const newChecklist={...form.checklist,[k]:e.target.checked};
+              // Phase 2 starts when backup + caseComment + combinedTracker are all checked
+              if(phase2StartRef.current===null){
+                const allThree=newChecklist.backup&&newChecklist.caseComment&&newChecklist.combinedTracker;
+                if(allThree){
+                  const t=Date.now();
+                  phase2StartRef.current=t;
+                  if(typeof window!=="undefined") localStorage.setItem("ch_phase2_start",String(t));
+                  // Freeze elapsed at current value
+                  setFooterElapsed(f=>f);
+                  setResumeElapsed(r=>r);
+                  setPhase2Elapsed(0);
+                }
+              }
+              setF({checklist:newChecklist});
+            }}/>{l}</label>))}
           </div>
         </StepCard>
 
@@ -2598,7 +2620,7 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // POST LIVE PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, onMinimise, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, globalTimeIn, timedIn, breakActive=false, onTimeIn, onTimeOut, onTimerReset, sessionDbId, sessionLog=[], addSessionLog, setSessionLog, closeWithOutcome, closeSessionLog, clearSessionLog, onStartBreak, resumeTick=0 }) {
+function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, onMinimise, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, globalTimeIn, timedIn, breakActive=false, onTimeIn, onTimeOut, onTimerReset, sessionDbId, sessionLog=[], addSessionLog, setSessionLog, closeWithOutcome, closeSessionLog, clearSessionLog, onStartBreak, onStartBreakFull, resumeTick=0 }) {
   const [mode,setMode]=useState(()=>{
     if(typeof window==="undefined") return null;
     return localStorage.getItem("ch_form_active")==="1"
@@ -2916,7 +2938,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
           }}
           onBack={()=>setBackConfirm(true)}
           onCancelForm={cancelMode}
-          onStartBreak={onStartBreak}
+          onStartBreak={onStartBreakFull||onStartBreak}
           setSessionLog={setSessionLog}/>
         
         {backConfirm && (
@@ -5121,10 +5143,11 @@ function App() {
 
   const [breakPending,setBreakPending]=useState(null); // {label,mins} waiting confirm
   const [cancelBreakConfirm,setCancelBreakConfirm]=useState(false);
-  function startBreak(label,mins){
+  function startBreak(label,mins,fullDuration=false){
     const now=Date.now();
-    // Subtract however long has elapsed in the current session so remaining break = mins - elapsed
-    const sessionElapsedMs=globalTimeIn?Math.max(0,now-globalTimeIn):0;
+    // Sidebar break: subtract session elapsed so the countdown reflects remaining time
+    // Form break (fullDuration=true): always use the full break duration
+    const sessionElapsedMs=(!fullDuration&&globalTimeIn)?Math.max(0,now-globalTimeIn):0;
     const adjustedMs=Math.max(0,mins*60*1000-sessionElapsedMs);
     const endsAt=now+adjustedMs;
     const warnAt=Math.max(now+1000, endsAt-5*60*1000);
@@ -5545,8 +5568,8 @@ function App() {
             </div>
             <div className="profile-text"><div className="profile-name">{user.name}</div><div className="profile-role">{user.role||"User"}</div></div>
           </div>
-          <button onClick={()=>logout()} style={{display:"flex",alignItems:"center",gap:8,width:"100%",background:"none",border:"none",padding:"7px 10px",borderRadius:7,cursor:"pointer",color:"var(--red)",fontSize:12,fontWeight:600,fontFamily:"'Poppins',sans-serif",transition:".15s",marginTop:2}} onMouseOver={e=>e.currentTarget.style.background="rgba(244,63,94,.1)"} onMouseOut={e=>e.currentTarget.style.background="none"}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <button className="sidebar-logout-btn" onClick={()=>logout()} style={{display:"flex",alignItems:"center",gap:8,width:"100%",background:"none",border:"none",padding:"7px 12px",borderRadius:30,cursor:"pointer",color:"var(--red)",fontSize:12,fontWeight:600,fontFamily:"'Poppins',sans-serif",transition:".15s",marginTop:2}} onMouseOver={e=>e.currentTarget.style.background="rgba(244,63,94,.1)"} onMouseOut={e=>e.currentTarget.style.background="none"}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             <span className="nav-label">Sign Out</span>
           </button>
           <button className="theme-toggle" onClick={()=>setLightMode(l=>!l)}>
@@ -5576,7 +5599,7 @@ function App() {
           {!dataLoading&&page==="build"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="casebox" size={80} color="var(--muted)"/></div><div className="soon-title">Build</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&page==="prelive"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="prelive" size={80} color="var(--muted)"/></div><div className="soon-title">Pre-Live Amends</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&<div style={{display:page==="postlive"?"block":"none"}}>
-            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onFormActive={setFormActivePersist} onFormInFields={setFormInFields} onMinimise={()=>{setPage("postlive"); if(typeof window!=="undefined") localStorage.setItem("ch_page","postlive");}} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} globalTimeIn={globalTimeIn} timedIn={timedIn} breakActive={!!breakTimer||openHourActive} onTimeIn={doTimeIn} onTimeOut={doTimeOut} onTimerReset={doTimerReset} sessionDbId={sessionDbId} sessionLog={sessionLog} addSessionLog={addSessionLog} setSessionLog={setSessionLog} closeWithOutcome={closeWithOutcome} closeSessionLog={closeSessionLog} clearSessionLog={clearSessionLog} onStartBreak={startBreak} resumeTick={resumeFormTick}/>
+            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onFormActive={setFormActivePersist} onFormInFields={setFormInFields} onMinimise={()=>{setPage("postlive"); if(typeof window!=="undefined") localStorage.setItem("ch_page","postlive");}} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} globalTimeIn={globalTimeIn} timedIn={timedIn} breakActive={!!breakTimer||openHourActive} onTimeIn={doTimeIn} onTimeOut={doTimeOut} onTimerReset={doTimerReset} sessionDbId={sessionDbId} sessionLog={sessionLog} addSessionLog={addSessionLog} setSessionLog={setSessionLog} closeWithOutcome={closeWithOutcome} closeSessionLog={closeSessionLog} clearSessionLog={clearSessionLog} onStartBreak={startBreak} onStartBreakFull={(label,mins)=>startBreak(label,mins,true)} resumeTick={resumeFormTick}/>
           </div>}
           {!dataLoading&&page==="history"&&<CaseHistory cases={allCases} onUpdate={updateCase} onDelete={deleteCase}/>}
           {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} updateAnnouncement={updateAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
