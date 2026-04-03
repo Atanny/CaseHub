@@ -1676,23 +1676,9 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
         {f.caseNum&&<span style={{marginLeft:"auto",fontSize:11,fontWeight:600,color:"var(--accent)",background:"var(--entry-accent-bg)",padding:"2px 10px",borderRadius:20,border:"1px solid rgba(1,118,211,.2)"}}>#{f.caseNum}</span>}
       </div>
       <div className="meta-stack">
-        <div className="meta-row" style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"16px 14px",borderBottom:"1px solid var(--border)"}}>
-          <span className="meta-label" style={{marginBottom:4}}>⏱ Elapsed</span>
-          <span className="timer-val">{fmtElapsed(elapsed)}</span>
-          {timerLimitSecs&&<div style={{marginTop:6,width:"100%",height:4,background:"var(--border)",borderRadius:4,overflow:"hidden"}}>
-            <div style={{height:"100%",background:elapsed/timerLimitSecs>0.8?"var(--red)":elapsed/timerLimitSecs>0.6?"var(--amber)":"var(--accent)",width:Math.min(100,(elapsed/timerLimitSecs)*100)+"%",transition:"width .5s linear,background .3s",borderRadius:4}}/>
-          </div>}
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderBottom:"1px solid var(--border)"}}>
-          <div className="meta-row" style={{borderRight:"1px solid var(--border)"}}>
-            <span className="meta-label">📅 Started</span>
-            <span className="meta-val" style={{fontSize:11,marginTop:4,display:"block"}}>{fmtDT(new Date(startTimeRef.current))}</span>
-          </div>
-          <div className="meta-row">
-            <span className="meta-label">🕐 Now</span>
-            <span className="meta-val" style={{fontSize:11,marginTop:4,display:"block"}}>{fmtDT(now)}</span>
-          </div>
-        </div>
+        {timerLimitSecs&&elapsed>0&&<div style={{width:"100%",height:4,background:"var(--border)",overflow:"hidden"}}>
+          <div style={{height:"100%",background:elapsed/timerLimitSecs>0.8?"var(--red)":elapsed/timerLimitSecs>0.6?"var(--amber)":"var(--accent)",width:Math.min(100,(elapsed/timerLimitSecs)*100)+"%",transition:"width .5s linear,background .3s"}}/>
+        </div>}
       </div>
       <div className="summary-panel">
         <CopyRow label="Case #" value={f.caseNum}/>
@@ -1849,6 +1835,19 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
   // Minimised resume is NOT a draft lock — user should be able to edit case info.
   const isDraft = !isMinimisedResume && !!(draftData && (draftData.caseNum || draftData.accountNum || draftData._elapsedAtSave));
 
+  // isDraftResumed: true when resuming a suspended draft OR editing (shows split timer)
+  const isDraftResumed = isEditMode || (!isMinimisedResume && !!(draftData && draftData._elapsedAtSave));
+
+  // For suspended/edit: store how long elapsed before this resume so we can show "Before: X / Now: Y"
+  // prevElapsedSecs = seconds already elapsed before this resume session (from _elapsedAtSave or 0)
+  const prevElapsedSecs = (isDraftResumed && !isEditMode && draftData?._elapsedAtSave) ? draftData._elapsedAtSave : 0;
+  // resumeStartRef = wall-clock when this resume session began (always Date.now() on mount for resumed cases)
+  const resumeStartRef = useRef(Date.now());
+
+  // Phase 2 timer: starts when Combined Tracker checkbox is first checked
+  const phase2StartRef = useRef(null);
+  const [phase2Elapsed, setPhase2Elapsed] = useState(null); // null = not started
+
   const [openStep,setOpenStep] = useState(1);
   const [modal,setModal] = useState(null);
   const [saveOutcomeType,setSaveOutcomeType] = useState("completed"); // "completed" | "clarification"
@@ -1858,8 +1857,15 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
   const [breakConfirmData,setBreakConfirmData] = useState(null); // {label,mins} for break confirmation
   // Footer timer — ticks every second for the action-bar elapsed display
   const [footerElapsed,setFooterElapsed] = useState(()=>Math.floor((Date.now()-startTimeRef.current)/1000));
+  const [resumeElapsed,setResumeElapsed] = useState(0); // seconds since this resume started
   useEffect(()=>{
-    const t=setInterval(()=>setFooterElapsed(Math.floor((Date.now()-startTimeRef.current)/1000)),1000);
+    const t=setInterval(()=>{
+      setFooterElapsed(Math.floor((Date.now()-startTimeRef.current)/1000));
+      setResumeElapsed(Math.floor((Date.now()-resumeStartRef.current)/1000));
+      if(phase2StartRef.current!==null){
+        setPhase2Elapsed(Math.floor((Date.now()-phase2StartRef.current)/1000));
+      }
+    },1000);
     return()=>clearInterval(t);
   },[]);
   // ── Drag: track by entry ID not index ──
@@ -2111,7 +2117,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
         <StepCard num={8} title="Final Checklist" done={step7Done} locked={!step7NameDone&&!isDraft} {...stepProps}>
           <p style={{fontSize:12,color:"var(--muted)",marginBottom:11}}>All items must be checked <span className="req">*</span></p>
           <div className="check-group" style={{flexDirection:"column"}}>
-            {[["backup","Before/After Backup?"],["caseComment","Case Comment"],["combinedTracker","Combined Tracker?"],["qaChecklist","QA Checklist?"],...(isSC?[["completeJob","Complete Job?"]]:[["completeJob","Complete Job?"],["closeInboundCase","Close Inbound Case?"]]),...[["emailSales","Email Sales?"],["trackerChecklist","Complete Status Tracker?"],["completeStatus","Tracker Checklist?"]]].map(([k,l])=>(<label key={k} className={cls("check-label",form.checklist[k]&&"checked")} style={{width:"fit-content"}}><input type="checkbox" checked={!!form.checklist[k]} onChange={e=>setF({checklist:{...form.checklist,[k]:e.target.checked}})}/>{l}</label>))}
+            {[["backup","Before/After Backup?"],["caseComment","Case Comment"],["combinedTracker","Combined Tracker?"],["qaChecklist","QA Checklist?"],...(isSC?[["completeJob","Complete Job?"]]:[["completeJob","Complete Job?"],["closeInboundCase","Close Inbound Case?"]]),...[["emailSales","Email Sales?"],["trackerChecklist","Complete Status Tracker?"],["completeStatus","Tracker Checklist?"]]].map(([k,l])=>(<label key={k} className={cls("check-label",form.checklist[k]&&"checked")} style={{width:"fit-content"}}><input type="checkbox" checked={!!form.checklist[k]} onChange={e=>{if(k==="combinedTracker"&&e.target.checked&&phase2StartRef.current===null){phase2StartRef.current=Date.now();setPhase2Elapsed(0);}setF({checklist:{...form.checklist,[k]:e.target.checked}})}}/>{l}</label>))}
           </div>
         </StepCard>
 
@@ -2146,9 +2152,26 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
           ← Back
         </button>
         <button className="btn btn-ghost" style={{borderRadius:8}} onClick={() => setModal("clear")}>🧹 Clear</button>
-        <div style={{display:"flex",flexDirection:"column",marginLeft:6,lineHeight:1.2,borderLeft:"1px solid var(--border)",paddingLeft:10}}>
-          <span style={{fontSize:15,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--accent)",letterSpacing:"-.5px",fontVariantNumeric:"tabular-nums"}}>{fmtElapsed(footerElapsed)}</span>
-          <span style={{fontSize:9,color:"var(--muted)",fontFamily:"'Poppins',sans-serif",fontWeight:600,textTransform:"uppercase",letterSpacing:".5px"}}>Started {new Date(startTimeRef.current).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})}</span>
+        <div style={{display:"flex",flexDirection:"column",marginLeft:6,lineHeight:1.3,borderLeft:"1px solid var(--border)",paddingLeft:10,gap:1}}>
+          {isDraftResumed ? (<>
+            <div style={{display:"flex",alignItems:"center",gap:5}}>
+              <span style={{fontSize:9,color:"var(--muted)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".4px",whiteSpace:"nowrap"}}>Before:</span>
+              <span style={{fontSize:12,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--muted)",letterSpacing:"-.3px",fontVariantNumeric:"tabular-nums"}}>{fmtElapsed(prevElapsedSecs)}</span>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:5}}>
+              <span style={{fontSize:9,color:"var(--accent)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".4px",whiteSpace:"nowrap"}}>Now:</span>
+              <span style={{fontSize:15,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--accent)",letterSpacing:"-.5px",fontVariantNumeric:"tabular-nums"}}>{fmtElapsed(resumeElapsed)}</span>
+            </div>
+          </>) : (<>
+            <span style={{fontSize:15,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--accent)",letterSpacing:"-.5px",fontVariantNumeric:"tabular-nums"}}>{fmtElapsed(footerElapsed)}</span>
+            <span style={{fontSize:9,color:"var(--muted)",fontFamily:"'Poppins',sans-serif",fontWeight:600,textTransform:"uppercase",letterSpacing:".5px"}}>Session elapsed</span>
+          </>)}
+          {phase2Elapsed !== null && (
+            <div style={{display:"flex",alignItems:"center",gap:5,marginTop:2,borderTop:"1px solid var(--border)",paddingTop:2}}>
+              <span style={{fontSize:9,color:"var(--green)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".4px",whiteSpace:"nowrap"}}>Phase 2:</span>
+              <span style={{fontSize:12,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--green)",letterSpacing:"-.3px",fontVariantNumeric:"tabular-nums"}}>{fmtElapsed(phase2Elapsed)}</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -3235,11 +3258,20 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       );
     })}
                   {(()=>{
-                    const totalMs=sessionLog.reduce((acc,e)=>{
-                      if(!e.endedAt) return acc;
-                      if(e.status==="Time In"||e.status==="Time Out") return acc;
-                      return acc+(e.endedAt-e.startedAt);
-                    },0);
+                    // Sum durations: for cases with caseNum, only count the latest entry per case
+                    // to avoid double-counting resumed/continued cases
+                    const latestPerCase={};
+                    sessionLog.forEach(e=>{
+                      if(!e.endedAt) return;
+                      if(e.status==="Time In"||e.status==="Time Out"||e.status==="Break") return;
+                      const key=(e.caseNum||"").trim();
+                      if(key){
+                        if(!latestPerCase[key]||e.endedAt>latestPerCase[key].endedAt){
+                          latestPerCase[key]=e;
+                        }
+                      }
+                    });
+                    const totalMs=Object.values(latestPerCase).reduce((acc,e)=>acc+(e.endedAt-e.startedAt),0);
                     const h=Math.floor(totalMs/3600000),m=Math.floor((totalMs%3600000)/60000),s=Math.floor((totalMs%60000)/1000);
                     return (
                       <div className="session-log-total">
