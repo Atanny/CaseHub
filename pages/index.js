@@ -16,7 +16,7 @@ ${FONTS}
 :root{
   --bg:#080c14;--surface:#0f1420;--card:#141b28;--card2:#1a2235;--border:#232e44;
   --accent:#0176D3;--accent2:#0154A0;--green:#10b981;--red:#f43f5e;--amber:#f59e0b;
-  --text:#edf2f7;--muted:#7a8ba0;--radius:0px;
+  --text:#edf2f7;--muted:#7a8ba0;--radius:8px;
   --inp-bg:#0f1420;--entry-bg:#0f1420;--sum-bg:#0a0f1a;--code-bg:#0f1420;
   --shadow:0 8px 32px rgba(0,0,0,.5);--shadow-sm:0 2px 12px rgba(0,0,0,.3);
   --btn-cancel-bg:rgba(244,63,94,.12);--btn-cancel-border:#f43f5e;--btn-cancel-text:#fda4af;
@@ -111,7 +111,9 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 .sidebar .nav-custom-link,
 .sidebar .sidebar-shift-timer{opacity:1;max-width:200px;transition:opacity .2s ease,max-width .25s cubic-bezier(.4,0,.2,1);}
 /* Center icons — keep same vertical padding as expanded */
-.sidebar.collapsed .nav-item{justify-content:center;gap:0;}
+.sidebar.collapsed .nav-item{justify-content:center;gap:0;padding-left:6px;padding-right:6px;}
+.sidebar.collapsed .nav-badge{display:none !important;}
+.sidebar.collapsed .nav-inprogress{display:none !important;}
 .sidebar.collapsed .sidebar-profile{justify-content:center;gap:0;}
 .sidebar.collapsed .sidebar-profile .profile-text{display:none;}
 .sidebar.collapsed .theme-toggle{justify-content:center;gap:0;}
@@ -446,21 +448,22 @@ body.light .action-bar{background:rgba(255,248,243,.92);}
 @media(max-width:600px){.form-cols{flex-direction:column;gap:12px;}.form-right{width:100%;max-height:none;overflow-y:visible;position:relative;top:0;}}
 
 /* Right panel */
-.right-panel{background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius);overflow:visible;backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);box-shadow:var(--glass-shadow);display:flex;flex-direction:column;}
+.right-panel{background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius);overflow:hidden;backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);box-shadow:var(--glass-shadow);display:flex;flex-direction:column;max-height:calc(100vh - 120px);}
 .right-panel-header{
   padding:16px 18px;border-bottom:1px solid var(--border);
   font-size:15px;font-weight:800;display:flex;align-items:center;gap:10px;
   background:linear-gradient(135deg,rgba(245,148,92,.1),rgba(212,114,74,.08));
   font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-.2px;
   border-radius:var(--radius) var(--radius) 0 0;
+  flex-shrink:0;
 }
-.meta-stack{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;border-bottom:1px solid var(--border);}
+.meta-stack{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;border-bottom:1px solid var(--border);flex-shrink:0;}
 .meta-row{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px 10px;gap:5px;text-align:center;border-right:1px solid var(--border);}
 .meta-row:last-child{border-right:none;}
 .meta-row .meta-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);white-space:nowrap;}
 .meta-row .meta-val{color:var(--text);font-weight:700;font-size:11px;font-family:'Poppins',sans-serif;line-height:1.3;text-align:center;}
 .meta-row .timer-val{color:var(--accent);font-weight:800;font-size:22px;font-variant-numeric:tabular-nums;font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-.5px;line-height:1.1;}
-.summary-panel{padding:14px 16px;overflow-y:auto;}
+.summary-panel{padding:14px 16px;overflow-y:auto;flex:1;min-height:0;}
 .summary-locked{text-align:center;padding:24px 0;}
 .summary-locked-icon{font-size:32px;margin-bottom:8px;}
 
@@ -906,13 +909,14 @@ select.inp{cursor:pointer;}
 .step-body{padding:6px 18px 20px;animation:fadeIn .2s ease;}
 
 /* Live summary panel */
-.right-panel{border-radius:14px;overflow:hidden;}
-.right-panel-header{font-size:14px;font-weight:800;padding:14px 18px;letter-spacing:-.2px;background:var(--card);border-bottom:1px solid var(--border);}
-.meta-stack{border-bottom:1px solid var(--border);}
+.right-panel{border-radius:14px;overflow:hidden;max-height:calc(100vh - 120px);}
+.right-panel-header{font-size:14px;font-weight:800;padding:14px 18px;letter-spacing:-.2px;background:var(--card);border-bottom:1px solid var(--border);flex-shrink:0;}
+.meta-stack{border-bottom:1px solid var(--border);flex-shrink:0;}
 .meta-row{padding:12px 14px;transition:.15s;}
 .meta-row:hover{background:var(--card2);}
 .meta-row .meta-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);}
 .meta-row .timer-val{font-size:26px;font-weight:800;color:var(--accent);letter-spacing:-1px;font-family:'Plus Jakarta Sans',sans-serif;}
+.summary-panel{overflow-y:auto;flex:1;min-height:0;}
 .copy-row-wrap{border-radius:8px;margin-bottom:6px;transition:.15s;}
 .copy-row-wrap:hover{border-color:var(--accent);transform:translateX(2px);}
 .copy-row-btn{border-radius:6px;padding:5px 12px;font-size:11px;}
@@ -1532,7 +1536,7 @@ function ImageUpload({ baseName, multiple, onImages, immediateUpload=false, init
         <div style={{fontSize:13,color:"var(--muted)"}}>
           {uploading
             ? (immediateUpload ? "Uploading to database…" : "Preparing image…")
-            : <span>Click, drag-drop, or <kbd style={{background:"var(--border)",padding:"1px 6px",borderRadius:0,fontSize:10}}>Ctrl+V</kbd> to paste</span>
+            : <span>Click, drag-drop, or <kbd style={{background:"var(--border)",padding:"1px 6px",borderRadius:4,fontSize:10}}>Ctrl+V</kbd> to paste</span>
           }
         </div>
         <div style={{fontSize:11,color:"var(--muted)",marginTop:4}}>
@@ -1726,7 +1730,7 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
         )}
         {!isSC&&<CopyRow label="Email Type" value={emailTypeLabel}/>}
         {!isSC&&<CopyRow label="Email Address" value={f.emailAddress}/>}
-        {allImages.length>0&&(<div className="copy-row-wrap"><div className="copy-row-label">Screenshots ({allImages.length})</div><div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>{allImages.map(img=>(<div key={img.id} style={{width:68,height:52,borderRadius:0,overflow:"hidden",border:"1.5px solid var(--border)"}}><img src={img.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>))}</div></div>)}
+        {allImages.length>0&&(<div className="copy-row-wrap"><div className="copy-row-label">Screenshots ({allImages.length})</div><div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>{allImages.map(img=>(<div key={img.id} style={{width:68,height:52,borderRadius:6,overflow:"hidden",border:"1.5px solid var(--border)"}}><img src={img.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>))}</div></div>)}
       </div>
     </div>
   );
@@ -1850,7 +1854,7 @@ function TocPanel({ openStep, setOpenStep, isSC, page, doneMap={}, specialReques
     </div>
   );
 }
-function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, onAutoSaveDraft, onStartBreak, draftData, user, onTimerEnd, specialRequestors, timerLimitSecs, globalTimeIn, isEditMode=false, isMinimisedResume=false, caseStartTime=null, externalFormRef=null, isResumingDraft=false }) {
+function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, onAutoSaveDraft, onStartBreak, draftData, user, onTimerEnd, specialRequestors, timerLimitSecs, globalTimeIn, isEditMode=false, isMinimisedResume=false, caseStartTime=null, externalFormRef=null, isResumingDraft=false, originalOutcome="" }) {
   const isSC = mode==="siteComment";
   const entryLabel = isSC?"Site Comment":"Assumption";
   const rawName = user?.name || "User";
@@ -2212,24 +2216,33 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
         >
           ✕ Cancel Edit
         </button>
-        <div style={{display:"flex",alignItems:"center",gap:8,marginLeft:6,borderLeft:"1px solid var(--border)",paddingLeft:10,flexWrap:"wrap"}}>
-          <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:0}}>
-            <span style={{fontSize:9,color:"var(--muted)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px"}}>Before Suspended</span>
-            <span style={{fontSize:20,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--muted)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>{fmtElapsed(prevElapsedSecs)}</span>
-          </div>
-          <span style={{color:"var(--border)",fontSize:18,fontWeight:300,margin:"0 2px"}}>|</span>
-          <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:0}}>
-            <span style={{fontSize:9,color:"var(--accent)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px"}}>Elapsed Now</span>
-            <span style={{fontSize:20,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--accent)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>{fmtElapsed(resumeElapsed)}</span>
-          </div>
-          {phase2Elapsed !== null && (<>
-            <span style={{color:"var(--border)",fontSize:18,fontWeight:300,margin:"0 2px"}}>|</span>
-            <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:0}}>
-              <span style={{fontSize:9,color:"var(--green)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px"}}>Phase 2</span>
-              <span style={{fontSize:20,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--green)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>{fmtElapsed(phase2Elapsed)}</span>
+        {(()=>{
+          const o = originalOutcome.toLowerCase();
+          const isSusp = o==="suspended";
+          const isComp = o==="completed"||o==="clarification"||o==="suspended completed"||o==="case completed"||o==="draft completed";
+          const totalLabel = isSusp ? "Total Suspended Used" : isComp ? "Total Completed Used" : "Total Hours Used";
+          const totalSecs = prevElapsedSecs + (phase2Elapsed !== null ? phase2Elapsed : resumeElapsed);
+          return (
+            <div style={{display:"flex",alignItems:"center",gap:8,marginLeft:6,borderLeft:"1px solid var(--border)",paddingLeft:10,flexWrap:"wrap"}}>
+              <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:0}}>
+                <span style={{fontSize:9,color:"var(--muted)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px"}}>{totalLabel}</span>
+                <span style={{fontSize:20,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--muted)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>{fmtElapsed(totalSecs)}</span>
+              </div>
+              <span style={{color:"var(--border)",fontSize:18,fontWeight:300,margin:"0 2px"}}>|</span>
+              <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:0}}>
+                <span style={{fontSize:9,color:"var(--accent)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px"}}>Elapsed Now</span>
+                <span style={{fontSize:20,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--accent)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>{fmtElapsed(resumeElapsed)}</span>
+              </div>
+              {phase2Elapsed !== null && (<>
+                <span style={{color:"var(--border)",fontSize:18,fontWeight:300,margin:"0 2px"}}>|</span>
+                <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:0}}>
+                  <span style={{fontSize:9,color:"var(--green)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px"}}>Phase 2</span>
+                  <span style={{fontSize:20,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--green)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>{fmtElapsed(phase2Elapsed)}</span>
+                </div>
+              </>)}
             </div>
-          </>)}
-        </div>
+          );
+        })()}
       </div>
       <div className="action-group action-group-center"/>
       <div className="action-group action-group-right">
@@ -2250,11 +2263,20 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
         <button className="btn btn-ghost" style={{borderRadius:8}} onClick={() => setModal("clear")}>🧹 Clear</button>
         <div style={{display:"flex",alignItems:"center",gap:8,marginLeft:6,borderLeft:"1px solid var(--border)",paddingLeft:10,flexWrap:"wrap"}}>
           {isDraftResumed ? (<>
-            <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:0}}>
-              <span style={{fontSize:9,color:"var(--muted)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px"}}>{isEditMode?"Session elapsed":"Before suspended"}</span>
-              <span style={{fontSize:20,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--muted)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>{fmtElapsed(prevElapsedSecs)}</span>
-            </div>
-            <span style={{color:"var(--border)",fontSize:18,fontWeight:300,margin:"0 2px"}}>|</span>
+            {(()=>{
+              const o = originalOutcome.toLowerCase();
+              const isSusp = o==="suspended";
+              const isComp = o==="completed"||o==="clarification"||o==="suspended completed"||o==="case completed"||o==="draft completed";
+              const totalLabel = isSusp ? "Total Suspended Used" : isComp ? "Total Completed Used" : "Total Hours Used";
+              const totalSecs = prevElapsedSecs + (phase2Elapsed !== null ? phase2Elapsed : resumeElapsed);
+              return (<>
+                <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:0}}>
+                  <span style={{fontSize:9,color:"var(--muted)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px"}}>{totalLabel}</span>
+                  <span style={{fontSize:20,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--muted)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>{fmtElapsed(totalSecs)}</span>
+                </div>
+                <span style={{color:"var(--border)",fontSize:18,fontWeight:300,margin:"0 2px"}}>|</span>
+              </>);
+            })()}
             <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:0}}>
               <span style={{fontSize:9,color:"var(--accent)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px"}}>Elapsed now</span>
               <span style={{fontSize:20,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--accent)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>{fmtElapsed(resumeElapsed)}</span>
@@ -2597,7 +2619,7 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
                   const isValidUrl=(img.url||"").startsWith("https://");
                   return (
                     <div key={img.id||img.name} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,maxWidth:80}}>
-                      <div style={{width:80,height:60,borderRadius:0,overflow:"hidden",border:"1.5px solid var(--border)",background:"var(--entry-bg)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                      <div style={{width:80,height:60,borderRadius:6,overflow:"hidden",border:"1.5px solid var(--border)",background:"var(--entry-bg)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                         {isValidUrl
                           ? <img src={img.url} alt={img.name||""} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}
                               onError={e=>{e.currentTarget.style.display="none";e.currentTarget.parentNode.querySelector(".img-fallback").style.display="flex";}}
@@ -2893,6 +2915,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
           <div className="page-sub">{isEditingFromLog?"Editing saved case — case information is locked.":currentDraft&&!isResumingMinimised?"Resuming suspended case — case information is locked.":mode==="siteComment"?"Fill in each step. Steps unlock as you progress.":"Assumption-based format with email details."}</div>
         </div>
         <PostLiveForm key={`${mode}-${activeDraftId||"new"}-${isEditingFromLog?"edit":"new"}`} mode={mode} draftData={currentDraft} user={user} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={alarmMins*60} isEditMode={isEditingFromLog} isMinimisedResume={isResumingMinimised} caseStartTime={caseStartTimeRef.current} externalFormRef={sharedFormRef} isResumingDraft={useDraft}
+          originalOutcome={isEditingFromLog?(editingCase.savedCase._saveOutcome||""):useDraft?"Suspended":""}
           onSave={f=>{
   const now=new Date();const rec={...f,_mode:mode,savedAt:now.toLocaleString(),endedAt:now.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})};
   if(isEditingFromLog){
@@ -3447,7 +3470,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
 
           {/* Inbound email fields */}
           {!isEditSC&&(
-            <div style={{marginBottom:12,padding:"10px 12px",background:"var(--entry-bg)",border:"1px solid var(--border)"}}>
+            <div style={{marginBottom:12,padding:"10px 12px",background:"var(--entry-bg)",border:"1px solid var(--border)",borderRadius:8}}>
               <div style={{fontSize:11,fontWeight:700,color:"var(--muted)",marginBottom:8,textTransform:"uppercase",letterSpacing:".6px"}}>Email Details</div>
               <div className="field" style={{marginBottom:8}}>
                 <label>Email Address</label>
@@ -3468,7 +3491,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
           <div style={{marginBottom:12}}>
             <div style={{fontSize:11,fontWeight:700,color:"var(--muted)",marginBottom:8,textTransform:"uppercase",letterSpacing:".6px"}}>{isEditSC?"Site Comments":"Assumptions"}</div>
             {(editCase.entries||[]).map((e,ei)=>(
-              <div key={e.id||ei} style={{background:"var(--entry-bg)",border:"1px solid var(--border)",padding:"10px 12px",marginBottom:8}}>
+              <div key={e.id||ei} style={{background:"var(--entry-bg)",border:"1px solid var(--border)",padding:"10px 12px",marginBottom:8,borderRadius:8}}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
                   <span style={{fontSize:11,fontWeight:700,color:"var(--accent)"}}>{isEditSC?`SC #${e.number||ei+1}`:`Assumption ${ei+1}`}</span>
                   <button className="entry-del" onClick={()=>setEditCase(c=>({...c,entries:c.entries.filter((_,i)=>i!==ei)}))}>
