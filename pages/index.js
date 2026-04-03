@@ -1854,7 +1854,7 @@ function TocPanel({ openStep, setOpenStep, isSC, page, doneMap={}, specialReques
     </div>
   );
 }
-function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, onAutoSaveDraft, onStartBreak, draftData, user, onTimerEnd, specialRequestors, timerLimitSecs, globalTimeIn, isEditMode=false, isMinimisedResume=false, caseStartTime=null, externalFormRef=null, isResumingDraft=false, originalOutcome="" }) {
+function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, onAutoSaveDraft, onStartBreak, draftData, user, onTimerEnd, specialRequestors, timerLimitSecs, globalTimeIn, isEditMode=false, isMinimisedResume=false, caseStartTime=null, externalFormRef=null, isResumingDraft=false, originalOutcome="", originalTotalSecs=0 }) {
   const isSC = mode==="siteComment";
   const entryLabel = isSC?"Site Comment":"Assumption";
   const rawName = user?.name || "User";
@@ -2221,12 +2221,11 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
           const isSusp = o==="suspended";
           const isComp = o==="completed"||o==="clarification"||o==="suspended completed"||o==="case completed"||o==="draft completed";
           const totalLabel = isSusp ? "Total Suspended Used" : isComp ? "Total Completed Used" : "Total Hours Used";
-          const totalSecs = prevElapsedSecs + (phase2Elapsed !== null ? phase2Elapsed : resumeElapsed);
           return (
             <div style={{display:"flex",alignItems:"center",gap:8,marginLeft:6,borderLeft:"1px solid var(--border)",paddingLeft:10,flexWrap:"wrap"}}>
               <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:0}}>
                 <span style={{fontSize:9,color:"var(--muted)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px"}}>{totalLabel}</span>
-                <span style={{fontSize:20,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--muted)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>{fmtElapsed(totalSecs)}</span>
+                <span style={{fontSize:20,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--muted)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>{fmtElapsed(originalTotalSecs)}</span>
               </div>
               <span style={{color:"var(--border)",fontSize:18,fontWeight:300,margin:"0 2px"}}>|</span>
               <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:0}}>
@@ -2268,11 +2267,10 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
               const isSusp = o==="suspended";
               const isComp = o==="completed"||o==="clarification"||o==="suspended completed"||o==="case completed"||o==="draft completed";
               const totalLabel = isSusp ? "Total Suspended Used" : isComp ? "Total Completed Used" : "Total Hours Used";
-              const totalSecs = prevElapsedSecs + (phase2Elapsed !== null ? phase2Elapsed : resumeElapsed);
               return (<>
                 <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:0}}>
                   <span style={{fontSize:9,color:"var(--muted)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px"}}>{totalLabel}</span>
-                  <span style={{fontSize:20,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--muted)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>{fmtElapsed(totalSecs)}</span>
+                  <span style={{fontSize:20,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--muted)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>{fmtElapsed(originalTotalSecs)}</span>
                 </div>
                 <span style={{color:"var(--border)",fontSize:18,fontWeight:300,margin:"0 2px"}}>|</span>
               </>);
@@ -2319,7 +2317,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
 </div>
 
         {modal==="clear"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="clear" size={40} color="var(--red)"/></div><h3>Clear All Fields?</h3><p style={{color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6}}>All entered data will be cleared. The form stays open and the timer keeps running.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Cancel</button><button className="btn btn-danger" onClick={()=>{setForm(emptyBase());resumeStartRef.current=Date.now();if(typeof window!=="undefined"){localStorage.setItem("ch_resume_start",String(Date.now()));localStorage.removeItem("ch_phase2_start");}phase2StartRef.current=null;setPhase2Elapsed(null);setModal(null);showToast("All fields cleared","info");}}>Clear All</button></div></div></div>)}
-        {modal==="save"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="save" size={40} color="var(--accent)"/></div><h3>Save Case?</h3><p style={{color:"var(--muted)",fontSize:13,marginBottom:16,lineHeight:1.6}}>Case <strong style={{color:"var(--text)"}}>#{form.caseNum}</strong> — confirm everything is complete. The timer will reset.</p><div style={{marginBottom:18}}><div style={{fontSize:11,fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".7px",fontFamily:"'Poppins',sans-serif",marginBottom:8}}>Case Outcome</div><div style={{display:"flex",gap:10}}><button onClick={()=>setSaveOutcomeType("completed")} style={{flex:1,padding:"10px 12px",borderRadius:10,border:`2px solid ${saveOutcomeType==="completed"?"var(--accent)":"var(--border)"}`,background:saveOutcomeType==="completed"?"var(--entry-accent-bg)":"var(--card)",color:saveOutcomeType==="completed"?"var(--accent)":"var(--muted)",fontWeight:700,fontSize:12,fontFamily:"'Poppins',sans-serif",cursor:"pointer",transition:".15s",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}><span style={{fontSize:18}}>✅</span>Completed</button><button onClick={()=>setSaveOutcomeType("clarification")} style={{flex:1,padding:"10px 12px",borderRadius:10,border:`2px solid ${saveOutcomeType==="clarification"?"var(--amber)":"var(--border)"}`,background:saveOutcomeType==="clarification"?"rgba(245,158,11,.1)":"var(--card)",color:saveOutcomeType==="clarification"?"var(--amber)":"var(--muted)",fontWeight:700,fontSize:12,fontFamily:"'Poppins',sans-serif",cursor:"pointer",transition:".15s",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}><span style={{fontSize:18}}>🔄</span>Clarification</button></div></div><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Go Back</button><button className="btn btn-primary" onClick={()=>{setModal(null);showToast("Case saved! ✅");const f={...formRef.current,_saveOutcome:saveOutcomeType};onSave&&onSave(f);}}>✅ Save Case</button></div></div></div>)}
+        {modal==="save"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="save" size={40} color="var(--accent)"/></div><h3>Save Case?</h3><p style={{color:"var(--muted)",fontSize:13,marginBottom:16,lineHeight:1.6}}>Case <strong style={{color:"var(--text)"}}>#{form.caseNum}</strong> — confirm everything is complete. The timer will reset.</p><div style={{marginBottom:18}}><div style={{fontSize:11,fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".7px",fontFamily:"'Poppins',sans-serif",marginBottom:8}}>Case Outcome</div><div style={{display:"flex",gap:10}}><button onClick={()=>setSaveOutcomeType("completed")} style={{flex:1,padding:"10px 12px",borderRadius:10,border:`2px solid ${saveOutcomeType==="completed"?"var(--accent)":"var(--border)"}`,background:saveOutcomeType==="completed"?"var(--entry-accent-bg)":"var(--card)",color:saveOutcomeType==="completed"?"var(--accent)":"var(--muted)",fontWeight:700,fontSize:12,fontFamily:"'Poppins',sans-serif",cursor:"pointer",transition:".15s",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}><span style={{fontSize:18}}>✅</span>Completed</button><button onClick={()=>setSaveOutcomeType("clarification")} style={{flex:1,padding:"10px 12px",borderRadius:10,border:`2px solid ${saveOutcomeType==="clarification"?"var(--amber)":"var(--border)"}`,background:saveOutcomeType==="clarification"?"rgba(245,158,11,.1)":"var(--card)",color:saveOutcomeType==="clarification"?"var(--amber)":"var(--muted)",fontWeight:700,fontSize:12,fontFamily:"'Poppins',sans-serif",cursor:"pointer",transition:".15s",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}><span style={{fontSize:18}}>🔄</span>Clarification</button></div></div><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Go Back</button><button className="btn btn-primary" onClick={()=>{setModal(null);showToast("Case saved! ✅");const elapsed=Math.floor((Date.now()-startTimeRef.current)/1000);const p2=phase2Elapsed!==null?phase2Elapsed:0;const totalSecs=elapsed+(isEditMode?0:p2);const f={...formRef.current,_saveOutcome:saveOutcomeType,_elapsedAtSave:elapsed,_phase2Elapsed:p2,_totalElapsed:totalSecs};onSave&&onSave(f);}}>✅ Save Case</button></div></div></div>)}
         {modal==="draft"&&(<div className="modal-bg"><div className="modal">
           <div style={{marginBottom:14}}><Icon name="draft" size={44} color="var(--amber)"/></div>
           <h3 style={{marginBottom:8}}>Save as Draft?</h3>
@@ -2916,6 +2914,20 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
         </div>
         <PostLiveForm key={`${mode}-${activeDraftId||"new"}-${isEditingFromLog?"edit":"new"}`} mode={mode} draftData={currentDraft} user={user} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={alarmMins*60} isEditMode={isEditingFromLog} isMinimisedResume={isResumingMinimised} caseStartTime={caseStartTimeRef.current} externalFormRef={sharedFormRef} isResumingDraft={useDraft}
           originalOutcome={isEditingFromLog?(editingCase.savedCase._saveOutcome||""):useDraft?"Suspended":""}
+          originalTotalSecs={(()=>{
+            const targetCase = isEditingFromLog ? editingCase.savedCase : currentDraft;
+            const caseNum = (targetCase?.caseNum||"").trim();
+            // Sum all closed session log entries for this caseNum (all durations, handles duplicates)
+            if(caseNum && sessionLog?.length){
+              const total = sessionLog.filter(e=>
+                e.endedAt && (e.caseNum||"").trim()===caseNum &&
+                e.status!=="Time In" && e.status!=="Time Out" && e.status!=="Break"
+              ).reduce((acc,e)=>acc+(e.endedAt-e.startedAt),0);
+              if(total>0) return Math.floor(total/1000);
+            }
+            // Fallback: use stored _totalElapsed on the saved case
+            return targetCase?._totalElapsed || targetCase?._elapsedAtSave || 0;
+          })()}
           onSave={f=>{
   const now=new Date();const rec={...f,_mode:mode,savedAt:now.toLocaleString(),endedAt:now.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})};
   if(isEditingFromLog){
