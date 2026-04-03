@@ -79,9 +79,9 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 .sidebar{
   width:240px;background:var(--glass-bg);border-right:1px solid var(--glass-border);
   display:flex;flex-direction:column;padding:20px 14px;gap:2px;
-  position:sticky;top:0;height:100vh;flex-shrink:0;overflow-y:auto;
+  position:sticky;top:0;height:100vh;flex-shrink:0;overflow-y:auto;overflow-x:hidden;
   backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
-  box-shadow:var(--glass-shadow);transition:width .22s ease,padding .22s ease;
+  box-shadow:var(--glass-shadow);transition:width .25s cubic-bezier(.4,0,.2,1),padding .25s cubic-bezier(.4,0,.2,1);
 }
 .sidebar.collapsed{width:64px;padding:20px 8px;overflow:hidden;}
 .sidebar.collapsed .logo-text,
@@ -95,7 +95,7 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 .sidebar.collapsed .break-btns,
 .sidebar.collapsed .sidebar-divider,
 .sidebar.collapsed .nav-custom-link,
-.sidebar.collapsed .sidebar-shift-timer{opacity:0;pointer-events:none;width:0;overflow:hidden;transition:opacity .22s ease,width .22s ease;}
+.sidebar.collapsed .sidebar-shift-timer{opacity:0;pointer-events:none;max-width:0;overflow:hidden;transition:opacity .2s ease,max-width .25s cubic-bezier(.4,0,.2,1);}
 .sidebar .logo-text,
 .sidebar .nav-group,
 .sidebar .nav-label,
@@ -107,7 +107,7 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 .sidebar .break-btns,
 .sidebar .sidebar-divider,
 .sidebar .nav-custom-link,
-.sidebar .sidebar-shift-timer{opacity:1;transition:opacity .22s ease,width .22s ease;}
+.sidebar .sidebar-shift-timer{opacity:1;max-width:200px;transition:opacity .2s ease,max-width .25s cubic-bezier(.4,0,.2,1);}
 .sidebar.collapsed .nav-item{justify-content:center;padding:10px 0;gap:0;}
 .sidebar.collapsed .sidebar-profile{justify-content:center;padding:8px 0;}
 .sidebar.collapsed .theme-toggle{justify-content:center;padding:10px 0;gap:0;}
@@ -211,7 +211,7 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
   display:flex;align-items:center;gap:6px;
 }
 .toc-item{
-  display:flex;align-items:center;width:100%;text-align:left;background:none;border:none;
+  display:flex;align-items:center;justify-content:center;width:100%;text-align:center;background:none;border:none;
   padding:7px 12px;font-size:11px;color:var(--muted);cursor:pointer;
   font-family:'Poppins',sans-serif;transition:.12s;line-height:1.4;border-left:2px solid transparent;
   gap:6px;
@@ -431,12 +431,14 @@ body.light .action-bar{background:rgba(255,248,243,.92);}
 /* Form layout */
 .form-cols{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;}
 .form-left{flex:1;min-width:300px;padding-bottom:140px;overflow-wrap:break-word;word-break:break-word;}
-.form-right{width:280px;flex-shrink:0;position:sticky;top:0;align-self:flex-start;max-height:calc(100vh - 64px);overflow-y:auto;}
-@media(max-width:1366px){.form-right{width:100%;position:relative;max-height:none;flex-shrink:1;}}
-@media(max-width:900px){.form-left{min-width:0;width:100%;}.form-cols{flex-direction:column;}.form-right{width:100%;position:relative;max-height:none;}}
+.form-right{width:280px;flex-shrink:0;position:sticky;top:16px;align-self:flex-start;max-height:calc(100vh - 80px);overflow-y:auto;display:flex;flex-direction:column;gap:12px;}
+.summary-panel{padding:14px 16px;overflow-y:auto;flex:1;}
+@media(max-width:1366px){.form-right{width:100%;position:relative;max-height:none;flex-shrink:1;top:0;}}
+@media(max-width:900px){.form-left{min-width:0;width:100%;}.form-cols{flex-direction:column;}.form-right{width:100%;position:relative;max-height:none;top:0;}}
+@media(max-width:600px){.form-cols{flex-direction:column;gap:12px;}.form-right{width:100%;max-height:60vh;overflow-y:auto;position:relative;top:0;}}
 
 /* Right panel */
-.right-panel{background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius);overflow:hidden;backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);box-shadow:var(--glass-shadow);}
+.right-panel{background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius);overflow:hidden;backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);box-shadow:var(--glass-shadow);display:flex;flex-direction:column;}
 .right-panel-header{
   padding:16px 18px;border-bottom:1px solid var(--border);
   font-size:15px;font-weight:800;display:flex;align-items:center;gap:10px;
@@ -1698,14 +1700,16 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
       </div>
 
       <div className="summary-panel">
-        <CopyRow label="Case #" value={f.caseNum}/>
         <CopyRow label="Account #" value={f.accountNum}/>
+        <CopyRow label="Case #" value={f.caseNum}/>
         {!isSC&&<CopyRow label="Inbound #" value={f.inboundNum}/>}
         <CopyRow label="Amend Type" value={f.amendType}/>
+        {f.customerName&&<CopyRow label="Customer Name" value={f.customerName}/>}
+        {f.customerEmail&&<CopyRow label="Customer Email" value={f.customerEmail}/>}
+        <CopyRow label={isSC?"Site Comments":"Assumptions"} value={isSC?buildEntriesText():buildEmailText()}/>
         {f.caseNum&&(
           <GreetingRow greetingMessages={greetingMessages} caseNum={f.caseNum} inboundNum={f.inboundNum} isSC={isSC}/>
         )}
-        <CopyRow label={isSC?"Site Comments":"Assumptions"} value={isSC?buildEntriesText():buildEmailText()}/>
         {!isSC&&<CopyRow label="Email Type" value={emailTypeLabel}/>}
         {!isSC&&<CopyRow label="Email Address" value={f.emailAddress}/>}
         {allImages.length>0&&(<div className="copy-row-wrap"><div className="copy-row-label">Screenshots ({allImages.length})</div><div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>{allImages.map(img=>(<div key={img.id} style={{width:68,height:52,borderRadius:0,overflow:"hidden",border:"1.5px solid var(--border)"}}><img src={img.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>))}</div></div>)}
@@ -1774,6 +1778,7 @@ function Icon({ name, size=16, color="currentColor", style={} }) {
 const emptyEntry = ()=>({id:String(Date.now()+Math.random()),number:"",note:"",clarification:""});
 const emptyBase  = ()=>({
   caseNum:"",accountNum:"",amendType:"",inProgress:false,inboundNum:"",
+  customerName:"",customerEmail:"",
   entries:[emptyEntry()],
   devices:{mobile:false,tablet:false,desktop:false},
   checklist:{backup:false,caseComment:false,combinedTracker:false,qaChecklist:false,completeJob:false,emailSales:false,trackerChecklist:false,completeStatus:false},
@@ -1812,7 +1817,7 @@ function TocPanel({ openStep, setOpenStep, isSC, page, doneMap={}, specialReques
               },50);
             }}>
             <span className="toc-num">{s.num}</span>
-            <span style={{flex:1,textAlign:"left"}}>{s.label}</span>
+            <span style={{flex:1,textAlign:"center"}}>{s.label}</span>
             {done&&<span className="toc-check">✓</span>}
           </button>
         );
@@ -1863,12 +1868,25 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
         ? Math.floor((Date.now() - (caseStartTime || Date.now())) / 1000)
         : (draftData?._elapsedAtSave || 0))
     : 0;
-  // resumeStartRef = wall-clock when this resume/edit session began
-  const resumeStartRef = useRef(Date.now());
+  // resumeStartRef = wall-clock when this resume/edit session began — persisted so refresh doesn't reset it
+  const _resumeInit = typeof window!=="undefined" ? (() => { const v=localStorage.getItem("ch_resume_start"); return v?Number(v):Date.now(); })() : Date.now();
+  const resumeStartRef = useRef(_resumeInit);
+  // On first mount, stamp it so subsequent refreshes restore correctly
+  useEffect(()=>{
+    if(typeof window!=="undefined"&&!localStorage.getItem("ch_resume_start")){
+      localStorage.setItem("ch_resume_start",String(resumeStartRef.current));
+    }
+  },[]);
 
   // Phase 2 timer: starts when Combined Tracker checkbox is first checked
-  const phase2StartRef = useRef(null);
-  const [phase2Elapsed, setPhase2Elapsed] = useState(null); // null = not started
+  // Persist/restore from localStorage so refresh doesn't reset it
+  const _phase2Init = typeof window!=="undefined" ? (() => { const v=localStorage.getItem("ch_phase2_start"); return v?Number(v):null; })() : null;
+  const phase2StartRef = useRef(_phase2Init);
+  const [phase2Elapsed, setPhase2Elapsed] = useState(()=>{
+    if(typeof window==="undefined") return null;
+    const v=localStorage.getItem("ch_phase2_start");
+    return v?Math.floor((Date.now()-Number(v))/1000):null;
+  });
 
   const [openStep,setOpenStep] = useState(1);
   const [modal,setModal] = useState(null);
@@ -1990,6 +2008,8 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
           <div className="field"><label>Account Number <span className="req">*</span></label><input className="inp" placeholder="e.g. ACC-9876" value={form.accountNum} onChange={e=>setF({accountNum:e.target.value})} disabled={isDraft||isEditMode} style={{opacity:(isDraft||isEditMode)?.65:1,cursor:(isDraft||isEditMode)?"not-allowed":"text"}}/></div>
           {!isSC&&(<div className="field"><label>Inbound Number <span className="req">*</span></label><input className="inp" placeholder="Enter inbound number" value={form.inboundNum||""} onChange={e=>setF({inboundNum:e.target.value})} disabled={isDraft||isEditMode} style={{opacity:(isDraft||isEditMode)?.65:1,cursor:(isDraft||isEditMode)?"not-allowed":"text"}}/></div>)}
           <div className="field"><label>Amend Type <span className="req">*</span></label><input className="inp" placeholder="e.g. Content, Layout, Link..." value={form.amendType} onChange={e=>setF({amendType:e.target.value})} disabled={isDraft||isEditMode} style={{opacity:(isDraft||isEditMode)?.65:1,cursor:(isDraft||isEditMode)?"not-allowed":"text"}}/></div>
+          <div className="field"><label>Customer Name</label><input className="inp" placeholder="e.g. John Smith" value={form.customerName||""} onChange={e=>setF({customerName:e.target.value})}/></div>
+          <div className="field"><label>Customer Email</label><input className="inp" type="email" placeholder="e.g. client@email.com" value={form.customerEmail||""} onChange={e=>setF({customerEmail:e.target.value})}/></div>
           <label className={cls("check-label",form.inProgress&&"checked")} style={{marginTop:4,width:"fit-content"}}><input type="checkbox" checked={form.inProgress} onChange={e=>setF({inProgress:e.target.checked})} disabled={isDraft||isEditMode}/>In-Progress Salesforce</label>
         </StepCard>
 
@@ -2139,21 +2159,15 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
         <StepCard num={8} title="Final Checklist" done={step7Done} locked={!step7NameDone&&!isDraft} {...stepProps}>
           <p style={{fontSize:12,color:"var(--muted)",marginBottom:11}}>All items must be checked <span className="req">*</span></p>
           <div className="check-group" style={{flexDirection:"column"}}>
-            {[["backup","Before/After Backup?"],["caseComment","Case Comment"],["combinedTracker","Combined Tracker?"],["qaChecklist","QA Checklist?"],...(isSC?[["completeJob","Complete Job?"]]:[["completeJob","Complete Job?"],["closeInboundCase","Close Inbound Case?"]]),...[["emailSales","Email Sales?"],["trackerChecklist","Complete Status Tracker?"],["completeStatus","Tracker Checklist?"]]].map(([k,l])=>(<label key={k} className={cls("check-label",form.checklist[k]&&"checked")} style={{width:"fit-content"}}><input type="checkbox" checked={!!form.checklist[k]} onChange={e=>{if(k==="combinedTracker"&&e.target.checked&&phase2StartRef.current===null){phase2StartRef.current=Date.now();setPhase2Elapsed(0);}setF({checklist:{...form.checklist,[k]:e.target.checked}})}}/>{l}</label>))}
+            {[["backup","Before/After Backup?"],["caseComment","Case Comment"],["combinedTracker","Combined Tracker?"],["qaChecklist","QA Checklist?"],...(isSC?[["completeJob","Complete Job?"]]:[["completeJob","Complete Job?"],["closeInboundCase","Close Inbound Case?"]]),...[["emailSales","Email Sales?"],["trackerChecklist","Complete Status Tracker?"],["completeStatus","Tracker Checklist?"]]].map(([k,l])=>(<label key={k} className={cls("check-label",form.checklist[k]&&"checked")} style={{width:"fit-content"}}><input type="checkbox" checked={!!form.checklist[k]} onChange={e=>{if(k==="combinedTracker"&&e.target.checked&&phase2StartRef.current===null){const t=Date.now();phase2StartRef.current=t;if(typeof window!=="undefined")localStorage.setItem("ch_phase2_start",String(t));setPhase2Elapsed(0);}setF({checklist:{...form.checklist,[k]:e.target.checked}})}}/>{l}</label>))}
           </div>
         </StepCard>
 
   
-      {timerLimitSecs&&footerElapsed>0&&(
-        <div style={{position:"fixed",left:0,right:0,bottom:60,zIndex:949,height:3,background:"var(--border)",overflow:"hidden"}}>
-          <div style={{height:"100%",background:footerElapsed/timerLimitSecs>0.8?"var(--red)":footerElapsed/timerLimitSecs>0.6?"var(--amber)":"var(--accent)",width:Math.min(100,(footerElapsed/timerLimitSecs)*100)+"%",transition:"width 1s linear,background .3s"}}/>
-        </div>
-      )}
       <div className="action-bar">
   {isEditMode ? (
     <>
       <div className="action-group action-group-left">
-        {/* FIX: Use onBack instead of onCancelForm to skip session updates */}
         <button 
           className="btn btn-danger" 
           style={{borderRadius:8}} 
@@ -2161,6 +2175,24 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
         >
           ✕ Cancel Edit
         </button>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginLeft:6,borderLeft:"1px solid var(--border)",paddingLeft:10,flexWrap:"wrap"}}>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:0}}>
+            <span style={{fontSize:9,color:"var(--muted)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px"}}>Before Suspended</span>
+            <span style={{fontSize:20,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--muted)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>{fmtElapsed(prevElapsedSecs)}</span>
+          </div>
+          <span style={{color:"var(--border)",fontSize:18,fontWeight:300,margin:"0 2px"}}>|</span>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:0}}>
+            <span style={{fontSize:9,color:"var(--accent)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px"}}>Elapsed Now</span>
+            <span style={{fontSize:20,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--accent)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>{fmtElapsed(resumeElapsed)}</span>
+          </div>
+          {phase2Elapsed !== null && (<>
+            <span style={{color:"var(--border)",fontSize:18,fontWeight:300,margin:"0 2px"}}>|</span>
+            <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:0}}>
+              <span style={{fontSize:9,color:"var(--green)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px"}}>Phase 2</span>
+              <span style={{fontSize:20,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--green)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>{fmtElapsed(phase2Elapsed)}</span>
+            </div>
+          </>)}
+        </div>
       </div>
       <div className="action-group action-group-center"/>
       <div className="action-group action-group-right">
@@ -2227,7 +2259,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
   )}
 </div>
 
-        {modal==="clear"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="clear" size={40} color="var(--red)"/></div><h3>Clear All Fields?</h3><p style={{color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6}}>All entered data will be cleared. The form stays open and the timer keeps running.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Cancel</button><button className="btn btn-danger" onClick={()=>{setForm(emptyBase());resumeStartRef.current=Date.now();phase2StartRef.current=null;setPhase2Elapsed(null);setModal(null);showToast("All fields cleared","info");}}>Clear All</button></div></div></div>)}
+        {modal==="clear"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="clear" size={40} color="var(--red)"/></div><h3>Clear All Fields?</h3><p style={{color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6}}>All entered data will be cleared. The form stays open and the timer keeps running.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Cancel</button><button className="btn btn-danger" onClick={()=>{setForm(emptyBase());resumeStartRef.current=Date.now();if(typeof window!=="undefined"){localStorage.setItem("ch_resume_start",String(Date.now()));localStorage.removeItem("ch_phase2_start");}phase2StartRef.current=null;setPhase2Elapsed(null);setModal(null);showToast("All fields cleared","info");}}>Clear All</button></div></div></div>)}
         {modal==="save"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="save" size={40} color="var(--accent)"/></div><h3>Save Case?</h3><p style={{color:"var(--muted)",fontSize:13,marginBottom:16,lineHeight:1.6}}>Case <strong style={{color:"var(--text)"}}>#{form.caseNum}</strong> — confirm everything is complete. The timer will reset.</p><div style={{marginBottom:18}}><div style={{fontSize:11,fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".7px",fontFamily:"'Poppins',sans-serif",marginBottom:8}}>Case Outcome</div><div style={{display:"flex",gap:10}}><button onClick={()=>setSaveOutcomeType("completed")} style={{flex:1,padding:"10px 12px",borderRadius:10,border:`2px solid ${saveOutcomeType==="completed"?"var(--accent)":"var(--border)"}`,background:saveOutcomeType==="completed"?"var(--entry-accent-bg)":"var(--card)",color:saveOutcomeType==="completed"?"var(--accent)":"var(--muted)",fontWeight:700,fontSize:12,fontFamily:"'Poppins',sans-serif",cursor:"pointer",transition:".15s",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}><span style={{fontSize:18}}>✅</span>Completed</button><button onClick={()=>setSaveOutcomeType("clarification")} style={{flex:1,padding:"10px 12px",borderRadius:10,border:`2px solid ${saveOutcomeType==="clarification"?"var(--amber)":"var(--border)"}`,background:saveOutcomeType==="clarification"?"rgba(245,158,11,.1)":"var(--card)",color:saveOutcomeType==="clarification"?"var(--amber)":"var(--muted)",fontWeight:700,fontSize:12,fontFamily:"'Poppins',sans-serif",cursor:"pointer",transition:".15s",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}><span style={{fontSize:18}}>🔄</span>Clarification</button></div></div><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Go Back</button><button className="btn btn-primary" onClick={()=>{setModal(null);showToast("Case saved! ✅");const f={...formRef.current,_saveOutcome:saveOutcomeType};onSave&&onSave(f);}}>✅ Save Case</button></div></div></div>)}
         {modal==="draft"&&(<div className="modal-bg"><div className="modal">
           <div style={{marginBottom:14}}><Icon name="draft" size={44} color="var(--amber)"/></div>
@@ -2669,6 +2701,8 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       localStorage.removeItem("ch_active_form_use_draft");
       localStorage.removeItem("ch_minimised_form");
       localStorage.removeItem("ch_case_start_time");
+      localStorage.removeItem("ch_resume_start");
+      localStorage.removeItem("ch_phase2_start");
     }
     onFormActive&&onFormActive(false);
     onFormInFields&&onFormInFields(false);
@@ -3186,6 +3220,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
         "Clarification":"var(--amber)",
         "Draft Completed":"var(--green)",
         "Suspended":"var(--red)",
+        "Deleted":"#f43f5e",
         "Continued Draft Saved":"var(--amber)",
         "Draft Saved":"var(--amber)",
         "Break Ended":"var(--amber)",
@@ -3221,6 +3256,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
                          (!isDuplicate || isLatestForCase);
       
       const isContinueSuspended = outcome === "Suspended";
+      const isDeleted = outcome === "Deleted";
       const buttonText = isContinueSuspended ? "Continue Suspended" : "Edit";
    
       return (
@@ -3263,7 +3299,9 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
             {outcome||"-"}
           </span>
           <div>
-            {showButton?(
+            {isDeleted?(
+              <span style={{fontSize:10,fontWeight:700,color:"#f43f5e",fontFamily:"'Poppins',sans-serif",background:"rgba(244,63,94,.12)",padding:"3px 8px",borderRadius:20,border:"1px solid rgba(244,63,94,.3)"}}>🗑 Deleted</span>
+            ):showButton?(
               <button
                 className="session-log-edit-btn"
                 disabled={breakActive || isMinimised || editButtonDisabled}
@@ -5076,9 +5114,12 @@ function App() {
   const [cancelBreakConfirm,setCancelBreakConfirm]=useState(false);
   function startBreak(label,mins){
     const now=Date.now();
-    const endsAt=now+mins*60*1000;
+    // Subtract however long has elapsed in the current session so remaining break = mins - elapsed
+    const sessionElapsedMs=globalTimeIn?Math.max(0,now-globalTimeIn):0;
+    const adjustedMs=Math.max(0,mins*60*1000-sessionElapsedMs);
+    const endsAt=now+adjustedMs;
     const warnAt=Math.max(now+1000, endsAt-5*60*1000);
-    const bt={label,mins,endsAt,warnAt,warned:false,ended:false,secsLeft:mins*60};
+    const bt={label,mins,endsAt,warnAt,warned:false,ended:false,secsLeft:Math.floor(adjustedMs/1000)};
     setBreakTimer(bt);
     if(typeof window!=="undefined") localStorage.setItem("ch_break",JSON.stringify(bt));
     // Rename the current open Ongoing → "Break" (keeps it open, no outcome yet)
@@ -5271,8 +5312,24 @@ function App() {
     setDrafts(ds=>[...ds.filter(d=>d._mode!==mode),saved]);
   };
   const deleteDraft=async(id,mode)=>{
+    // Find the draft being deleted to get its caseNum
+    const draft=drafts.find(d=>d._id===id||d._mode===mode);
+    const deletedCaseNum=draft?.caseNum||"";
     try{await fetch(`/api/drafts/${id}`,{method:"DELETE"});}catch(e){console.error(e);}
     setDrafts(ds=>ds.filter(d=>d._id!==id&&d._mode!==mode));
+    // Mark matching session log "Suspended" entries as "Deleted"
+    if(deletedCaseNum){
+      setSessionLog(prev=>{
+        const updated=prev.map(e=>{
+          if((e.caseNum||"")===(deletedCaseNum||"")&&e.outcome==="Suspended"){
+            return {...e,outcome:"Deleted"};
+          }
+          return e;
+        });
+        if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(updated));
+        return updated;
+      });
+    }
   };
 
   // ── Announcements ──
