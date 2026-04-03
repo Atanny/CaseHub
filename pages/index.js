@@ -83,7 +83,9 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
   backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
   box-shadow:var(--glass-shadow);transition:width .25s cubic-bezier(.4,0,.2,1),padding .25s cubic-bezier(.4,0,.2,1);
 }
-.sidebar.collapsed{width:64px;padding:20px 8px;overflow:hidden;}
+/* ── Sidebar collapsed: same padding as expanded, icons only, text hidden ── */
+.sidebar.collapsed{width:64px;padding:20px 6px;overflow-x:hidden;overflow-y:auto;}
+/* Fade out all text/label elements */
 .sidebar.collapsed .logo-text,
 .sidebar.collapsed .nav-group,
 .sidebar.collapsed .nav-label,
@@ -95,7 +97,7 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 .sidebar.collapsed .break-btns,
 .sidebar.collapsed .sidebar-divider,
 .sidebar.collapsed .nav-custom-link,
-.sidebar.collapsed .sidebar-shift-timer{opacity:0;pointer-events:none;max-width:0;overflow:hidden;transition:opacity .2s ease,max-width .25s cubic-bezier(.4,0,.2,1);}
+.sidebar.collapsed .sidebar-shift-timer{opacity:0;pointer-events:none;max-width:0;overflow:hidden;white-space:nowrap;transition:opacity .2s ease,max-width .25s cubic-bezier(.4,0,.2,1);}
 .sidebar .logo-text,
 .sidebar .nav-group,
 .sidebar .nav-label,
@@ -108,13 +110,16 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 .sidebar .sidebar-divider,
 .sidebar .nav-custom-link,
 .sidebar .sidebar-shift-timer{opacity:1;max-width:200px;transition:opacity .2s ease,max-width .25s cubic-bezier(.4,0,.2,1);}
-.sidebar.collapsed .nav-item{justify-content:center;padding:10px 12px;gap:0;}
-.sidebar.collapsed .sidebar-profile{justify-content:center;padding:10px 12px;margin-bottom:4px;}
+/* Center icons — keep same vertical padding as expanded */
+.sidebar.collapsed .nav-item{justify-content:center;gap:0;}
+.sidebar.collapsed .sidebar-profile{justify-content:center;gap:0;}
 .sidebar.collapsed .sidebar-profile .profile-text{display:none;}
-.sidebar.collapsed .theme-toggle{justify-content:center;padding:10px 12px;gap:0;}
-.sidebar.collapsed .logo{justify-content:center;padding:4px 0 20px;}
-.sidebar.collapsed .db-status{justify-content:center;padding:8px 12px;}
+.sidebar.collapsed .theme-toggle{justify-content:center;gap:0;}
+.sidebar.collapsed .logo{justify-content:center;padding-left:0;padding-right:0;}
+.sidebar.collapsed .db-status{justify-content:center;}
 .sidebar.collapsed .sidebar-shift-timer{display:none;}
+/* nav-badge-dot: keep positioned on icon even when centered */
+.sidebar.collapsed .nav-icon-wrap{display:inline-flex;position:relative;}
 .sidebar-collapse-btn{
   position:absolute;top:50%;right:-12px;transform:translateY(-50%);
   width:24px;height:24px;border-radius:30px;
@@ -861,10 +866,11 @@ select.inp{cursor:pointer;}
 .alarm-dismiss:hover{filter:brightness(1.1);}
 /* Break buttons in sidebar */
 .break-btns{display:flex;flex-direction:column;gap:4px;padding:8px 0 4px;}
-.break-btn{display:flex;align-items:center;gap:8px;padding:8px 12px;font-size:12px;font-weight:600;color:var(--muted);background:none;border:1px solid var(--border);cursor:pointer;transition:.18s;width:100%;text-align:left;font-family:'Poppins',sans-serif;}
-.sidebar.collapsed .break-btn{justify-content:center;padding:10px 12px;gap:0;}
-.sidebar.collapsed .break-btn>span,.sidebar.collapsed .break-btn>svg:last-child{display:none;max-width:0;overflow:hidden;}
-.sidebar.collapsed .sidebar-logout-btn{justify-content:center;padding:7px 12px;gap:0;}
+.break-btn{display:flex;align-items:center;gap:8px;padding:10px 12px;font-size:12px;font-weight:600;color:var(--muted);background:none;border:1px solid var(--border);cursor:pointer;transition:.18s;width:100%;text-align:left;font-family:'Poppins',sans-serif;border-radius:30px;}
+.sidebar.collapsed .break-btn{justify-content:center;gap:0;}
+.sidebar.collapsed .break-btn>span{display:none;max-width:0;overflow:hidden;}
+.sidebar.collapsed .break-btn>svg:not(:first-child){display:none;}
+.sidebar.collapsed .sidebar-logout-btn{justify-content:center;gap:0;}
 .sidebar.collapsed .sidebar-logout-btn .nav-label{display:none;max-width:0;overflow:hidden;}
 .break-btn:hover{background:var(--card2);color:var(--text);border-color:var(--accent);}
 .break-btn.active{background:var(--entry-accent-bg);color:var(--accent);border-color:var(--accent);}
@@ -5568,8 +5574,8 @@ function App() {
             </div>
             <div className="profile-text"><div className="profile-name">{user.name}</div><div className="profile-role">{user.role||"User"}</div></div>
           </div>
-          <button className="sidebar-logout-btn" onClick={()=>logout()} style={{display:"flex",alignItems:"center",gap:8,width:"100%",background:"none",border:"none",padding:"7px 12px",borderRadius:30,cursor:"pointer",color:"var(--red)",fontSize:12,fontWeight:600,fontFamily:"'Poppins',sans-serif",transition:".15s",marginTop:2}} onMouseOver={e=>e.currentTarget.style.background="rgba(244,63,94,.1)"} onMouseOut={e=>e.currentTarget.style.background="none"}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <button className="sidebar-logout-btn" onClick={()=>logout()} style={{display:"flex",alignItems:"center",gap:8,width:"100%",background:"none",border:"none",padding:"10px 12px",borderRadius:30,cursor:"pointer",color:"var(--red)",fontSize:13,fontWeight:500,fontFamily:"'Poppins',sans-serif",transition:".18s",marginTop:0}} onMouseOver={e=>e.currentTarget.style.background="rgba(244,63,94,.1)"} onMouseOut={e=>e.currentTarget.style.background="none"}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             <span className="nav-label">Sign Out</span>
           </button>
           <button className="theme-toggle" onClick={()=>setLightMode(l=>!l)}>
