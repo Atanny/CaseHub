@@ -2876,6 +2876,11 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
   const pauseMode=(formData=null)=>{
     setMode(null);
     setIsMinimised(true);
+    // Always clear useDraft when minimising so that on resume, isResumingMinimised
+    // evaluates to true and minimisedFormData (with the user's latest edits) is used
+    // rather than the stale DB draft.
+    setUseDraft(false);
+    if(typeof window!=="undefined") localStorage.setItem("ch_active_form_use_draft","0");
     if(formData){
       const toSave={...formData, _mode: mode||formData._mode};
       setMinimisedFormData(toSave);
@@ -3541,34 +3546,69 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       );
     })}
                   {(()=>{
-                    // Sum case durations: for cases with caseNum, only count the latest entry per case
+                    // ── Total time: all closed entries except Time In / Time Out ──
+                    // For entries WITH a caseNum: count only the LATEST closed entry per case (avoids
+                    // double-counting when a suspended case is resumed and completed).
+                    // For entries WITHOUT a caseNum (Ongoing, Break, Open Hour, etc.): count every one.
                     const latestPerCase={};
+                    const noCaseEntries=[];
                     sessionLog.forEach(e=>{
                       if(!e.endedAt) return;
-                      if(e.status==="Time In"||e.status==="Time Out"||e.status==="Break") return;
+                      if(e.status==="Time In"||e.status==="Time Out") return;
                       const key=(e.caseNum||"").trim();
                       if(key){
-                        if(!latestPerCase[key]||e.endedAt>latestPerCase[key].endedAt){
-                          latestPerCase[key]=e;
-                        }
+                        if(!latestPerCase[key]||e.endedAt>latestPerCase[key].endedAt) latestPerCase[key]=e;
+                      } else {
+                        noCaseEntries.push(e);
                       }
                     });
                     const caseMs=Object.values(latestPerCase).reduce((acc,e)=>acc+(e.endedAt-e.startedAt),0);
-                    // Also sum all break durations
+                    const otherMs=noCaseEntries.reduce((acc,e)=>acc+(e.endedAt-e.startedAt),0);
+                    const totalMs=caseMs+otherMs;
+
+                    // ── Break total (for display) ──
                     const breakMs=sessionLog.filter(e=>e.status==="Break"&&e.endedAt).reduce((acc,e)=>acc+(e.endedAt-e.startedAt),0);
-                    const totalMs=caseMs+breakMs;
-                    const h=Math.floor(totalMs/3600000),m=Math.floor((totalMs%3600000)/60000),s=Math.floor((totalMs%60000)/1000);
-                    const bh=Math.floor(breakMs/3600000),bm=Math.floor((breakMs%3600000)/60000),bs=Math.floor((breakMs%60000)/1000);
-                    return (
-                      <div className="session-log-total">
-                        <span style={{fontWeight:800,fontSize:11,color:"var(--accent)",fontFamily:"'Poppins',sans-serif"}}>⏱ Total tracked time</span>
-                        <span/><span/><span/>
-                        <span style={{fontSize:10,color:"var(--muted)",fontFamily:"'Poppins',sans-serif",fontStyle:"italic"}}>
-                          {breakMs>0&&`☕ ${bh>0?`${bh}h `:""}${bm}m ${bs}s breaks`}
-                        </span>
-                        <span/>
-                        <span style={{fontWeight:800,fontSize:12,color:"var(--accent)",fontFamily:"monospace"}}>{h>0?`${h}h `:""}{m}m {s}s</span>
+
+                    // ── Outcome counters ──
+                    const uniqueCases=new Set(sessionLog.filter(e=>e.caseNum).map(e=>(e.caseNum||"").trim()));
+                    const totalCasesCount=uniqueCases.size;
+                    const completedCount=sessionLog.filter(e=>e.outcome==="Case Completed"||e.outcome==="Draft Completed"||e.outcome==="Suspended Completed").length;
+                    const clarificationCount=sessionLog.filter(e=>e.outcome==="Clarification").length;
+                    const suspendedCount=sessionLog.filter(e=>e.outcome==="Suspended").length;
+
+                    const fmtMs=(ms)=>{
+                      const h=Math.floor(ms/3600000),m=Math.floor((ms%3600000)/60000),s=Math.floor((ms%60000)/1000);
+                      return h>0?`${h}h ${m}m ${s}s`:m>0?`${m}m ${s}s`:`${s}s`;
+                    };
+
+                    const pill=(label,val,color,bg)=>(
+                      <div style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"6px 14px",background:bg||"var(--entry-bg)",border:`1.5px solid ${color}33`,borderRadius:8,minWidth:70,flex:1}}>
+                        <span style={{fontSize:16,fontWeight:800,color,fontFamily:"'Plus Jakarta Sans',sans-serif",lineHeight:1}}>{val}</span>
+                        <span style={{fontSize:9,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".7px",fontFamily:"'Poppins',sans-serif",marginTop:3,fontWeight:700,textAlign:"center"}}>{label}</span>
                       </div>
+                    );
+
+                    return (
+                      <>
+                        <div className="session-log-total">
+                          <span style={{fontWeight:800,fontSize:11,color:"var(--accent)",fontFamily:"'Poppins',sans-serif"}}>⏱ Total tracked time</span>
+                          <span/><span/><span/>
+                          <span style={{fontSize:10,color:"var(--muted)",fontFamily:"'Poppins',sans-serif",fontStyle:"italic"}}>
+                            {breakMs>0&&`☕ ${fmtMs(breakMs)} breaks`}
+                          </span>
+                          <span/>
+                          <span style={{fontWeight:800,fontSize:12,color:"var(--accent)",fontFamily:"monospace"}}>{fmtMs(totalMs)}</span>
+                        </div>
+                        {/* ── Summary footer pills ── */}
+                        <div style={{display:"flex",gap:8,padding:"12px 16px",borderTop:"1px solid var(--border)",background:"var(--glass-bg)",flexWrap:"wrap"}}>
+                          {pill("Total Hours",fmtMs(totalMs),"var(--accent)")}
+                          {pill("Cases",totalCasesCount,"var(--accent2)")}
+                          {pill("Completed",completedCount,"var(--green)","rgba(16,185,129,.07)")}
+                          {pill("Clarification",clarificationCount,"var(--amber)","rgba(245,158,11,.07)")}
+                          {pill("Suspended",suspendedCount,"var(--red)","rgba(244,63,94,.07)")}
+                          {breakMs>0&&pill("Break Time",fmtMs(breakMs),"var(--muted)")}
+                        </div>
+                      </>
                     );
                   })()}
                 </>;
