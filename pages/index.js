@@ -1274,8 +1274,8 @@ body.light .sidebar-divider{background:rgba(180,90,40,.1);}
 .case-card-header{border-radius:12px;}
 
 /* Break bar */
-.break-bar{border-radius:30px;}
-.break-stop{border-radius:6px;}
+.break-bar{border-radius:0;box-shadow:0 -4px 20px rgba(0,0,0,.25);}
+.break-stop{border-radius:0;}
 
 /* DB dot animation */
 .db-dot.connected{animation:none;}
@@ -1294,9 +1294,6 @@ body.light .sidebar-divider{background:rgba(180,90,40,.1);}
 
 /* Alarm modal */
 .alarm-modal{border-radius:16px;}
-
-/* Break bar */
-.break-bar{box-shadow:0 -8px 32px rgba(0,0,0,.3);}
 
 /* Right panel meta rows */
 .meta-row{transition:.15s;}
