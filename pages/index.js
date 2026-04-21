@@ -147,20 +147,24 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 
 /* ── FIX: NAV ITEM CENTERING ── */
 .sidebar.collapsed .nav-item{
-  justify-content:center !important;
-  align-items:center !important;
-  gap:0 !important;
-  padding-left:0 !important;
-  padding-right:0 !important;
+  justify-content:flex-start;
+  align-items:center;
+  gap:0;
+  padding:10px 0 10px 16px;
 }
 
-/* ensure icon is truly centered when collapsed */
+/* ensure icon is truly centered when collapsed — fixed size so badge doesn't shift layout */
 .sidebar.collapsed .nav-icon-wrap{
-  width:auto;
+  width:20px;
+  height:20px;
   display:inline-flex;
-  align-items:center;
   justify-content:center;
+  align-items:center;
   position:relative;
+  flex-shrink:0;
+  padding:0;
+  margin:0;
+  overflow:visible;
 }
 
 /* hide elements that affect spacing */
@@ -195,19 +199,29 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 }
 
 .nav-item.active{
-  background:var(--nav-active-bg);
-  color:var(--accent);
-  border:1px solid var(--nav-active-border);
-  font-weight:600;
+  background: var(--nav-active-bg);
+  color: var(--muted);
+  border: 1px solid var(--nav-active-border);
+  font-weight: 600;
+  opacity: 0.7;
+  pointer-events: none;
 }
+.nav-item:hover{border-radius:6px;}
 
-/* ── icons wrapper ── */
+/* Sidebar divider */
+.sidebar-divider{height:1px;background:rgba(255,255,255,.06);margin:8px 10px;border:none;}
+body.light .sidebar-divider{background:rgba(180,90,40,.1);}
+
+/* ── icons wrapper — fixed size so badge never shifts layout ── */
 .nav-icon-wrap{
   position:relative;
   display:inline-flex;
   align-items:center;
   justify-content:center;
   flex-shrink:0;
+  width:20px;
+  height:20px;
+  overflow:visible;
 }
 
 /* ── badges ── */
@@ -239,12 +253,16 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
   align-items:center;
   justify-content:center;
   flex-shrink:0;
+  width:20px;
+  height:20px;
+  overflow:visible;
 }
 
 .nav-badge-dot{
   position:absolute;
-  top:-6px;
-  right:-8px;
+  top:0;
+  right:0;
+  transform:translate(50%,-50%);
   min-width:16px;
   height:16px;
   border-radius:8px;
@@ -256,15 +274,11 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
   text-align:center;
   padding:0 4px;
   pointer-events:none;
-  display:none;
-  box-shadow:0 0 0 2px var(--bg);
-  z-index:2;
-}
-
-.sidebar.collapsed .nav-badge-dot{
   display:flex;
   align-items:center;
   justify-content:center;
+  box-shadow:0 0 0 2px var(--bg);
+  z-index:2;
 }
 
 .nav-active-dot{
@@ -566,7 +580,6 @@ body.light .action-bar{background:rgba(255,248,243,.92);}
   border-right:1px solid var(--glass-border);
   padding:0;
 }
-.summary-panel{padding:14px 16px;overflow-y:auto;flex:1;min-height:0;}
 
 @media(max-width:1366px){
   .form-right{
@@ -1123,11 +1136,11 @@ body.light .logo{border-bottom-color:rgba(200,130,80,.12);}
 /* Active item becomes muted AND non-interactive */
 .nav-item.active {
   background: var(--nav-active-bg);
-  color: var(--muted); /* muted instead of accent */
+  color: var(--muted);
   border: 1px solid var(--nav-active-border);
   font-weight: 600;
   opacity: 0.7;
-  pointer-events: none; /* disables clicking */
+  pointer-events: none;
 }
 .nav-item:hover{border-radius:6px;}
 
@@ -1240,8 +1253,8 @@ body.light .sidebar-divider{background:rgba(180,90,40,.1);}
 .announcement-card{border-radius:10px;}
 .link-card{border-radius:10px;}
 .activity-row{border-radius:8px;}
-.right-panel{border-radius:12px;}  /* overridden to 0 in form-mode */
-.toc-card{border-radius:12px;}    /* overridden to 0 in form-mode */
+.right-panel{border-radius:12px;}
+.toc-card{border-radius:12px;}
 .auth-card{border-radius:16px;}
 .profile-card{border-radius:12px;}
 .entry-card{border-radius:10px;}
@@ -1309,7 +1322,7 @@ body.light .sidebar-divider{background:rgba(180,90,40,.1);}
   padding: 9px 12px;
   display: flex;
   align-items: center;
-  justify-content: center; /* center content in all cells */
+  justify-content: center;
   min-height: 40px;
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
@@ -1467,6 +1480,27 @@ body.light .sidebar-divider{background:rgba(180,90,40,.1);}
 /* Page transition */
 .main-area{animation:pageFade .18s ease;}
 @keyframes pageFade{from{opacity:.7;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── PERFECT ICON CENTERING (collapsed sidebar) ── */
+.sidebar.collapsed .nav-item {
+  padding: 10px 0 10px 16px !important;
+  justify-content: flex-start !important;
+  align-items: center !important;
+  gap: 0 !important;
+  overflow: visible !important;
+}
+
+.sidebar.collapsed .nav-icon-wrap {
+  width: 20px !important;
+  height: 20px !important;
+  display: inline-flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  flex-shrink: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: visible !important;
+}
 `;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1634,7 +1668,102 @@ async function uploadImageToStorage(file, name) {
     reader.readAsDataURL(file);
   });
 }
+// ── IndexedDB helpers: persist pending images across refreshes ──
+const IDB_NAME = 'ch_pending_images';
+const IDB_STORE = 'blobs';
+const IDB_VERSION = 1;
 
+function idbOpen() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => resolve(req.result);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(IDB_STORE)) {
+        db.createObjectStore(IDB_STORE, { keyPath: 'id' });
+      }
+    };
+  });
+}
+
+async function idbPutImage(id, file, meta = {}) {
+  // 1. Read file FIRST (outside any IDB transaction)
+  const data = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+
+  // 2. Then open transaction and write
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    const store = tx.objectStore(IDB_STORE);
+    const req = store.put({ id, data, name: file.name, type: file.type, meta });
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function idbGetImages(storeKey) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readonly');
+    const store = tx.objectStore(IDB_STORE);
+    const req = store.getAll();
+    req.onsuccess = () => {
+      const all = req.result || [];
+      resolve(all.filter(item => item.meta.storeKey === storeKey));
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function idbDeleteImage(id) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    const store = tx.objectStore(IDB_STORE);
+    const req = store.delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function idbClearImages(storeKey) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    const store = tx.objectStore(IDB_STORE);
+    // Use cursor to delete inside the same transaction safely
+    const req = store.openCursor();
+    req.onsuccess = (e) => {
+      const cursor = e.target.result;
+      if (cursor) {
+        if (!storeKey || cursor.value.meta?.storeKey === storeKey) {
+          cursor.delete();
+        }
+        cursor.continue();
+      }
+    };
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+function dataURLtoFile(dataurl, filename) {
+  const arr = dataurl.split(',');
+  const mime = arr[0].match(/:(.*?);/)[1];
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) u8arr[n] = bstr.charCodeAt(n);
+  return new File([u8arr], filename, { type: mime });
+}
 // Upload an array of RAM images (blob URLs with .file attached) to Storage
 // Used when a new case is finally saved
 async function uploadPendingImages(images) {
@@ -1647,17 +1776,70 @@ async function uploadPendingImages(images) {
 
 // immediateUpload=true  → upload to Storage right away (editing an already-saved case)
 // immediateUpload=false → keep in RAM as blob (new unsaved form — upload on case save)
-function ImageUpload({ baseName, multiple, onImages, immediateUpload=false, initialImages=[], caseNum="" }) {
-  const [images,setImages] = useState(()=>initialImages||[]);
+// ── Persistent directory handle — survives re-renders and page navigation ──
+// Stored at module level so all ImageUpload instances and downloadCase share it.
+let _savedDirHandle = null;
+async function getOrPickDir() {
+  if (_savedDirHandle) {
+    try {
+      // Verify we still have permission; re-request if needed
+      const perm = await _savedDirHandle.queryPermission({ mode: "readwrite" });
+      if (perm === "granted") return _savedDirHandle;
+      const req = await _savedDirHandle.requestPermission({ mode: "readwrite" });
+      if (req === "granted") return _savedDirHandle;
+    } catch(e) { /* handle was invalidated, fall through to re-pick */ }
+  }
+  _savedDirHandle = await window.showDirectoryPicker({ mode: "readwrite", startIn: "downloads" });
+  return _savedDirHandle;
+}
+function ImageUpload({ baseName, multiple, onImages, immediateUpload=false, initialImages=[], caseNum="", storageKey="default" }) {
+  // Filter out dead blob URLs that may come from server-saved drafts
+  const validInitial = (initialImages || []).filter(img => !img.url?.startsWith('blob:'));
+  const [images,setImages] = useState(()=>validInitial||[]);
   const [drag,setDrag] = useState(false);
   const [uploading,setUploading] = useState(false);
-  const ref = useRef(); const imgRef = useRef(images);
+  const ref = useRef(); 
+  const imgRef = useRef(images);
   useEffect(()=>{imgRef.current=images;},[images]);
+
+  // Restore pending images from IndexedDB on mount (only for non-immediate upload)
+  useEffect(() => {
+    if (immediateUpload) return;
+    let cancelled = false;
+    idbGetImages(storageKey).then(stored => {
+      if (cancelled) return;
+      if (stored.length === 0 && validInitial.length === 0) return;
+      const restored = stored.map(s => {
+        const file = dataURLtoFile(s.data, s.name || 'image.png');
+        return {
+          id: s.id,
+          url: URL.createObjectURL(file),
+          name: s.meta.name || s.name,
+          _file: file,
+          _inDB: false,
+          _fromIDB: true,
+        };
+      });
+      // Merge valid initial images with restored pending images
+      const existingIds = new Set(validInitial.map(i => i.id));
+      const merged = [...validInitial, ...restored.filter(r => !existingIds.has(r.id))];
+      setImages(merged);
+      onImages && onImages(merged);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [immediateUpload, storageKey]); // intentional: do NOT re-run when initialImages changes
+
   // Sync if parent passes new initialImages (e.g. draft restore)
   const prevInit = useRef(initialImages);
   useEffect(()=>{
-    if(initialImages.length>0 && prevInit.current !== initialImages && images.length===0){
-      setImages(initialImages); imgRef.current=initialImages; prevInit.current=initialImages;
+    const freshValid = (initialImages || []).filter(img => !img.url?.startsWith('blob:'));
+    const hasNew = freshValid.some(img => !images.some(existing => existing.id === img.id));
+    if(freshValid.length>0 && prevInit.current !== initialImages && (images.length===0 || hasNew)){
+      const merged = [...images, ...freshValid.filter(img => !images.some(existing => existing.id === img.id))];
+      setImages(merged); 
+      imgRef.current=merged; 
+      prevInit.current=initialImages;
+      onImages && onImages(merged);
     }
   },[initialImages]);
 
@@ -1667,7 +1849,6 @@ function ImageUpload({ baseName, multiple, onImages, immediateUpload=false, init
     try {
       let next;
       if (immediateUpload) {
-        // Edit mode on saved case: upload straight to Storage
         const uploaded = await Promise.all(
           Array.from(files).map((f, i) => {
             const name = multiple ? `backup-screenshot-${cur.length + i + 1}` : baseName;
@@ -1676,39 +1857,45 @@ function ImageUpload({ baseName, multiple, onImages, immediateUpload=false, init
         );
         const valid = uploaded.filter(Boolean);
         next = multiple ? [...cur, ...valid] : valid.slice(0, 1);
+        idbClearImages(storageKey).catch(() => {});
       } else {
-        // New unsaved form: keep as RAM blob, attach _file for later upload
-        const arr = Array.from(files).map((f, i) => ({
-          _file: f,
-          url: URL.createObjectURL(f),
-          name: multiple ? `backup-screenshot-${cur.length + i + 1}` : baseName,
-          id: `ram-${Date.now()}-${i}`,
-          _inDB: false,
-        }));
+        const arr = Array.from(files).map((f, i) => {
+          const id = `ram-${Date.now()}-${i}`;
+          // Persist to IndexedDB so images survive page refresh
+          idbPutImage(id, f, { name: multiple ? `backup-screenshot-${cur.length + i + 1}` : baseName, caseNum, storeKey: storageKey });
+          return {
+            _file: f,
+            url: URL.createObjectURL(f),
+            name: multiple ? `backup-screenshot-${cur.length + i + 1}` : baseName,
+            id,
+            _inDB: false,
+          };
+        });
         next = multiple ? [...cur, ...arr] : arr.slice(0, 1);
       }
-      setImages(next); onImages && onImages(next);
-    } finally { setUploading(false); }
-  }, [baseName, multiple, onImages, immediateUpload]);
+      setImages(next); 
+      onImages && onImages(next);
+    } finally { 
+      setUploading(false); 
+    }
+  }, [baseName, multiple, onImages, immediateUpload, caseNum, storageKey]);
 
-  const remove = (id) => { const n = imgRef.current.filter(i => i.id !== id); setImages(n); onImages && onImages(n); };
+  const remove = (id) => { 
+    const n = imgRef.current.filter(i => i.id !== id); 
+    setImages(n); 
+    onImages && onImages(n); 
+    idbDeleteImage(id).catch(() => {});
+  };
 
   const dl = async(img) => {
-    // Determine safe extension from URL or default to png
     const urlExt = (img.url||"").split("?")[0].split(".").pop().toLowerCase();
     const safeExt = ["jpg","jpeg","png","gif","webp"].includes(urlExt) ? urlExt : "png";
-    const baseName = (img.name||"screenshot").replace(/\.[^/.]+$/,""); // strip any existing ext
+    const baseName = (img.name||"screenshot").replace(/\.[^/.]+$/,"");
     const fileName = `${baseName}.${safeExt}`;
     if (window.showDirectoryPicker) {
       try {
-        const rootDir = await window.showDirectoryPicker({ mode:"readwrite", startIn:"downloads" });
-        // If we have a case number, save into a subfolder named after the case
-        let dir = rootDir;
-        if (caseNum) {
-          const folderName = `Case_${caseNum}`;
-          dir = await rootDir.getDirectoryHandle(folderName, { create: true });
-        }
-        const fh = await dir.getFileHandle(fileName, { create:true });
+        const dir = await getOrPickDir();
+        const fh = await dir.getFileHandle(fileName, { create: true });
         const wr = await fh.createWritable();
         const r = await fetch(img.url); const blob = await r.blob();
         await wr.write(blob); await wr.close(); return;
@@ -1718,8 +1905,12 @@ function ImageUpload({ baseName, multiple, onImages, immediateUpload=false, init
   };
 
   useEffect(() => {
-    const h = (e) => { const items = Array.from(e.clipboardData?.items||[]).filter(i=>i.kind==="file"); if(items.length) addFiles(items.map(i=>i.getAsFile())); };
-    window.addEventListener("paste", h); return () => window.removeEventListener("paste", h);
+    const h = (e) => { 
+      const items = Array.from(e.clipboardData?.items||[]).filter(i=>i.kind==="file"); 
+      if(items.length) addFiles(items.map(i=>i.getAsFile())); 
+    };
+    window.addEventListener("paste", h); 
+    return () => window.removeEventListener("paste", h);
   }, [addFiles]);
 
   return (
@@ -1748,7 +1939,7 @@ function ImageUpload({ baseName, multiple, onImages, immediateUpload=false, init
                 <img src={img.url} alt=""/>
                 <button className="img-thumb-del" onClick={()=>remove(img.id)}>✕</button>
                 {img._inDB && <div style={{position:"absolute",bottom:0,left:0,right:0,background:"rgba(16,185,129,.85)",color:"#fff",fontSize:9,textAlign:"center",padding:"1px 0"}}>✓ in DB</div>}
-                {!img._inDB && !immediateUpload && <div style={{position:"absolute",bottom:0,left:0,right:0,background:"rgba(245,158,11,.85)",color:"#fff",fontSize:9,textAlign:"center",padding:"1px 0"}}>⏳ on save</div>}
+                {!img._inDB && <div style={{position:"absolute",bottom:0,left:0,right:0,background:"rgba(245,158,11,.85)",color:"#fff",fontSize:9,textAlign:"center",padding:"1px 0"}}>⏳ on save</div>}
               </div>
               <button className="img-dl-btn" onClick={()=>dl(img)}>⬇ Save</button>
             </div>
@@ -1925,7 +2116,121 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
         )}
         {!isSC&&<CopyRow label="Email Type" value={emailTypeLabel}/>}
         {!isSC&&<CopyRow label="Email Address" value={f.emailAddress}/>}
-        {allImages.length>0&&(<div className="copy-row-wrap"><div className="copy-row-label">Screenshots ({allImages.length})</div><div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>{allImages.map(img=>(<div key={img.id} style={{width:68,height:52,borderRadius:6,overflow:"hidden",border:"1.5px solid var(--border)"}}><img src={img.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>))}</div></div>)}
+        {allImages.length > 0 && (
+  <div
+    className="copy-row-wrap"
+    style={{ cursor: "pointer" }}
+    onClick={async () => {
+      try {
+        const folderName = `Case_${f.caseNum || "unknown"}_${f.accountNum || "acc"}`
+          .replace(/[^a-zA-Z0-9_-]/g, "_");
+
+        if (window.showDirectoryPicker) {
+          try {
+            const rootDir = await getOrPickDir();
+            const caseDir = await rootDir.getDirectoryHandle(folderName, { create: true });
+
+            for (const img of allImages) {
+              try {
+                const urlExt = (img.url || "").split("?")[0].split(".").pop().toLowerCase();
+                const safeExt = ["jpg", "jpeg", "png", "gif", "webp"].includes(urlExt) ? urlExt : "png";
+                const baseName = (img.name || "screenshot").replace(/\.[^/.]+$/, "");
+
+                const r = await fetch(img.url);
+                const blob = await r.blob();
+
+                const fh = await caseDir.getFileHandle(`${baseName}.${safeExt}`, { create: true });
+                const wr = await fh.createWritable();
+                await wr.write(blob);
+                await wr.close();
+              } catch (err) {
+                console.warn("img failed:", err);
+              }
+            }
+            return;
+          } catch (err) {
+            if (err.name === "AbortError") return;
+          }
+        }
+
+        if (!window.JSZip) {
+          await new Promise((res, rej) => {
+            const s = document.createElement("script");
+            s.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+            s.onload = res;
+            s.onerror = rej;
+            document.head.appendChild(s);
+          });
+        }
+
+        const zip = new window.JSZip();
+        const folder = zip.folder(folderName);
+
+        for (const img of allImages) {
+          try {
+            const urlExt = (img.url || "").split("?")[0].split(".").pop().toLowerCase();
+            const safeExt = ["jpg", "jpeg", "png", "gif", "webp"].includes(urlExt) ? urlExt : "png";
+            const baseName = (img.name || "screenshot").replace(/\.[^/.]+$/, "");
+
+            const r = await fetch(img.url);
+            const blob = await r.blob();
+
+            folder.file(`${baseName}.${safeExt}`, blob);
+          } catch (err) {
+            console.warn("img failed:", err);
+          }
+        }
+
+        const zipBlob = await zip.generateAsync({ type: "blob" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(zipBlob);
+        a.download = `${folderName}.zip`;
+        a.click();
+      } catch (err) {
+        console.error("Bulk download failed:", err);
+      }
+    }}
+  >
+    <div className="copy-row-label">
+      Screenshots ({allImages.length})
+    </div>
+
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
+      {allImages.map((img) => (
+        <div
+          key={img.id}
+          style={{
+            width: 68,
+            height: 52,
+            borderRadius: 6,
+            overflow: "hidden",
+            border: "1.5px solid var(--border)",
+          }}
+        >
+          <img
+            src={img.url}
+            alt=""
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        </div>
+      ))}
+    </div>
+
+    {/* 👇 TEXT BELOW */}
+    <div
+      style={{
+        marginTop: 6,
+        fontSize: 11,
+        color: "var(--green)",
+        fontWeight: 600,
+        textAlign: "center",
+        opacity: 0.85,
+      }}
+    >
+      Click to download All
+    </div>
+  </div>
+)}
       </div>
     </div>
   );
@@ -2326,7 +2631,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
 
           <StepCard num={3} title={`Additional Backup Screenshots${form.backupImages?.length>0?" ("+form.backupImages.length+")":""}`} done={form.backupImages?.length>0} locked={!step2Done&&!isDraft} {...stepProps}>
           <p style={{fontSize:13,color:"var(--muted)",marginBottom:11}}>Each renamed <span style={{color:"var(--accent)",fontWeight:600}}>backup-screenshot-N</span> on download.</p>
-          <ImageUpload baseName="backup-screenshot" multiple onImages={imgs=>setF({backupImages:imgs,checklist:{...formRef.current.checklist}})} immediateUpload={false} initialImages={form.backupImages||[]} caseNum={form.caseNum||""}/>
+          <ImageUpload baseName="backup-screenshot" multiple onImages={imgs=>setF({backupImages:imgs,checklist:{...formRef.current.checklist}})} immediateUpload={false} initialImages={form.backupImages||[]} caseNum={form.caseNum||""} storageKey="backup"/>
         </StepCard>
 
         
@@ -2454,7 +2759,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
            <StepCard num={7} title="Before/After Backup" done={!!form._screenshotCopied||form.images?.length>0} locked={!step6Done&&!isDraft} {...stepProps}>
           <p style={{fontSize:13,color:"var(--muted)",marginBottom:9}}>Upload screenshot — renamed automatically on download.</p>
           <CopyName name={screenshotName} onCopy={()=>setF({_screenshotCopied:true})}/>
-          <div style={{marginTop:12}}><ImageUpload baseName={screenshotName} multiple={false} onImages={imgs=>{setF({images:imgs,_screenshotCopied:imgs&&imgs.length>0?true:form._screenshotCopied});}} immediateUpload={false} initialImages={form.images||[]} caseNum={form.caseNum||""}/></div>
+          <div style={{marginTop:12}}><ImageUpload baseName={screenshotName} multiple={false} onImages={imgs=>{setF({images:imgs,_screenshotCopied:imgs&&imgs.length>0?true:form._screenshotCopied});}} immediateUpload={false} initialImages={form.images||[]} caseNum={form.caseNum||""} storageKey="main"/></div>
         </StepCard>
 
      
@@ -2553,7 +2858,21 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
   )}
 </div>
 
-        {modal==="clear"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="clear" size={40} color="var(--red)"/></div><h3>Clear All Fields?</h3><p style={{color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6}}>All entered data will be cleared. The form stays open and the timer keeps running.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Cancel</button><button className="btn btn-danger" onClick={()=>{setForm(emptyBase());resumeStartRef.current=Date.now();if(typeof window!=="undefined"){localStorage.setItem("ch_resume_start",String(Date.now()));localStorage.removeItem("ch_phase2_start");}phase2StartRef.current=null;setPhase2Elapsed(null);setModal(null);showToast("All fields cleared","info");}}>Clear All</button></div></div></div>)}
+        {modal==="clear"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="clear" size={40} color="var(--red)"/></div><h3>Clear All Fields?</h3><p style={{color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6}}>All entered data will be cleared. The form stays open and the timer keeps running.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Cancel</button><button className="btn btn-danger" onClick={()=>{
+    setForm(emptyBase());
+    resumeStartRef.current=Date.now();
+    if(typeof window!=="undefined"){
+        localStorage.setItem("ch_resume_start",String(Date.now()));
+        localStorage.removeItem("ch_phase2_start");
+    }
+    phase2StartRef.current=null;
+    setPhase2Elapsed(null);
+    setModal(null);
+    showToast("All fields cleared","info");
+    // ADD THESE TWO LINES ↓
+    idbClearImages("backup").catch(()=>{});
+    idbClearImages("main").catch(()=>{});
+}}>Clear All</button></div></div></div>)}
         {modal==="save"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="save" size={40} color="var(--accent)"/></div><h3>Save Case?</h3><p style={{color:"var(--muted)",fontSize:13,marginBottom:16,lineHeight:1.6}}>Case <strong style={{color:"var(--text)"}}>#{form.caseNum}</strong> — confirm everything is complete. The timer will reset.</p><div style={{marginBottom:18}}><div style={{fontSize:11,fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".7px",fontFamily:"'Poppins',sans-serif",marginBottom:8}}>Case Outcome</div><div style={{display:"flex",gap:10}}><button onClick={()=>setSaveOutcomeType("completed")} style={{flex:1,padding:"10px 12px",borderRadius:10,border:`2px solid ${saveOutcomeType==="completed"?"var(--accent)":"var(--border)"}`,background:saveOutcomeType==="completed"?"var(--entry-accent-bg)":"var(--card)",color:saveOutcomeType==="completed"?"var(--accent)":"var(--muted)",fontWeight:700,fontSize:12,fontFamily:"'Poppins',sans-serif",cursor:"pointer",transition:".15s",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}><span style={{fontSize:18}}>✅</span>Completed</button><button onClick={()=>setSaveOutcomeType("clarification")} style={{flex:1,padding:"10px 12px",borderRadius:10,border:`2px solid ${saveOutcomeType==="clarification"?"var(--amber)":"var(--border)"}`,background:saveOutcomeType==="clarification"?"rgba(245,158,11,.1)":"var(--card)",color:saveOutcomeType==="clarification"?"var(--amber)":"var(--muted)",fontWeight:700,fontSize:12,fontFamily:"'Poppins',sans-serif",cursor:"pointer",transition:".15s",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}><span style={{fontSize:18}}>🔄</span>Clarification</button></div></div><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Go Back</button><button className="btn btn-primary" onClick={()=>{setModal(null);showToast("Case saved! ✅");const elapsed=Math.floor((Date.now()-startTimeRef.current)/1000);const p2=phase2Elapsed!==null?phase2Elapsed:0;const totalSecs=elapsed+(isEditMode?0:p2);const f={...formRef.current,_saveOutcome:saveOutcomeType,_elapsedAtSave:elapsed,_phase2Elapsed:p2,_totalElapsed:totalSecs,trackerChecklistLink:formRef.current.trackerChecklistLink||""};onSave&&onSave(f);}}>✅ Save Case</button></div></div></div>)}
         {modal==="draft"&&(<div className="modal-bg"><div className="modal">
           <div style={{marginBottom:14}}><Icon name="draft" size={44} color="var(--amber)"/></div>
@@ -2891,6 +3210,42 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
                   );
                 })}
               </div>
+              <button className="h-btn" style={{marginTop:10,fontSize:11,padding:"5px 12px",borderColor:"var(--green)",color:"var(--green)",fontWeight:700,display:"inline-flex",alignItems:"center",gap:6}} onClick={async(e)=>{
+                e.stopPropagation();
+                try{
+                  const folderName=`Case_${c.caseNum||"unknown"}_${c.accountNum||"acc"}`.replace(/[^a-zA-Z0-9_-]/g,"_");
+                  if(window.showDirectoryPicker){
+                    try{
+                      const rootDir=await getOrPickDir();
+                      const caseDir=await rootDir.getDirectoryHandle(folderName,{create:true});
+                      for(const img of allImages){
+                        try{
+                          const urlExt=(img.url||"").split("?")[0].split(".").pop().toLowerCase();
+                          const safeExt=["jpg","jpeg","png","gif","webp"].includes(urlExt)?urlExt:"png";
+                          const baseName=(img.name||"screenshot").replace(/\.[^/.]+$/,"");
+                          const r=await fetch(img.url);const blob=await r.blob();
+                          const fh=await caseDir.getFileHandle(`${baseName}.${safeExt}`,{create:true});
+                          const wr=await fh.createWritable();await wr.write(blob);await wr.close();
+                        }catch(e){console.warn("img failed:",e);}
+                      }
+                      return;
+                    }catch(e){if(e.name==="AbortError")return;}
+                  }
+                  if(!window.JSZip){await new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
+                  const zip=new window.JSZip();const folder=zip.folder(folderName);
+                  for(const img of allImages){
+                    try{
+                      const urlExt=(img.url||"").split("?")[0].split(".").pop().toLowerCase();
+                      const safeExt=["jpg","jpeg","png","gif","webp"].includes(urlExt)?urlExt:"png";
+                      const baseName=(img.name||"screenshot").replace(/\.[^/.]+$/,"");
+                      const r=await fetch(img.url);const blob=await r.blob();
+                      folder.file(`${baseName}.${safeExt}`,blob);
+                    }catch(e){console.warn("img failed:",e);}
+                  }
+                  const zipBlob=await zip.generateAsync({type:"blob"});
+                  const a=document.createElement("a");a.href=URL.createObjectURL(zipBlob);a.download=`${folderName}.zip`;a.click();
+                }catch(e){console.error("Bulk download failed:",e);}
+              }}>⬇ Bulk Download ({allImages.length})</button>
             </div>
           )}
         </div>
@@ -3033,6 +3388,8 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       localStorage.removeItem("ch_phase2_start");
       localStorage.removeItem("ch_bundle_case_num");
     }
+    idbClearImages("backup").catch(()=>{});
+    idbClearImages("main").catch(()=>{});
     onFormActive&&onFormActive(false);
     onFormInFields&&onFormInFields(false);
   };
@@ -3125,6 +3482,8 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
     onMinimise&&onMinimise();
   };
   const cancelMode=()=>{
+    idbClearImages("backup").catch(()=>{});
+    idbClearImages("main").catch(()=>{});
     setBackConfirm(false);
     // Cancelling an edit from the session log: revert the Ongoing row back to "Ongoing"
     // with no caseNum — no new row, no stack, nothing logged.
@@ -3246,7 +3605,11 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
   }
   // Clear minimised form data since it's now saved
   setMinimisedFormData(null);
-  if(typeof window!=="undefined") localStorage.removeItem("ch_minimised_form");
+  if(typeof window!=="undefined"){
+    // Persist key fields so File Name Generator auto-fills from latest saved case
+    localStorage.setItem("ch_last_saved_case",JSON.stringify({businessName:f.businessName||"",accountNum:f.accountNum||""}));
+    localStorage.removeItem("ch_minimised_form");
+  }
   onTimerReset&&onTimerReset();
   
   // Set outcome based on save type (clarification / completed) and whether it was a draft
@@ -3263,6 +3626,8 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
     if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
     return next;
   });
+   idbClearImages("backup").catch(()=>{});
+    idbClearImages("main").catch(()=>{});
   exitMode();
 }}
           onSaveDraftDirect={async(fd)=>{
@@ -4258,18 +4623,17 @@ async function downloadCase(c) {
   }
   const zipBlob=await zip.generateAsync({type:"blob"});
 
-  // Try folder picker API (Chrome/Edge) — lets user choose where to save
+  // Try folder picker API (Chrome/Edge) — reuses last chosen directory
   if(window.showDirectoryPicker){
     try{
-      const dir=await window.showDirectoryPicker({mode:"readwrite",startIn:"downloads"});
+      const dir=await getOrPickDir();
       const fileHandle=await dir.getFileHandle(`${zipName}.zip`,{create:true});
       const writable=await fileHandle.createWritable();
       await writable.write(zipBlob);
       await writable.close();
-      return; // Success — file saved to chosen folder
+      return;
     }catch(e){
-      if(e.name==="AbortError")return; // User cancelled picker — do nothing
-      // Permission denied or other error — fall through to normal download
+      if(e.name==="AbortError")return;
     }
   }
   // Fallback: normal browser download
@@ -4593,9 +4957,48 @@ function EditableCaseCard({ c, onUpdate, onRequestDelete, onLightbox, openId, se
                       <div className="case-imgs">
                         {allImages.map(img=>(<div key={img.id||img.name} className="case-img-thumb" title={img.name} onClick={()=>onLightbox(img.url)}><img src={img.url} alt={img.name}/></div>))}
                       </div>
-                      <div style={{display:"flex",alignItems:"center",gap:10,marginTop:8}}>
+                      <div style={{display:"flex",alignItems:"center",gap:10,marginTop:8,flexWrap:"wrap"}}>
                         <span style={{fontSize:11,color:"var(--muted)"}}>Click to enlarge</span>
                         <button className="h-btn" style={{fontSize:11,padding:"4px 10px",borderColor:"var(--accent)",color:"var(--accent)"}} onClick={startEdit}>＋ Add / Edit</button>
+                        <button className="h-btn" style={{fontSize:11,padding:"4px 10px",borderColor:"var(--green)",color:"var(--green)",fontWeight:700}} onClick={async()=>{
+                          try{
+                            const folderName=`Case_${c.caseNum||"unknown"}_${c.accountNum||"acc"}`.replace(/[^a-zA-Z0-9_-]/g,"_");
+                            if(window.showDirectoryPicker){
+                              try{
+                                const rootDir=await getOrPickDir();
+                                const caseDir=await rootDir.getDirectoryHandle(folderName,{create:true});
+                                for(const img of allImages){
+                                  try{
+                                    const urlExt=(img.url||"").split("?")[0].split(".").pop().toLowerCase();
+                                    const safeExt=["jpg","jpeg","png","gif","webp"].includes(urlExt)?urlExt:"png";
+                                    const baseName=(img.name||"screenshot").replace(/\.[^/.]+$/,"");
+                                    const fileName=`${baseName}.${safeExt}`;
+                                    const r=await fetch(img.url);const blob=await r.blob();
+                                    const fh=await caseDir.getFileHandle(fileName,{create:true});
+                                    const wr=await fh.createWritable();
+                                    await wr.write(blob);await wr.close();
+                                  }catch(e){console.warn("Image save failed:",e);}
+                                }
+                                return;
+                              }catch(e){if(e.name==="AbortError")return;}
+                            }
+                            // Fallback: zip with folder named after case
+                            if(!window.JSZip){await new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
+                            const zip=new window.JSZip();
+                            const folder=zip.folder(folderName);
+                            for(const img of allImages){
+                              try{
+                                const urlExt=(img.url||"").split("?")[0].split(".").pop().toLowerCase();
+                                const safeExt=["jpg","jpeg","png","gif","webp"].includes(urlExt)?urlExt:"png";
+                                const baseName=(img.name||"screenshot").replace(/\.[^/.]+$/,"");
+                                const r=await fetch(img.url);const blob=await r.blob();
+                                folder.file(`${baseName}.${safeExt}`,blob);
+                              }catch(e){console.warn("Image fetch failed:",e);}
+                            }
+                            const zipBlob=await zip.generateAsync({type:"blob"});
+                            const a=document.createElement("a");a.href=URL.createObjectURL(zipBlob);a.download=`${folderName}.zip`;a.click();
+                          }catch(e){console.error("Bulk download failed:",e);}
+                        }}>⬇ Bulk Download</button>
                       </div>
                     </>
               )}
@@ -6407,16 +6810,13 @@ function App() {
       >
         <span className="nav-icon-wrap">
           <Icon name={n.icon} size={15} color={page===n.id?"var(--accent)":"var(--muted)"}/>
-          
           {n.id==="history"&&allCases.length>0&&<span className="nav-badge-dot">{allCases.length}</span>}
           {n.id==="announcements"&&announcements.length>0&&<span className="nav-badge-dot">{announcements.length}</span>}
-          
-          {/* Active form indicator */}
+          {n.id==="archives"&&archivedDrafts.length>0&&<span className="nav-badge-dot">{archivedDrafts.length}</span>}
           {n.id==="postlive"&&formActive&&page!=="postlive"&&<span className="nav-active-dot"/>}
         </span>
 
         <span className="nav-text nav-label">{n.label}</span>
-
 
         {/* In-progress indicator */}
         {n.id==="postlive"&&formActive&&page!=="postlive"&&(
@@ -6424,11 +6824,6 @@ function App() {
             <Icon name="inprogress" size={11} color="var(--accent)"/>
           </span>
         )}
-
-        {/* Badges */}
-        {n.id==="history"&&allCases.length>0&&<span className="nav-badge nav-label">{allCases.length}</span>}
-        {n.id==="announcements"&&announcements.length>0&&<span className="nav-badge nav-label">{announcements.length}</span>}
-        {n.id==="archives"&&archivedDrafts.length>0&&<span className="nav-badge nav-label">{archivedDrafts.length}</span>}
 
         {/* 🔒 Lock indicator when disabled */}
         {isDisabled && (
@@ -7047,7 +7442,25 @@ function FileNameGeneratorPage() {
     pdf:'{nob}-{pdf}-pdf',
   };
 
-  const [form,setForm]             = useState(EMPTY);
+  const [form,setForm]             = useState(()=>{
+    if(typeof window==="undefined") return EMPTY;
+    try{
+      // Priority: active/minimised form > last saved case > persisted FNG form
+      const active   =localStorage.getItem("ch_minimised_form");
+      const lastSaved=localStorage.getItem("ch_last_saved_case");
+      const saved    =localStorage.getItem("ch_fng_form");
+      const base     =saved?{...EMPTY,...JSON.parse(saved)}:EMPTY;
+      if(active){
+        const fd=JSON.parse(active);
+        return {...base,bizFilename:fd.businessName||base.bizFilename||"",bizAlt:fd.businessName||base.bizAlt||"",accountNum:fd.accountNum||base.accountNum||""};
+      }
+      if(lastSaved){
+        const fd=JSON.parse(lastSaved);
+        return {...base,bizFilename:fd.businessName||base.bizFilename||"",bizAlt:fd.businessName||base.bizAlt||"",accountNum:fd.accountNum||base.accountNum||""};
+      }
+      return base;
+    }catch{ return EMPTY; }
+  });
   const [tab,setTab]               = useState('logo');
   const [copied,setCopied]         = useState(null);
   const [copiedAll,setCopiedAll]   = useState(null);
@@ -7058,6 +7471,34 @@ function FileNameGeneratorPage() {
   });
   const [draftFmt,setDraftFmt]     = useState(DEFAULT_FORMAT);
   const [toast,showToast]          = useToast();
+
+  // Persist form to localStorage so it survives page navigation
+  useEffect(()=>{
+    if(typeof window==="undefined") return;
+    localStorage.setItem("ch_fng_form",JSON.stringify(form));
+  },[form]);
+
+  // Auto-fill from active form OR last saved case on mount + storage changes
+  useEffect(()=>{
+    if(typeof window==="undefined") return;
+    const sync=()=>{
+      const active   =localStorage.getItem("ch_minimised_form");
+      const lastSaved=localStorage.getItem("ch_last_saved_case");
+      const src=active||lastSaved;
+      if(!src) return;
+      try{
+        const fd=JSON.parse(src);
+        const biz=fd.businessName||"";
+        const acc=fd.accountNum||"";
+        // Always overwrite with latest source so new case data replaces old
+        setForm(f=>({...f,bizFilename:biz||f.bizFilename,bizAlt:biz||f.bizAlt,accountNum:acc||f.accountNum}));
+      }catch{}
+    };
+    sync();
+    // Also react when another tab/save updates storage
+    window.addEventListener("storage",sync);
+    return ()=>window.removeEventListener("storage",sync);
+  },[]);
 
   const nob = san(form.bizFilename);
   const applyFmt = (tpl,vars={}) => {
@@ -7146,7 +7587,7 @@ function FileNameGeneratorPage() {
             📊 Import Excel<input type="file" accept=".xlsx,.xls,.csv" style={{display:'none'}} onChange={e=>{if(e.target.files[0])handleXlsx(e.target.files[0]);e.target.value='';}}/>
           </label>
           <button onClick={()=>{setDraftFmt({...format});setEditingFormat(true);}} style={{padding:'8px 14px',background:'var(--btn-ghost-bg)',border:'1.5px solid var(--btn-ghost-border)',color:'var(--btn-ghost-text)',borderRadius:8,fontSize:12,fontWeight:700,cursor:'pointer'}}>✏️ Edit Format</button>
-          <button onClick={()=>setForm(EMPTY)} style={{padding:'8px 14px',background:'var(--btn-cancel-bg)',border:'1.5px solid var(--btn-cancel-border)',color:'var(--btn-cancel-text)',borderRadius:8,fontSize:12,fontWeight:700,cursor:'pointer'}}>Clear All</button>
+          <button onClick={()=>{setForm(EMPTY);if(typeof window!=="undefined")localStorage.removeItem("ch_fng_form");}} style={{padding:'8px 14px',background:'var(--btn-cancel-bg)',border:'1.5px solid var(--btn-cancel-border)',color:'var(--btn-cancel-text)',borderRadius:8,fontSize:12,fontWeight:700,cursor:'pointer'}}>Clear All</button>
         </div>
       </div>
 
@@ -7180,9 +7621,19 @@ function FileNameGeneratorPage() {
       <div style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border)',backdropFilter:'var(--glass-blur)',WebkitBackdropFilter:'var(--glass-blur)',padding:'20px 22px',marginBottom:20,borderRadius:12,boxShadow:'var(--glass-shadow)'}}>
         <div style={{fontSize:13,fontWeight:700,marginBottom:14}}>🏢 Business Information</div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:18}}>
-          <div className="field" style={{marginBottom:0}}><label>Business Name (filename)</label><input className="inp" placeholder="e.g. Acme Plumbing" value={form.bizFilename} onChange={e=>setForm(f=>({...f,bizFilename:e.target.value}))}/><div style={{fontSize:10,color:'var(--muted)',marginTop:3}}>Remove LLC, Corp, Inc etc.</div></div>
-          <div className="field" style={{marginBottom:0}}><label>Business Name (alt text)</label><input className="inp" placeholder="Full name as-is" value={form.bizAlt} onChange={e=>setForm(f=>({...f,bizAlt:e.target.value}))}/></div>
-          <div className="field" style={{marginBottom:0}}><label>Account Number</label><input className="inp" placeholder="e.g. ACC-9876" value={form.accountNum} onChange={e=>setForm(f=>({...f,accountNum:e.target.value}))}/></div>
+          <div className="field" style={{marginBottom:0}}>
+            <label style={{display:"flex",alignItems:"center",gap:6}}>Business Name (filename) {form.bizFilename&&<span style={{fontSize:9,fontWeight:700,color:"var(--green)",background:"rgba(16,185,129,.12)",border:"1px solid rgba(16,185,129,.3)",borderRadius:20,padding:"1px 7px"}}>auto-filled</span>}</label>
+            <input className="inp" placeholder="e.g. Acme Plumbing" value={form.bizFilename} onChange={e=>setForm(f=>({...f,bizFilename:e.target.value}))}/>
+            <div style={{fontSize:10,color:"var(--muted)",marginTop:3}}>Remove LLC, Corp, Inc etc.</div>
+          </div>
+          <div className="field" style={{marginBottom:0}}>
+            <label style={{display:"flex",alignItems:"center",gap:6}}>Business Name (alt text) {form.bizAlt&&<span style={{fontSize:9,fontWeight:700,color:"var(--green)",background:"rgba(16,185,129,.12)",border:"1px solid rgba(16,185,129,.3)",borderRadius:20,padding:"1px 7px"}}>auto-filled</span>}</label>
+            <input className="inp" placeholder="Full name as-is" value={form.bizAlt} onChange={e=>setForm(f=>({...f,bizAlt:e.target.value}))}/>
+          </div>
+          <div className="field" style={{marginBottom:0}}>
+            <label style={{display:"flex",alignItems:"center",gap:6}}>Account Number {form.accountNum&&<span style={{fontSize:9,fontWeight:700,color:"var(--green)",background:"rgba(16,185,129,.12)",border:"1px solid rgba(16,185,129,.3)",borderRadius:20,padding:"1px 7px"}}>auto-filled</span>}</label>
+            <input className="inp" placeholder="e.g. ACC-9876" value={form.accountNum} onChange={e=>setForm(f=>({...f,accountNum:e.target.value}))}/>
+          </div>
         </div>
         <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:16}}>
           <div><div style={{fontSize:10,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'.8px'}}>Page Names</div><DynList field="pages" placeholder="Page"/></div>
