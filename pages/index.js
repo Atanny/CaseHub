@@ -1990,7 +1990,7 @@ function EntryCard({ entry, label, index, onChange, onDelete, showNumber, onDrag
   );
 }
 
-function CopyRow({ label, value }) {
+function CopyRow({ label, value, groupColor, groupBorder }) {
   const [c,setC]=useState(false);
   const empty = !value || !value.trim();
   const handleClick = () => {
@@ -2002,7 +2002,7 @@ function CopyRow({ label, value }) {
       className="copy-row-wrap"
       onClick={handleClick}
       title={empty ? undefined : "Click to copy"}
-      style={{cursor: empty ? "default" : "pointer", userSelect:"none", position:"relative"}}
+      style={{cursor: empty ? "default" : "pointer", userSelect:"none", position:"relative", ...(groupColor?{background:groupColor}:{}), ...(groupBorder?{borderColor:groupBorder}:{})}}
     >
       <div className="copy-row-label" style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <span>{label}</span>
@@ -2055,23 +2055,28 @@ function GreetingRow({ greetingMessages, caseNum, inboundNum, isSC }) {
   if(!caseNum) return null;
 
   return (
-    <div className="copy-row-wrap" style={{paddingBottom:12}}>
-      <div className="copy-row-label">Messages</div>
-      <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:4,marginBottom:4}}>
+    <div className="copy-row-wrap" style={{paddingBottom:10,background:"rgba(1,118,211,.07)",borderColor:"rgba(1,118,211,.22)"}}>
+      <div className="copy-row-label" style={{marginBottom:8}}>Messages</div>
+      <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
         {msgs.map(m=>(
-          <div
+          <button
             key={m.id}
-            className="copy-row-wrap"
-            style={{marginBottom:0,cursor:"pointer",userSelect:"none"}}
             onClick={()=>copy(m)}
-            title="Click to copy"
+            title={buildMsg(m)}
+            style={{
+              padding:"4px 12px",
+              borderRadius:20,
+              border:`1px solid ${copiedId===m.id?"var(--green)":"rgba(1,118,211,.35)"}`,
+              background:copiedId===m.id?"rgba(16,185,129,.12)":"rgba(1,118,211,.1)",
+              color:copiedId===m.id?"var(--green)":"var(--accent)",
+              fontSize:11,fontWeight:600,cursor:"pointer",
+              fontFamily:"'Poppins',sans-serif",
+              transition:".18s",userSelect:"none",
+              whiteSpace:"nowrap",
+            }}
           >
-            <div className="copy-row-label" style={{display:"flex",alignItems:"center",justifyContent:"space-between",margin:0,marginBottom:4}}>
-              <span>{m.label||"Message"}</span>
-              <span style={{fontSize:10,opacity:copiedId===m.id?1:0.45,color:copiedId===m.id?"var(--green)":"var(--muted)",transition:"opacity .2s",fontWeight:700}}>{copiedId===m.id?"✓ Copied":"📋"}</span>
-            </div>
-            <div className="copy-row-val">{buildMsg(m)}</div>
-          </div>
+            {copiedId===m.id?"✓ Copied":m.label||"Message"}
+          </button>
         ))}
       </div>
     </div>
@@ -2104,19 +2109,51 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
       </div>
 
       <div className="summary-panel">
-        <CopyRow label="Account #" value={f.accountNum}/>
-        <CopyRow label="Case #" value={f.caseNum}/>
-        {!isSC&&<CopyRow label="Inbound #" value={f.inboundNum}/>}
-        <CopyRow label="Amend Type" value={f.amendType}/>
-        {f.customerName&&<CopyRow label="Customer Name" value={f.customerName}/>}
-        {f.customerEmail&&<CopyRow label="Customer Email" value={f.customerEmail}/>}
-        {f.businessName&&<CopyRow label="Business Name" value={f.businessName+(f.businessSuffix?' '+f.businessSuffix:'')}/>}
-        <CopyRow label={isSC?"Site Comments":"Assumptions"} value={isSC?buildEntriesText():buildEmailText()}/>
-        {f.caseNum&&(
-          <GreetingRow greetingMessages={greetingMessages} caseNum={f.caseNum} inboundNum={f.inboundNum} isSC={isSC}/>
+        {/* ── GROUP 1: Case Info (blue) ── */}
+        <div style={{marginBottom:10}}>
+          <div style={{fontSize:9,fontWeight:700,color:"var(--accent)",textTransform:"uppercase",letterSpacing:".8px",marginBottom:6,paddingLeft:2,opacity:.7}}>Case Info</div>
+          <CopyRow label="Account #" value={f.accountNum} groupColor="rgba(1,118,211,.13)" groupBorder="rgba(1,118,211,.28)"/>
+          <CopyRow label="Case #" value={f.caseNum} groupColor="rgba(1,118,211,.13)" groupBorder="rgba(1,118,211,.28)"/>
+          {!isSC&&<CopyRow label="Inbound #" value={f.inboundNum} groupColor="rgba(1,118,211,.13)" groupBorder="rgba(1,118,211,.28)"/>}
+          <CopyRow label="Amend Type" value={f.amendType} groupColor="rgba(1,118,211,.13)" groupBorder="rgba(1,118,211,.28)"/>
+        </div>
+        {/* ── GROUP 2: Customer Info (amber) — only if any filled ── */}
+        {(f.customerName||f.customerEmail||f.businessName)&&(
+          <div style={{marginBottom:10}}>
+            <div style={{fontSize:9,fontWeight:700,color:"var(--amber)",textTransform:"uppercase",letterSpacing:".8px",marginBottom:6,paddingLeft:2,opacity:.7}}>Customer Info</div>
+            {f.customerName&&<CopyRow label="Customer Name" value={f.customerName} groupColor="rgba(245,158,11,.1)" groupBorder="rgba(245,158,11,.3)"/>}
+            {f.customerEmail&&<CopyRow label="Customer Email" value={f.customerEmail} groupColor="rgba(245,158,11,.1)" groupBorder="rgba(245,158,11,.3)"/>}
+            {f.businessName&&<CopyRow label="Business Name" value={f.businessName+(f.businessSuffix?' '+f.businessSuffix:'')} groupColor="rgba(245,158,11,.1)" groupBorder="rgba(245,158,11,.3)"/>}
+          </div>
         )}
-        {!isSC&&<CopyRow label="Email Type" value={emailTypeLabel}/>}
-        {!isSC&&<CopyRow label="Email Address" value={f.emailAddress}/>}
+        {/* ── GROUP 3: Amends Copy (orange-accent) ── */}
+        <div style={{marginBottom:10}}>
+          <div style={{fontSize:9,fontWeight:700,color:"rgb(245,148,92)",textTransform:"uppercase",letterSpacing:".8px",marginBottom:6,paddingLeft:2,opacity:.7}}>Amends Copy</div>
+          <CopyRow label={isSC?"Site Comments":"Assumptions"} value={isSC?buildEntriesText():buildEmailText()} groupColor="rgba(245,148,92,.1)" groupBorder="rgba(245,148,92,.3)"/>
+          {(()=>{
+            const entries=f.entries.filter(e=>e.clarification&&e.clarification.trim());
+            if(!entries.length)return null;
+            const clarifLines=isSC
+              ?entries.map(e=>`Site Comment #${e.number}: ${e.clarification.trim()}`).join("\n\n")
+              :entries.map(e=>e.clarification.trim()).join("\n\n");
+            return <CopyRow label="Email Format" value={clarifLines} groupColor="rgba(245,148,92,.1)" groupBorder="rgba(245,148,92,.3)"/>;
+          })()}
+        </div>
+        {/* ── GROUP 4: Messages (blue chips) ── */}
+        {f.caseNum&&(
+          <div style={{marginBottom:10}}>
+            <div style={{fontSize:9,fontWeight:700,color:"var(--accent)",textTransform:"uppercase",letterSpacing:".8px",marginBottom:6,paddingLeft:2,opacity:.7}}>Messages</div>
+            <GreetingRow greetingMessages={greetingMessages} caseNum={f.caseNum} inboundNum={f.inboundNum} isSC={isSC}/>
+          </div>
+        )}
+        {/* ── GROUP 5: Email (purple) — inbound only ── */}
+        {!isSC&&(
+          <div style={{marginBottom:10}}>
+            <div style={{fontSize:9,fontWeight:700,color:"#a78bfa",textTransform:"uppercase",letterSpacing:".8px",marginBottom:6,paddingLeft:2,opacity:.7}}>Email</div>
+            <CopyRow label="Email Type" value={emailTypeLabel} groupColor="rgba(124,58,237,.1)" groupBorder="rgba(124,58,237,.3)"/>
+            <CopyRow label="Email Address" value={f.emailAddress} groupColor="rgba(124,58,237,.1)" groupBorder="rgba(124,58,237,.3)"/>
+          </div>
+        )}
         {allImages.length > 0 && (
   <div
     className="copy-row-wrap"
@@ -2129,8 +2166,9 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
       if(dlState==="downloading") return;
       setDlState("downloading");
       try {
-        const folderName = `Case_${f.caseNum || "unknown"}_${f.accountNum || "acc"}`
-          .replace(/[^a-zA-Z0-9_-]/g, "_");
+        const bizPart = (f.businessName || "").trim();
+        const folderName = `${f.caseNum || "unknown"}${bizPart ? " - " + bizPart : ""}`
+          .replace(/[^a-zA-Z0-9 _()-]/g, "_").trim();
 
         if (window.showDirectoryPicker) {
           try {
@@ -2565,13 +2603,18 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
 
   const buildEntriesText = ()=>{
     const es=formRef.current.entries;
-    let out="Post-Live Amends:\n";
+    let out="Post-Live Amends:";
     es.forEach(e=>{
       if(!e.number&&!e.note&&!e.clarification)return;
-      out+="\n";
-      if(isSC){ out+=`Site Comment #${e.number}:\n`; if(e.note)out+=`Note: ${e.note}\n`; if(e.clarification)out+=`\nClarification: ${e.clarification}\n`; }
-      else { out+=`Assumption:\n`; if(e.note)out+=`Note: ${e.note}\n`; if(e.clarification)out+=`\nClarification:\n\n${e.clarification}\n`; }
-      out+="\n";
+      if(isSC){
+        out+=`\n\nSite Comment #${e.number}:\n`;
+        if(e.note)out+=`Note: ${e.note}`;
+        if(e.clarification)out+=`\n\nClarification:  ${e.clarification}`;
+      } else {
+        out+=`\n\nAssumption:\n`;
+        if(e.note)out+=`Note: ${e.note}`;
+        if(e.clarification)out+=`\n\nClarification:  ${e.clarification}`;
+      }
     });
     return out.trimEnd();
   };
@@ -3242,7 +3285,7 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
               <button className="h-btn" style={{marginTop:10,fontSize:11,padding:"5px 12px",borderColor:"var(--green)",color:"var(--green)",fontWeight:700,display:"inline-flex",alignItems:"center",gap:6}} onClick={async(e)=>{
                 e.stopPropagation();
                 try{
-                  const folderName=`Case_${c.caseNum||"unknown"}_${c.accountNum||"acc"}`.replace(/[^a-zA-Z0-9_-]/g,"_");
+                  const bizPart=(c.businessName||"").trim();const folderName=`${c.caseNum||"unknown"}${bizPart?" - "+bizPart:""}`.replace(/[^a-zA-Z0-9 _()-]/g,"_").trim();
                   if(window.showDirectoryPicker){
                     try{
                       const rootDir=await getOrPickDir();
@@ -3466,8 +3509,6 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
           ?{...e,endedAt:nowMs,outcome:"Suspended",caseNum:e.caseNum||""}
           :e);
       }
-      // Only mark the most recent CLOSED row for this caseNum as "Editing…"
-      // Never tag the open Ongoing row — that causes a duplicate stacked row on save.
       const lastIdx=next.map((e,i)=>({e,i})).filter(({e})=>e.caseNum===editCaseNum&&e.endedAt).pop()?.i;
       if(lastIdx!=null){
         next=next.map((e,i)=>i===lastIdx?{...e,outcome:"Editing…"}:e);
@@ -3664,7 +3705,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       const lastCaseIdx=entries.map((e,i)=>({e,i})).filter(({e})=>e.caseNum===f.caseNum&&e.endedAt).pop()?.i;
       next=entries.map((e,i)=>{
         if(i===lastCaseIdx) return {...e,outcome:"Updated",status:e.status==="Ongoing"?statusLabel:e.status};
-        return e; // open Ongoing row untouched — no stacking, no duplicates
+        return e;
       });
     } else {
       // Normal save / suspended complete: close open entry, add fresh Ongoing
@@ -4679,10 +4720,11 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
 async function downloadCase(c) {
   const isSC=c._mode==="siteComment"; const entries=(c.entries||[]);
   let txt="Post-Live Amends:\n";
-  entries.forEach(e=>{if(!e.number&&!e.note&&!e.clarification)return;txt+="\n";if(isSC){txt+=`Site Comment #${e.number}:\n`;if(e.note)txt+=`Note: ${e.note}\n`;if(e.clarification)txt+=`\nClarification: ${e.clarification}\n`;}else{txt+=`Assumption:\n`;if(e.note)txt+=`Note: ${e.note}\n`;if(e.clarification)txt+=`\nClarification:\n\n${e.clarification}\n`;}txt+="\n";});
+  entries.forEach(e=>{if(!e.number&&!e.note&&!e.clarification)return;txt+="\n";if(isSC){txt+=`Site Comment #${e.number}:\n`;if(e.note)txt+=`Note: ${e.note}\n`;if(e.clarification)txt+=`\nClarification: ${e.clarification}\n`;}else{txt+=`Assumption:\n`;if(e.note)txt+=`Note: ${e.note}\n`;if(e.clarification)txt+=`\nClarification: ${e.clarification}\n`;}txt+="\n";});
   if(!isSC&&c.emailAddress){const tl=c.emailType==="clarification"?"Clarification email sent to":"Email completed sent to";txt+=`\n${tl} ${c.emailAddress}.`;}
   const meta=[`Post-Live Amends Case Export`,"─".repeat(36),`Saved: ${c.savedAt}`,`Type: ${isSC?"Site Comment":"Inbound Email"}`,`Case #: ${c.caseNum||"—"}`,`Account #: ${c.accountNum||"—"}`,...(isSC?[]:[`Inbound #: ${c.inboundNum||"—"}`]),`Amend Type: ${c.amendType||"—"}`,``,txt].join("\n");
-  const zipName=`Case_${c.caseNum||"unknown"}_${c.accountNum||"acc"}`.replace(/[^a-zA-Z0-9_-]/g,"_");
+  const bizPart=(c.businessName||"").trim();
+  const zipName=`${c.caseNum||"unknown"}${bizPart?" - "+bizPart:""}`.replace(/[^a-zA-Z0-9 _()-]/g,"_").trim();
 
   // Load JSZip
   if(!window.JSZip){await new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
@@ -5032,7 +5074,7 @@ function EditableCaseCard({ c, onUpdate, onRequestDelete, onLightbox, openId, se
                         <button className="h-btn" style={{fontSize:11,padding:"4px 10px",borderColor:"var(--accent)",color:"var(--accent)"}} onClick={startEdit}>＋ Add / Edit</button>
                         <button className="h-btn" style={{fontSize:11,padding:"4px 10px",borderColor:"var(--green)",color:"var(--green)",fontWeight:700}} onClick={async()=>{
                           try{
-                            const folderName=`Case_${c.caseNum||"unknown"}_${c.accountNum||"acc"}`.replace(/[^a-zA-Z0-9_-]/g,"_");
+                            const bizPart=(c.businessName||"").trim();const folderName=`${c.caseNum||"unknown"}${bizPart?" - "+bizPart:""}`.replace(/[^a-zA-Z0-9 _()-]/g,"_").trim();
                             if(window.showDirectoryPicker){
                               try{
                                 const rootDir=await getOrPickDir();
