@@ -2536,7 +2536,46 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
   const afterName     = user?.afterName   || `Post_Live_Amend_After_${userName}_Amends`;
   const screenshotName= user?.screenshotName || `Post_Live_Amend_Screenshot_${userName}_Amends`;
 
-  const [form,setForm] = useState(()=> draftData ? {...emptyBase(),...draftData} : emptyBase());
+  const [form,setForm] = useState(()=>{
+    if(draftData) return {...emptyBase(),...draftData};
+    // Check for bundle prefill — data from the existing case chosen in the bundle modal
+    if(typeof window!=="undefined"){
+      const raw = localStorage.getItem("ch_bundle_prefill");
+      if(raw){
+        try{
+          const prefill = JSON.parse(raw);
+          localStorage.removeItem("ch_bundle_prefill");
+          const base = emptyBase();
+          const newIsSC = mode==="siteComment";
+          const srcIsSC = prefill._sourceMode==="siteComment";
+          // Map entries: copy them regardless of mode switch — label will adapt via entryLabel
+          // For cross-mode bundles, entries carry the text content; the label (Site Comment/Assumption) changes automatically
+          return {
+            ...base,
+            accountNum: prefill.accountNum||"",
+            amendType: prefill.amendType||"",
+            customerName: prefill.customerName||"",
+            customerEmail: prefill.customerEmail||"",
+            businessName: prefill.businessName||"",
+            businessSuffix: prefill.businessSuffix||"",
+            inboundNum: newIsSC ? "" : (prefill.inboundNum||""),
+            inProgress: prefill.inProgress||false,
+            // ASSUMPTION/CASE COMMENT
+            entries: (prefill.entries&&prefill.entries.length>0) ? prefill.entries : base.entries,
+            // ADDITIONAL BACKUP SCREENSHOT
+            images: prefill.images||[],
+            // BEFORE/AFTER BACKUP
+            backupImages: prefill.backupImages||[],
+            // CASE INFORMATION (except case number)
+            emailAddress: newIsSC ? "" : (prefill.emailAddress||""),
+            emailType: newIsSC ? "clarification" : (prefill.emailType||"clarification"),
+            trackerChecklistLink: prefill.trackerChecklistLink||"",
+          };
+        }catch(e){ localStorage.removeItem("ch_bundle_prefill"); }
+      }
+    }
+    return emptyBase();
+  });
   const formRef = useRef(form);
   useEffect(()=>{
     formRef.current=form;
@@ -3527,6 +3566,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       localStorage.removeItem("ch_resume_start");
       localStorage.removeItem("ch_phase2_start");
       localStorage.removeItem("ch_bundle_case_num");
+      localStorage.removeItem("ch_bundle_prefill");
     }
     idbClearImages("backup").catch(()=>{});
     idbClearImages("main").catch(()=>{});
@@ -4011,6 +4051,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
             _bundledWith: saved?._bundledWith||null,
             source: src,
             _id: saved?._id||draft?._id||cn,
+            _fullData: saved||draft||null,
           };
         });
 
@@ -4262,6 +4303,43 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
             return;
           }
 
+          // Store the full existing case data so the new bundle form can be prefilled
+          const selCase = caseOptions.find(o=>o.caseNum===bundleForm.caseNum.trim());
+          if(selCase?._fullData && typeof window!=="undefined"){
+            try{
+              // Only carry over images already in storage (have url, no pending _file blob).
+              // Note: images loaded from DB don't carry _inDB:true, so we check url+!_file instead.
+              const safeImages = (selCase._fullData.images||[])
+                .filter(i=>i.url&&!i._file)
+                .map(i=>({...i,_inDB:true}));
+              const safeBackups = (selCase._fullData.backupImages||[])
+                .filter(i=>i.url&&!i._file)
+                .map(i=>({...i,_inDB:true}));
+              const prefill = {
+                // CASE INFORMATION (except case number)
+                accountNum: selCase._fullData.accountNum||"",
+                amendType: selCase._fullData.amendType||"",
+                customerName: selCase._fullData.customerName||"",
+                customerEmail: selCase._fullData.customerEmail||"",
+                businessName: selCase._fullData.businessName||"",
+                businessSuffix: selCase._fullData.businessSuffix||"",
+                inboundNum: selCase._fullData.inboundNum||"",
+                inProgress: selCase._fullData.inProgress||false,
+                emailAddress: selCase._fullData.emailAddress||"",
+                emailType: selCase._fullData.emailType||"clarification",
+                trackerChecklistLink: selCase._fullData.trackerChecklistLink||"",
+                // ASSUMPTION/CASE COMMENT
+                entries: selCase._fullData.entries||[],
+                // ADDITIONAL BACKUP SCREENSHOT
+                images: safeImages,
+                // BEFORE/AFTER BACKUP
+                backupImages: safeBackups,
+                _sourceMode: selCase._fullData._mode||"",
+              };
+              localStorage.setItem("ch_bundle_prefill", JSON.stringify(prefill));
+            }catch(e){ /* ignore serialisation errors */ }
+          }
+
           setBundleModal(false);
 
           enterMode(
@@ -4274,7 +4352,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
           );
 
           showToast(
-            "🔗 Bundle set — save the new case to link both",
+            "🔗 Bundle set — info from the existing case has been pre-filled",
             "info"
           );
         }}
