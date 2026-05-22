@@ -2419,6 +2419,7 @@ const emptyEntry = ()=>({id:String(Date.now()+Math.random()),number:"",note:"",c
 const emptyBase  = ()=>({
   caseNum:"",accountNum:"",amendType:"",inProgress:false,inboundNum:"",
   customerName:"",customerEmail:"",businessName:"",businessSuffix:"",
+  _caseComplexity:"minor",
   entries:[emptyEntry()],
   devices:{mobile:false,tablet:false,desktop:false},
   checklist:{backup:false,caseComment:false,combinedTracker:false,qaChecklist:false,completeJob:false,closeSiteComment:false,emailSales:false,trackerChecklist:false,completeStatus:false},
@@ -2570,6 +2571,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
             emailAddress: newIsSC ? "" : (prefill.emailAddress||""),
             emailType: newIsSC ? "clarification" : (prefill.emailType||"clarification"),
             trackerChecklistLink: prefill.trackerChecklistLink||"",
+            _caseComplexity: prefill._caseComplexity||"minor",
           };
         }catch(e){ localStorage.removeItem("ch_bundle_prefill"); }
       }
@@ -2779,6 +2781,14 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
           <div className="field"><label>Account Number <span className="req">*</span></label><input className="inp" placeholder="e.g. ACC-9876" value={form.accountNum} onChange={e=>setF({accountNum:e.target.value})}/></div>
           {!isSC&&(<div className="field"><label>Inbound Number <span className="req">*</span></label><input className="inp" placeholder="Enter inbound number" value={form.inboundNum||""} onChange={e=>setF({inboundNum:e.target.value})}/></div>)}
           <div className="field"><label>Amend Type <span className="req">*</span></label><input className="inp" placeholder="e.g. Content, Layout, Link..." value={form.amendType} onChange={e=>setF({amendType:e.target.value})}/></div>
+          <div className="field">
+            <label>Case Complexity</label>
+            <select className="inp" value={form._caseComplexity||"minor"} onChange={e=>setF({_caseComplexity:e.target.value})} style={{cursor:"pointer"}}>
+              <option value="minor">🟢 Minor</option>
+              <option value="major">🟡 Major</option>
+              <option value="complex">🔴 Complex</option>
+            </select>
+          </div>
           <div className="field"><label>Customer Name</label><input className="inp" placeholder="e.g. John Smith" value={form.customerName||""} onChange={e=>setF({customerName:e.target.value})}/></div>
           <div className="field"><label>Customer Email</label><input className="inp" type="email" placeholder="e.g. client@email.com" value={form.customerEmail||""} onChange={e=>setF({customerEmail:e.target.value})}/></div>
           <div className="field" style={{marginBottom:0}}>
@@ -3436,7 +3446,7 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // POST LIVE PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, onMinimise, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, onArchiveDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, globalTimeIn, timedIn, breakActive=false, onTimeIn, onTimeOut, onTimerReset, sessionDbId, sessionLog=[], addSessionLog, setSessionLog, closeWithOutcome, closeSessionLog, clearSessionLog, onStartBreak, onStartBreakFull, resumeTick=0 }) {
+function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, onFormInFields, onMinimise, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, onArchiveDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, globalTimeIn, timedIn, breakActive=false, onTimeIn, onTimeOut, onTimerReset, sessionDbId, sessionLog=[], addSessionLog, setSessionLog, closeWithOutcome, closeSessionLog, clearSessionLog, onStartBreak, onStartBreakFull, resumeTick=0 }) {
   const [mode,setMode]=useState(()=>{
     if(typeof window==="undefined") return null;
     return localStorage.getItem("ch_form_active")==="1"
@@ -3770,12 +3780,21 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
     const prevOwn = rec._bundledWith ? (Array.isArray(rec._bundledWith)?rec._bundledWith:[rec._bundledWith]) : [];
     rec._bundledWith = [...new Set([...prevOwn, bundledWith])];
     // Update the existing case to point back at this new case number (deferred — newCaseNum available after save)
+    const newNum = f.caseNum||"";
     const existingCase = allSavedCases.find(c=>c.caseNum===bundledWith);
     if(existingCase) {
       const prevExisting = existingCase._bundledWith ? (Array.isArray(existingCase._bundledWith)?existingCase._bundledWith:[existingCase._bundledWith]) : [];
-      const newNum = f.caseNum||"";
       if(newNum && !prevExisting.includes(newNum)) {
         onUpdateCase&&onUpdateCase(existingCase._id,{...existingCase,_bundledWith:[...prevExisting,newNum]});
+      }
+    } else {
+      // Partner may be a suspended draft — update it too
+      const existingDraft = (dbDrafts||[]).find(d=>d.caseNum===bundledWith);
+      if(existingDraft) {
+        const prevExisting = existingDraft._bundledWith ? (Array.isArray(existingDraft._bundledWith)?existingDraft._bundledWith:[existingDraft._bundledWith]) : [];
+        if(newNum && !prevExisting.includes(newNum)) {
+          onUpdateDraft&&onUpdateDraft(existingDraft._id,{...existingDraft,_bundledWith:[...prevExisting,newNum]});
+        }
       }
     }
     if(typeof window!=="undefined") localStorage.removeItem("ch_bundle_case_num");
@@ -4033,13 +4052,13 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
 
       {/* Bundle Modal */}
       {bundleModal&&(()=>{
-        // Only show cases that appear in the CURRENT session log
-        const sessionCaseNums = [...new Set(
+        // Collect case numbers from the CURRENT session log
+        const sessionCaseNums = new Set(
           (sessionLog||[]).filter(e=>e.caseNum&&e.caseNum.trim()).map(e=>e.caseNum.trim())
-        )];
+        );
 
-        // For each session case number, enrich with data from saved cases or drafts
-        const caseOptions = sessionCaseNums.map(cn=>{
+        // Build options from session log entries first
+        const sessionOptions = [...sessionCaseNums].map(cn=>{
           const saved = allSavedCases.find(c=>c.caseNum===cn);
           const draft = (dbDrafts||[]).find(d=>d.caseNum===cn);
           const src = saved ? "saved" : draft ? "suspended" : "session";
@@ -4049,11 +4068,45 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
             amendType: (saved||draft)?.amendType||"",
             _mode: (saved||draft)?._mode||"",
             _bundledWith: saved?._bundledWith||null,
+            _caseComplexity: (saved||draft)?._caseComplexity||"minor",
             source: src,
             _id: saved?._id||draft?._id||cn,
             _fullData: saved||draft||null,
           };
         });
+
+        // Also include ALL saved cases not already in the session log
+        const savedOnlyOptions = (allSavedCases||[])
+          .filter(c=>c.caseNum&&!sessionCaseNums.has(c.caseNum.trim()))
+          .map(c=>({
+            caseNum: c.caseNum,
+            accountNum: c.accountNum||"",
+            amendType: c.amendType||"",
+            _mode: c._mode||"",
+            _bundledWith: c._bundledWith||null,
+            _caseComplexity: c._caseComplexity||"minor",
+            source: "saved",
+            _id: c._id||c.caseNum,
+            _fullData: c,
+          }));
+
+        // Also include suspended drafts not already accounted for
+        const draftOnlyOptions = (dbDrafts||[])
+          .filter(d=>d.caseNum&&!sessionCaseNums.has(d.caseNum.trim())&&!(allSavedCases||[]).find(c=>c.caseNum===d.caseNum))
+          .map(d=>({
+            caseNum: d.caseNum,
+            accountNum: d.accountNum||"",
+            amendType: d.amendType||"",
+            _mode: d._mode||"",
+            _bundledWith: d._bundledWith||null,
+            _caseComplexity: d._caseComplexity||"minor",
+            source: "suspended",
+            _id: d._id||d.caseNum,
+            _fullData: d,
+          }));
+
+        // Merge: session first (most recent), then other saved, then drafts
+        const caseOptions = [...sessionOptions, ...savedOnlyOptions, ...draftOnlyOptions];
 
         return (
         <div className="modal-bg">
@@ -4187,6 +4240,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
               {c.amendType ? ` · ${c.amendType}` : ""}
               {c.source === "suspended" ? " ⏸" : ""}
               {c.source === "saved" ? " ✅" : ""}
+              {c.source === "session" ? " 🕐" : ""}
               {c._bundledWith ? " 🔗" : ""}
             </option>
           ))}
@@ -4204,7 +4258,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
             lineHeight: 1.6,
           }}
         >
-          No cases in this session yet.
+          No saved cases found.
           <br />
           Complete or suspend a case first, then bundle.
         </div>
@@ -4256,6 +4310,13 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
                     : "Inbound Email"}
                 </span>
               )}
+
+              {(()=>{
+                const cx=sel._caseComplexity||"minor";
+                if(cx==="major") return <span style={{fontSize:10,padding:"1px 7px",borderRadius:20,background:"rgba(245,158,11,.12)",border:"1px solid rgba(245,158,11,.3)",color:"#f59e0b",fontWeight:700}}>🟡 Major</span>;
+                if(cx==="complex") return <span style={{fontSize:10,padding:"1px 7px",borderRadius:20,background:"rgba(244,63,94,.12)",border:"1px solid rgba(244,63,94,.3)",color:"#f43f5e",fontWeight:700}}>🔴 Complex</span>;
+                return <span style={{fontSize:10,padding:"1px 7px",borderRadius:20,background:"rgba(16,185,129,.12)",border:"1px solid rgba(16,185,129,.3)",color:"#10b981",fontWeight:700}}>🟢 Minor</span>;
+              })()}
 
               <span
                 style={{
@@ -4328,6 +4389,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
                 emailAddress: selCase._fullData.emailAddress||"",
                 emailType: selCase._fullData.emailType||"clarification",
                 trackerChecklistLink: selCase._fullData.trackerChecklistLink||"",
+                _caseComplexity: selCase._fullData._caseComplexity||"minor",
                 // ASSUMPTION/CASE COMMENT
                 entries: selCase._fullData.entries||[],
                 // ADDITIONAL BACKUP SCREENSHOT
@@ -4571,14 +4633,32 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
                           entry.status==="Inbound Email" || 
                           (entry.status==="Ongoing" && caseNum && outcome);
       
-      const showButton = isCaseEntry && 
-                         caseNum && 
-                         !isOngoing && 
-                         (!isDuplicate || isLatestForCase);
-      
       const isContinueSuspended = outcome === "Suspended";
       const isDeleted = outcome === "Deleted";
       const buttonText = isContinueSuspended ? "Continue" : "Edit";
+
+      // A suspended entry should lose its "Continue" button once the case has been
+      // completed — either as a later entry in this same session log, or saved to
+      // allSavedCases (continued in a previous / the same session and fully saved).
+      const suspendedButLaterCompleted = isContinueSuspended && caseNum && (() => {
+        // Check if a later session-log entry for the same case is Completed/Updated
+        const laterCompletedInLog = sessionLog.some((e, j) =>
+          j > i &&
+          (e.caseNum || "").trim() === caseNum.trim() &&
+          (e.outcome === "Completed" || e.outcome === "Updated")
+        );
+        if (laterCompletedInLog) return true;
+        // Check if the case exists in allSavedCases (completed and persisted)
+        const isSavedCompleted = !!(allSavedCases || []).find(c => c.caseNum === caseNum);
+        if (isSavedCompleted) return true;
+        return false;
+      })();
+
+      const showButton = isCaseEntry && 
+                         caseNum && 
+                         !isOngoing && 
+                         !suspendedButLaterCompleted &&
+                         (!isDuplicate || isLatestForCase);
 
       // ── Bundle badge: look up this case in saved cases and drafts ──
       // ── Post-save bundle: look up _bundledWith on saved/draft case ──
@@ -4644,6 +4724,13 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
                 </span>
               );
             })()}
+            {(()=>{
+              const logCase = caseNum ? ((allSavedCases||[]).find(c=>c.caseNum===caseNum)||(dbDrafts||[]).find(d=>d.caseNum===caseNum)) : null;
+              const cx = logCase?._caseComplexity;
+              if(!cx||cx==="minor") return null;
+              if(cx==="major") return <span style={{display:"inline-flex",alignItems:"center",fontSize:9,fontWeight:800,color:"#f59e0b",background:"rgba(245,158,11,.14)",border:"1px solid rgba(245,158,11,.35)",padding:"2px 7px",borderRadius:20,whiteSpace:"nowrap",fontFamily:"'Poppins',sans-serif",lineHeight:1.4}}>🟡 Major</span>;
+              return <span style={{display:"inline-flex",alignItems:"center",fontSize:9,fontWeight:800,color:"#f43f5e",background:"rgba(244,63,94,.14)",border:"1px solid rgba(244,63,94,.35)",padding:"2px 7px",borderRadius:20,whiteSpace:"nowrap",fontFamily:"'Poppins',sans-serif",lineHeight:1.4}}>🔴 Complex</span>;
+            })()}
           </div>
           
           <div style={{color:col,display:"flex",alignItems:"center",gap:6,fontWeight:700,fontFamily:"'Poppins',sans-serif",fontSize:11,whiteSpace:"nowrap"}}>
@@ -4703,6 +4790,14 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
                     const clarificationCount=sessionLog.filter(e=>e.outcome==="Clarification").length;
                     const suspendedCount=sessionLog.filter(e=>e.outcome==="Suspended").length;
 
+                    // ── Weighted case score (Minor=1, Major=2, Complex=3) ──
+                    const cxWeight=(cx)=>cx==="complex"?3:cx==="major"?2:1;
+                    const weightedScore=[...uniqueCases].reduce((acc,cn)=>{
+                      const saved=(allSavedCases||[]).find(c=>c.caseNum===cn);
+                      const draft=(dbDrafts||[]).find(d=>d.caseNum===cn);
+                      return acc+cxWeight((saved||draft)?._caseComplexity);
+                    },0);
+
                     const fmtMs=(ms)=>{
                       const h=Math.floor(ms/3600000),m=Math.floor((ms%3600000)/60000),s=Math.floor((ms%60000)/1000);
                       return h>0?`${h}h ${m}m ${s}s`:m>0?`${m}m ${s}s`:`${s}s`;
@@ -4730,6 +4825,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
                         <div style={{display:"flex",gap:8,padding:"12px 16px",borderTop:"1px solid var(--border)",background:"var(--glass-bg)",flexWrap:"wrap"}}>
                           {pill("Total Hours",fmtMs(totalMs),"var(--accent)")}
                           {pill("Cases",totalCasesCount,"var(--accent2)")}
+                          {pill("Weighted",weightedScore,"#a855f7","rgba(168,85,247,.07)")}
                           {pill("Completed",completedCount,"var(--green)","rgba(16,185,129,.07)")}
                           {pill("Clarification",clarificationCount,"var(--amber)","rgba(245,158,11,.07)")}
                           {pill("Suspended",suspendedCount,"var(--red)","rgba(244,63,94,.07)")}
@@ -5003,6 +5099,12 @@ function EditableCaseCard({ c, onUpdate, onRequestDelete, onLightbox, openId, se
           <div className="case-meta-sub">
             <span className={cls("act-badge",isSC?"site":"email")} style={{fontSize:10,padding:"2px 8px",marginRight:6}}>{isSC?"Site Comment":"Inbound Email"}</span>
             {(()=>{
+              const cx=c._caseComplexity;
+              if(!cx||cx==="minor") return <span style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:"rgba(16,185,129,.12)",border:"1px solid rgba(16,185,129,.3)",color:"#10b981",fontWeight:700,fontFamily:"'Poppins',sans-serif",marginRight:4}}>🟢 Minor</span>;
+              if(cx==="major") return <span style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:"rgba(245,158,11,.12)",border:"1px solid rgba(245,158,11,.3)",color:"#f59e0b",fontWeight:700,fontFamily:"'Poppins',sans-serif",marginRight:4}}>🟡 Major</span>;
+              return <span style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:"rgba(244,63,94,.12)",border:"1px solid rgba(244,63,94,.3)",color:"#f43f5e",fontWeight:700,fontFamily:"'Poppins',sans-serif",marginRight:4}}>🔴 Complex</span>;
+            })()}
+            {(()=>{
               const bundled = c._bundledWith;
               if(!bundled) return null;
               const nums = Array.isArray(bundled) ? bundled : [bundled];
@@ -5050,6 +5152,14 @@ function EditableCaseCard({ c, onUpdate, onRequestDelete, onLightbox, openId, se
                   <div className="field-row-edit"><label>Account # <span className="req">*</span></label><input className="inp" value={D.accountNum||""} onChange={e=>setD({accountNum:e.target.value})}/></div>
                   {!isSC&&<div className="field-row-edit"><label>Inbound #</label><input className="inp" value={D.inboundNum||""} onChange={e=>setD({inboundNum:e.target.value})}/></div>}
                   <div className="field-row-edit"><label>Amend Type</label><input className="inp" value={D.amendType||""} onChange={e=>setD({amendType:e.target.value})}/></div>
+                  <div className="field-row-edit">
+                    <label>Case Complexity</label>
+                    <select className="inp" value={D._caseComplexity||"minor"} onChange={e=>setD({_caseComplexity:e.target.value})} style={{cursor:"pointer"}}>
+                      <option value="minor">🟢 Minor</option>
+                      <option value="major">🟡 Major</option>
+                      <option value="complex">🔴 Complex</option>
+                    </select>
+                  </div>
                   <label className={cls("check-label",D.inProgress&&"checked")} style={{marginTop:4,width:"fit-content",fontSize:12}}><input type="checkbox" checked={!!D.inProgress} onChange={e=>setD({inProgress:e.target.checked})}/>In-Progress Salesforce</label>
                 </>
               ) : (
@@ -5058,6 +5168,7 @@ function EditableCaseCard({ c, onUpdate, onRequestDelete, onLightbox, openId, se
                   <div className="case-field-row"><div className="case-field-label">Account #</div><div className="case-field-val">{c.accountNum||"—"}</div></div>
                   {!isSC&&<div className="case-field-row"><div className="case-field-label">Inbound #</div><div className="case-field-val">{c.inboundNum||"—"}</div></div>}
                   <div className="case-field-row"><div className="case-field-label">Amend Type</div><div className="case-field-val">{c.amendType||"—"}</div></div>
+                  <div className="case-field-row"><div className="case-field-label">Complexity</div><div className="case-field-val">{c._caseComplexity==="major"?"🟡 Major":c._caseComplexity==="complex"?"🔴 Complex":"🟢 Minor"}</div></div>
                   <div className="case-field-row"><div className="case-field-label">In-Progress</div><div className="case-field-val">{c.inProgress?"✅ Yes":"—"}</div></div>
                 </>
               )}
@@ -6903,6 +7014,13 @@ function App() {
     if(!res.ok) throw new Error(saved.error||"Failed to Suspend Case");
     setDrafts(ds=>[...ds.filter(d=>d._mode!==mode),saved]);
   };
+  const updateDraft=async(id,updatedData)=>{
+    try{
+      const res=await fetch(`/api/drafts/${id}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({draftData:updatedData})});
+      if(!res.ok) return;
+      setDrafts(ds=>ds.map(d=>d._id===id?{...d,...updatedData}:d));
+    }catch(e){console.error("updateDraft error:",e);}
+  };
   const deleteDraft=async(id,mode,skipDeleteLog=false)=>{
     // Used only when completing/saving a suspended case (skipDeleteLog=true).
     // Direct user-triggered removal now goes through archiveDraft instead.
@@ -7247,7 +7365,7 @@ function App() {
           {!dataLoading&&page==="build"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="casebox" size={80} color="var(--muted)"/></div><div className="soon-title">Build</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&page==="prelive"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="prelive" size={80} color="var(--muted)"/></div><div className="soon-title">Pre-Live Amends</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&<div style={{display:page==="postlive"?"block":"none"}}>
-            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onFormActive={setFormActivePersist} onFormInFields={setFormInFields} onMinimise={()=>{setPage("postlive"); if(typeof window!=="undefined") localStorage.setItem("ch_page","postlive");}} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} onArchiveDraft={archiveDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} globalTimeIn={globalTimeIn} timedIn={timedIn} breakActive={!!breakTimer||openHourActive} onTimeIn={doTimeIn} onTimeOut={doTimeOut} onTimerReset={doTimerReset} sessionDbId={sessionDbId} sessionLog={sessionLog} addSessionLog={addSessionLog} setSessionLog={setSessionLog} closeWithOutcome={closeWithOutcome} closeSessionLog={closeSessionLog} clearSessionLog={clearSessionLog} onStartBreak={startBreak} onStartBreakFull={(label,mins)=>startBreak(label,mins,true)} resumeTick={resumeFormTick}/>
+            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onUpdateDraft={updateDraft} onFormActive={setFormActivePersist} onFormInFields={setFormInFields} onMinimise={()=>{setPage("postlive"); if(typeof window!=="undefined") localStorage.setItem("ch_page","postlive");}} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} onArchiveDraft={archiveDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} globalTimeIn={globalTimeIn} timedIn={timedIn} breakActive={!!breakTimer||openHourActive} onTimeIn={doTimeIn} onTimeOut={doTimeOut} onTimerReset={doTimerReset} sessionDbId={sessionDbId} sessionLog={sessionLog} addSessionLog={addSessionLog} setSessionLog={setSessionLog} closeWithOutcome={closeWithOutcome} closeSessionLog={closeSessionLog} clearSessionLog={clearSessionLog} onStartBreak={startBreak} onStartBreakFull={(label,mins)=>startBreak(label,mins,true)} resumeTick={resumeFormTick}/>
           </div>}
           {!dataLoading&&page==="history"&&<CaseHistory cases={allCases} onUpdate={updateCase} onDelete={deleteCase}/>}
           {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} updateAnnouncement={updateAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
@@ -7781,20 +7899,19 @@ function FileNameGeneratorPage() {
   const [form,setForm]             = useState(()=>{
     if(typeof window==="undefined") return EMPTY;
     try{
-      // Priority: active/minimised form > last saved case > persisted FNG form
-      const active   =localStorage.getItem("ch_minimised_form");
-      const lastSaved=localStorage.getItem("ch_last_saved_case");
+      // Always start from the persisted FNG form (user's own saved values)
       const saved    =localStorage.getItem("ch_fng_form");
       const base     =saved?{...EMPTY,...JSON.parse(saved)}:EMPTY;
-      if(active){
-        const fd=JSON.parse(active);
-        const bizFull=(fd.businessName||"")+(fd.businessSuffix?' '+fd.businessSuffix:'');
-        return {...base,bizFilename:fd.businessName||base.bizFilename||"",bizAlt:bizFull||base.bizAlt||"",accountNum:fd.accountNum||base.accountNum||""};
-      }
-      if(lastSaved){
-        const fd=JSON.parse(lastSaved);
-        const bizFull=(fd.businessName||"")+(fd.businessSuffix?' '+fd.businessSuffix:'');
-        return {...base,bizFilename:fd.businessName||base.bizFilename||"",bizAlt:bizFull||base.bizAlt||"",accountNum:fd.accountNum||base.accountNum||""};
+      // Only auto-fill from active/last-saved case if the FNG fields are still empty
+      if(!base.bizFilename&&!base.bizAlt&&!base.accountNum){
+        const active   =localStorage.getItem("ch_minimised_form");
+        const lastSaved=localStorage.getItem("ch_last_saved_case");
+        const src=active||lastSaved;
+        if(src){
+          const fd=JSON.parse(src);
+          const bizFull=(fd.businessName||"")+(fd.businessSuffix?' '+fd.businessSuffix:'');
+          return {...base,bizFilename:fd.businessName||"",bizAlt:bizFull||"",accountNum:fd.accountNum||""};
+        }
       }
       return base;
     }catch{ return EMPTY; }
@@ -7817,6 +7934,7 @@ function FileNameGeneratorPage() {
   },[form]);
 
   // Auto-fill from active form OR last saved case on mount + storage changes
+  // Only fills fields that are currently EMPTY — never overwrites user input
   useEffect(()=>{
     if(typeof window==="undefined") return;
     const sync=()=>{
@@ -7828,9 +7946,14 @@ function FileNameGeneratorPage() {
         const fd=JSON.parse(src);
         const biz=fd.businessName||"";
         const acc=fd.accountNum||"";
-        // Always overwrite with latest source so new case data replaces old
         const bizFull=(fd.businessName||"")+(fd.businessSuffix?' '+fd.businessSuffix:'');
-        setForm(f=>({...f,bizFilename:biz||f.bizFilename,bizAlt:bizFull||f.bizAlt,accountNum:acc||f.accountNum}));
+        // Only fill in fields that are currently empty — never overwrite user input
+        setForm(f=>({
+          ...f,
+          bizFilename: f.bizFilename||biz,
+          bizAlt:      f.bizAlt||(bizFull||biz),
+          accountNum:  f.accountNum||acc,
+        }));
       }catch{}
     };
     sync();
