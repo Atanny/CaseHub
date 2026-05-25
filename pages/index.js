@@ -1287,7 +1287,7 @@ body.light .sidebar-divider{background:rgba(180,90,40,.1);}
 /* Table header */
 .session-log-table-head {
   display: grid;
-  grid-template-columns: repeat(7, calc(100% / 7));
+  grid-template-columns: repeat(8, calc(100% / 8));
   background: rgba(1,118,211,.1);
   border-bottom: 2px solid rgba(1,118,211,.2);
   font-size: 12px;
@@ -1311,7 +1311,7 @@ body.light .sidebar-divider{background:rgba(180,90,40,.1);}
 /* Table body rows */
 .session-log-row {
   display: grid;
-  grid-template-columns: repeat(7, calc(100% / 7));
+  grid-template-columns: repeat(8, calc(100% / 8));
   border-bottom: 1px solid var(--border);
   font-size: 11px;
   align-items: stretch;
@@ -1365,7 +1365,7 @@ body.light .sidebar-divider{background:rgba(180,90,40,.1);}
 /* Total row */
 .session-log-total {
   display: grid;
-  grid-template-columns: repeat(7, calc(100% / 7));
+  grid-template-columns: repeat(8, calc(100% / 8));
   background: linear-gradient(135deg, rgba(1,118,211,.08), rgba(1,84,160,.05));
 }
 
@@ -2784,9 +2784,9 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
           <div className="field">
             <label>Case Complexity</label>
             <select className="inp" value={form._caseComplexity||"minor"} onChange={e=>setF({_caseComplexity:e.target.value})} style={{cursor:"pointer"}}>
-              <option value="minor">🟢 Minor</option>
-              <option value="major">🟡 Major</option>
-              <option value="complex">🔴 Complex</option>
+              <option value="minor">Minor</option>
+              <option value="major">Major</option>
+              <option value="complex">Complex</option>
             </select>
           </div>
           <div className="field"><label>Customer Name</label><input className="inp" placeholder="e.g. John Smith" value={form.customerName||""} onChange={e=>setF({customerName:e.target.value})}/></div>
@@ -3595,6 +3595,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
       const toSave={...formData, _mode: mode||formData._mode};
       setMinimisedFormData(toSave);
       if(typeof window!=="undefined") localStorage.setItem("ch_minimised_form",JSON.stringify(toSave));
+      if(typeof window!=="undefined") window.dispatchEvent(new Event("ch_case_saved"));
     }
     onFormActive&&onFormActive(true);
     onFormInFields&&onFormInFields(false);
@@ -3813,6 +3814,9 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
     // Persist key fields so File Name Generator auto-fills from latest saved case
     localStorage.setItem("ch_last_saved_case",JSON.stringify({businessName:f.businessName||"",businessSuffix:f.businessSuffix||"",accountNum:f.accountNum||""}));
     localStorage.removeItem("ch_minimised_form");
+    localStorage.removeItem("ch_fng_last_source"); // reset so next new case triggers fresh autofill
+    // Notify FNG on the same tab (storage event only fires across tabs)
+    window.dispatchEvent(new Event("ch_case_saved"));
   }
   if(!isEditingFromLog) onTimerReset&&onTimerReset();
   
@@ -4052,13 +4056,12 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
 
       {/* Bundle Modal */}
       {bundleModal&&(()=>{
-        // Collect case numbers from the CURRENT session log
-        const sessionCaseNums = new Set(
+        // Only show cases that are active in the CURRENT session log
+        const sessionCaseNums = [...new Set(
           (sessionLog||[]).filter(e=>e.caseNum&&e.caseNum.trim()).map(e=>e.caseNum.trim())
-        );
+        )];
 
-        // Build options from session log entries first
-        const sessionOptions = [...sessionCaseNums].map(cn=>{
+        const caseOptions = sessionCaseNums.map(cn=>{
           const saved = allSavedCases.find(c=>c.caseNum===cn);
           const draft = (dbDrafts||[]).find(d=>d.caseNum===cn);
           const src = saved ? "saved" : draft ? "suspended" : "session";
@@ -4074,39 +4077,6 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
             _fullData: saved||draft||null,
           };
         });
-
-        // Also include ALL saved cases not already in the session log
-        const savedOnlyOptions = (allSavedCases||[])
-          .filter(c=>c.caseNum&&!sessionCaseNums.has(c.caseNum.trim()))
-          .map(c=>({
-            caseNum: c.caseNum,
-            accountNum: c.accountNum||"",
-            amendType: c.amendType||"",
-            _mode: c._mode||"",
-            _bundledWith: c._bundledWith||null,
-            _caseComplexity: c._caseComplexity||"minor",
-            source: "saved",
-            _id: c._id||c.caseNum,
-            _fullData: c,
-          }));
-
-        // Also include suspended drafts not already accounted for
-        const draftOnlyOptions = (dbDrafts||[])
-          .filter(d=>d.caseNum&&!sessionCaseNums.has(d.caseNum.trim())&&!(allSavedCases||[]).find(c=>c.caseNum===d.caseNum))
-          .map(d=>({
-            caseNum: d.caseNum,
-            accountNum: d.accountNum||"",
-            amendType: d.amendType||"",
-            _mode: d._mode||"",
-            _bundledWith: d._bundledWith||null,
-            _caseComplexity: d._caseComplexity||"minor",
-            source: "suspended",
-            _id: d._id||d.caseNum,
-            _fullData: d,
-          }));
-
-        // Merge: session first (most recent), then other saved, then drafts
-        const caseOptions = [...sessionOptions, ...savedOnlyOptions, ...draftOnlyOptions];
 
         return (
         <div className="modal-bg">
@@ -4313,9 +4283,9 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
 
               {(()=>{
                 const cx=sel._caseComplexity||"minor";
-                if(cx==="major") return <span style={{fontSize:10,padding:"1px 7px",borderRadius:20,background:"rgba(245,158,11,.12)",border:"1px solid rgba(245,158,11,.3)",color:"#f59e0b",fontWeight:700}}>🟡 Major</span>;
-                if(cx==="complex") return <span style={{fontSize:10,padding:"1px 7px",borderRadius:20,background:"rgba(244,63,94,.12)",border:"1px solid rgba(244,63,94,.3)",color:"#f43f5e",fontWeight:700}}>🔴 Complex</span>;
-                return <span style={{fontSize:10,padding:"1px 7px",borderRadius:20,background:"rgba(16,185,129,.12)",border:"1px solid rgba(16,185,129,.3)",color:"#10b981",fontWeight:700}}>🟢 Minor</span>;
+                if(cx==="major") return <span style={{fontSize:10,padding:"1px 7px",borderRadius:20,background:"rgba(245,158,11,.12)",border:"1px solid rgba(245,158,11,.3)",color:"#f59e0b",fontWeight:700}}>Major</span>;
+                if(cx==="complex") return <span style={{fontSize:10,padding:"1px 7px",borderRadius:20,background:"rgba(244,63,94,.12)",border:"1px solid rgba(244,63,94,.3)",color:"#f43f5e",fontWeight:700}}>Complex</span>;
+                return <span style={{fontSize:10,padding:"1px 7px",borderRadius:20,background:"rgba(16,185,129,.12)",border:"1px solid rgba(16,185,129,.3)",color:"#10b981",fontWeight:700}}>Minor</span>;
               })()}
 
               <span
@@ -4578,7 +4548,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
     {hasDuplicateCases&&<div style={{padding:"10px 16px",background:"rgba(245,158,11,.1)",borderBottom:"1px solid rgba(245,158,11,.2)",fontSize:11,fontWeight:700,color:"var(--amber)",fontFamily:"'Poppins',sans-serif"}}>⚠ Duplicate case numbers — only the latest entry per case can be edited.</div>}
     
     <div className="session-log-table-head">
-      <span>Case Number</span><span> Status</span><span>Started</span><span>Ended</span><span>Duration</span><span>Outcome</span><span>Actions</span>
+      <span>Case Number</span><span>Status</span><span>Started</span><span>Ended</span><span>Duration</span><span>Complexity</span><span>Outcome</span><span>Actions</span>
     </div>
     
     {displayLog.map((entry,i)=>{
@@ -4728,8 +4698,8 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
               const logCase = caseNum ? ((allSavedCases||[]).find(c=>c.caseNum===caseNum)||(dbDrafts||[]).find(d=>d.caseNum===caseNum)) : null;
               const cx = logCase?._caseComplexity;
               if(!cx||cx==="minor") return null;
-              if(cx==="major") return <span style={{display:"inline-flex",alignItems:"center",fontSize:9,fontWeight:800,color:"#f59e0b",background:"rgba(245,158,11,.14)",border:"1px solid rgba(245,158,11,.35)",padding:"2px 7px",borderRadius:20,whiteSpace:"nowrap",fontFamily:"'Poppins',sans-serif",lineHeight:1.4}}>🟡 Major</span>;
-              return <span style={{display:"inline-flex",alignItems:"center",fontSize:9,fontWeight:800,color:"#f43f5e",background:"rgba(244,63,94,.14)",border:"1px solid rgba(244,63,94,.35)",padding:"2px 7px",borderRadius:20,whiteSpace:"nowrap",fontFamily:"'Poppins',sans-serif",lineHeight:1.4}}>🔴 Complex</span>;
+              if(cx==="major") return <span style={{display:"inline-flex",alignItems:"center",fontSize:9,fontWeight:800,color:"#f59e0b",background:"rgba(245,158,11,.14)",border:"1px solid rgba(245,158,11,.35)",padding:"2px 7px",borderRadius:20,whiteSpace:"nowrap",fontFamily:"'Poppins',sans-serif",lineHeight:1.4}}>Major</span>;
+              return <span style={{display:"inline-flex",alignItems:"center",fontSize:9,fontWeight:800,color:"#f43f5e",background:"rgba(244,63,94,.14)",border:"1px solid rgba(244,63,94,.35)",padding:"2px 7px",borderRadius:20,whiteSpace:"nowrap",fontFamily:"'Poppins',sans-serif",lineHeight:1.4}}>Complex</span>;
             })()}
           </div>
           
@@ -4744,6 +4714,15 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
           </span>
           <span style={{color:isOngoing?"var(--accent)":"var(--muted)",fontSize:11,fontFamily:"monospace",fontWeight:isOngoing?700:400}}>
             {isOngoing?"-":durStr}
+          </span>
+          <span style={{display:"flex",alignItems:"center",justifyContent:"center"}}>
+            {caseNum&&(()=>{
+              const logCase = (allSavedCases||[]).find(c=>c.caseNum===caseNum)||(dbDrafts||[]).find(d=>d.caseNum===caseNum);
+              const cx = logCase?._caseComplexity||"minor";
+              if(cx==="major") return <span style={{fontSize:9,fontWeight:800,color:"#f59e0b",background:"rgba(245,158,11,.14)",border:"1px solid rgba(245,158,11,.35)",padding:"2px 7px",borderRadius:20,fontFamily:"'Poppins',sans-serif"}}>Major</span>;
+              if(cx==="complex") return <span style={{fontSize:9,fontWeight:800,color:"#f43f5e",background:"rgba(244,63,94,.14)",border:"1px solid rgba(244,63,94,.35)",padding:"2px 7px",borderRadius:20,fontFamily:"'Poppins',sans-serif"}}>Complex</span>;
+              return <span style={{fontSize:9,fontWeight:800,color:"#10b981",background:"rgba(16,185,129,.14)",border:"1px solid rgba(16,185,129,.35)",padding:"2px 7px",borderRadius:20,fontFamily:"'Poppins',sans-serif"}}>Minor</span>;
+            })()}
           </span>
           <span style={{color:outcomeColor,fontSize:10,fontWeight:700,fontFamily:"'Poppins',sans-serif",letterSpacing:".2px"}}>
             {outcome||"-"}
@@ -5100,9 +5079,9 @@ function EditableCaseCard({ c, onUpdate, onRequestDelete, onLightbox, openId, se
             <span className={cls("act-badge",isSC?"site":"email")} style={{fontSize:10,padding:"2px 8px",marginRight:6}}>{isSC?"Site Comment":"Inbound Email"}</span>
             {(()=>{
               const cx=c._caseComplexity;
-              if(!cx||cx==="minor") return <span style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:"rgba(16,185,129,.12)",border:"1px solid rgba(16,185,129,.3)",color:"#10b981",fontWeight:700,fontFamily:"'Poppins',sans-serif",marginRight:4}}>🟢 Minor</span>;
-              if(cx==="major") return <span style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:"rgba(245,158,11,.12)",border:"1px solid rgba(245,158,11,.3)",color:"#f59e0b",fontWeight:700,fontFamily:"'Poppins',sans-serif",marginRight:4}}>🟡 Major</span>;
-              return <span style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:"rgba(244,63,94,.12)",border:"1px solid rgba(244,63,94,.3)",color:"#f43f5e",fontWeight:700,fontFamily:"'Poppins',sans-serif",marginRight:4}}>🔴 Complex</span>;
+              if(!cx||cx==="minor") return <span style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:"rgba(16,185,129,.12)",border:"1px solid rgba(16,185,129,.3)",color:"#10b981",fontWeight:700,fontFamily:"'Poppins',sans-serif",marginRight:4}}>Minor</span>;
+              if(cx==="major") return <span style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:"rgba(245,158,11,.12)",border:"1px solid rgba(245,158,11,.3)",color:"#f59e0b",fontWeight:700,fontFamily:"'Poppins',sans-serif",marginRight:4}}>Major</span>;
+              return <span style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:"rgba(244,63,94,.12)",border:"1px solid rgba(244,63,94,.3)",color:"#f43f5e",fontWeight:700,fontFamily:"'Poppins',sans-serif",marginRight:4}}>Complex</span>;
             })()}
             {(()=>{
               const bundled = c._bundledWith;
@@ -5155,9 +5134,9 @@ function EditableCaseCard({ c, onUpdate, onRequestDelete, onLightbox, openId, se
                   <div className="field-row-edit">
                     <label>Case Complexity</label>
                     <select className="inp" value={D._caseComplexity||"minor"} onChange={e=>setD({_caseComplexity:e.target.value})} style={{cursor:"pointer"}}>
-                      <option value="minor">🟢 Minor</option>
-                      <option value="major">🟡 Major</option>
-                      <option value="complex">🔴 Complex</option>
+                      <option value="minor">Minor</option>
+                      <option value="major">Major</option>
+                      <option value="complex">Complex</option>
                     </select>
                   </div>
                   <label className={cls("check-label",D.inProgress&&"checked")} style={{marginTop:4,width:"fit-content",fontSize:12}}><input type="checkbox" checked={!!D.inProgress} onChange={e=>setD({inProgress:e.target.checked})}/>In-Progress Salesforce</label>
@@ -5168,7 +5147,7 @@ function EditableCaseCard({ c, onUpdate, onRequestDelete, onLightbox, openId, se
                   <div className="case-field-row"><div className="case-field-label">Account #</div><div className="case-field-val">{c.accountNum||"—"}</div></div>
                   {!isSC&&<div className="case-field-row"><div className="case-field-label">Inbound #</div><div className="case-field-val">{c.inboundNum||"—"}</div></div>}
                   <div className="case-field-row"><div className="case-field-label">Amend Type</div><div className="case-field-val">{c.amendType||"—"}</div></div>
-                  <div className="case-field-row"><div className="case-field-label">Complexity</div><div className="case-field-val">{c._caseComplexity==="major"?"🟡 Major":c._caseComplexity==="complex"?"🔴 Complex":"🟢 Minor"}</div></div>
+                  <div className="case-field-row"><div className="case-field-label">Complexity</div><div className="case-field-val">{c._caseComplexity==="major"?"Major":c._caseComplexity==="complex"?"Complex":"Minor"}</div></div>
                   <div className="case-field-row"><div className="case-field-label">In-Progress</div><div className="case-field-val">{c.inProgress?"✅ Yes":"—"}</div></div>
                 </>
               )}
@@ -7886,8 +7865,8 @@ function FileNameGeneratorPage() {
     asst:'Asst_{nob}_logo', introWhy:'{nob}-intro-why-choose',
     recentReviews:'{nob}-recent-reviews', videoSplash:'{nob}-video',
     videoSplashPage:'{nob}-video-{page}-{nn}', waveZip:'{nob}-wave',
-    waveAssist:'{nob}-wave-assistant', heroCust:'{nob}-hero-{nn}',
-    heroBi:'{nob}-hero-{nn}', heroSlider:'{nob}-hero-slider-{nn}',
+    waveAssist:'{nob}-wave-assistant', heroCust:'{nob}-hero-{page}',
+    heroBi:'{nob}-hero-{page}', heroSlider:'{nob}-hero-slider-{nn}',
     galleryNon:'{nob}-gallery-{nn}', gallerySpec:'{nob}-{page}-gallery-{nn}',
     before:'{nob}-before-{nn}', after:'{nob}-after-{nn}',
     badge:'{nob}-badge-{badge}', team:'{nob}-{member}',
@@ -7902,15 +7881,28 @@ function FileNameGeneratorPage() {
       // Always start from the persisted FNG form (user's own saved values)
       const saved    =localStorage.getItem("ch_fng_form");
       const base     =saved?{...EMPTY,...JSON.parse(saved)}:EMPTY;
-      // Only auto-fill from active/last-saved case if the FNG fields are still empty
-      if(!base.bizFilename&&!base.bizAlt&&!base.accountNum){
-        const active   =localStorage.getItem("ch_minimised_form");
-        const lastSaved=localStorage.getItem("ch_last_saved_case");
-        const src=active||lastSaved;
-        if(src){
-          const fd=JSON.parse(src);
-          const bizFull=(fd.businessName||"")+(fd.businessSuffix?' '+fd.businessSuffix:'');
-          return {...base,bizFilename:fd.businessName||"",bizAlt:bizFull||"",accountNum:fd.accountNum||""};
+      // Check the active/last-saved case
+      const active   =localStorage.getItem("ch_minimised_form");
+      const lastSaved=localStorage.getItem("ch_last_saved_case");
+      const src=active||lastSaved;
+      if(src){
+        const fd=JSON.parse(src);
+        const biz=fd.businessName||"";
+        const acc=fd.accountNum||"";
+        const bizFull=(fd.businessName||"")+(fd.businessSuffix?' '+fd.businessSuffix:'');
+        // Check if active case differs from what was last autofilled
+        const lastRaw=localStorage.getItem("ch_fng_last_source");
+        const last=lastRaw?JSON.parse(lastRaw):null;
+        const sourceChanged=!last||last.businessName!==biz||last.accountNum!==acc;
+        if(sourceChanged){
+          // Active case changed — update fields that the user hasn't manually changed
+          const prevFilled=last||{bizFilename:"",bizAlt:"",accountNum:""};
+          return {
+            ...base,
+            bizFilename: base.bizFilename!==prevFilled.bizFilename ? base.bizFilename : biz,
+            bizAlt:      base.bizAlt!==prevFilled.bizAlt           ? base.bizAlt      : (bizFull||biz),
+            accountNum:  base.accountNum!==prevFilled.accountNum   ? base.accountNum  : acc,
+          };
         }
       }
       return base;
@@ -7922,7 +7914,21 @@ function FileNameGeneratorPage() {
   const [editingFormat,setEditingFormat] = useState(false);
   const [format,setFormat]         = useState(()=>{
     if(typeof window==="undefined") return DEFAULT_FORMAT;
-    try{ const v=localStorage.getItem("ch_fng_format"); return v?{...DEFAULT_FORMAT,...JSON.parse(v)}:DEFAULT_FORMAT; }catch{ return DEFAULT_FORMAT; }
+    try{
+      const v=localStorage.getItem("ch_fng_format");
+      const saved=v?{...DEFAULT_FORMAT,...JSON.parse(v)}:DEFAULT_FORMAT;
+      // Migrate old hero formats that used {nn} to new {page} format
+      let migrated=false;
+      const migrateHero=(key,defaultVal)=>{
+        if(saved[key]&&saved[key].includes('{nn}')&&!saved[key].includes('{page}')){
+          saved[key]=defaultVal; migrated=true;
+        }
+      };
+      migrateHero('heroCust',DEFAULT_FORMAT.heroCust);
+      migrateHero('heroBi',DEFAULT_FORMAT.heroBi);
+      if(migrated) localStorage.setItem("ch_fng_format",JSON.stringify(saved));
+      return saved;
+    }catch{ return DEFAULT_FORMAT; }
   });
   const [draftFmt,setDraftFmt]     = useState(DEFAULT_FORMAT);
   const [toast,showToast]          = useToast();
@@ -7933,8 +7939,9 @@ function FileNameGeneratorPage() {
     localStorage.setItem("ch_fng_form",JSON.stringify(form));
   },[form]);
 
-  // Auto-fill from active form OR last saved case on mount + storage changes
-  // Only fills fields that are currently EMPTY — never overwrites user input
+  // Auto-fill from active form OR last saved case.
+  // Always updates when the active case changes (different accountNum or businessName).
+  // Only leaves fields alone if the user manually edited them beyond the autofill value.
   useEffect(()=>{
     if(typeof window==="undefined") return;
     const sync=()=>{
@@ -7947,19 +7954,51 @@ function FileNameGeneratorPage() {
         const biz=fd.businessName||"";
         const acc=fd.accountNum||"";
         const bizFull=(fd.businessName||"")+(fd.businessSuffix?' '+fd.businessSuffix:'');
-        // Only fill in fields that are currently empty — never overwrite user input
-        setForm(f=>({
-          ...f,
-          bizFilename: f.bizFilename||biz,
-          bizAlt:      f.bizAlt||(bizFull||biz),
-          accountNum:  f.accountNum||acc,
-        }));
+        const newBizFn = biz;
+        const newBizAlt = bizFull||biz;
+        const newAcc = acc;
+
+        // Track what we last autofilled so we know if the active case has changed
+        const lastRaw = localStorage.getItem("ch_fng_last_source");
+        const last = lastRaw ? JSON.parse(lastRaw) : null;
+        const sourceChanged = !last ||
+          last.businessName !== biz ||
+          last.accountNum   !== acc;
+
+        setForm(f=>{
+          // If the source case changed, update fields — but only if the user hasn't
+          // typed something *different* from what we last autofilled.
+          // (If they cleared or changed it manually, leave it alone.)
+          const prevFilled = last || {bizFilename:"",bizAlt:"",accountNum:""};
+          const bizFnChanged  = f.bizFilename !== prevFilled.bizFilename;
+          const bizAltChanged = f.bizAlt      !== prevFilled.bizAlt;
+          const accChanged    = f.accountNum  !== prevFilled.accountNum;
+          return {
+            ...f,
+            bizFilename: (sourceChanged && !bizFnChanged)  ? newBizFn  : f.bizFilename||newBizFn,
+            bizAlt:      (sourceChanged && !bizAltChanged) ? newBizAlt : f.bizAlt||newBizAlt,
+            accountNum:  (sourceChanged && !accChanged)    ? newAcc    : f.accountNum||newAcc,
+          };
+        });
+
+        if(sourceChanged){
+          localStorage.setItem("ch_fng_last_source", JSON.stringify({
+            businessName: biz,
+            accountNum:   acc,
+            bizFilename:  newBizFn,
+            bizAlt:       newBizAlt,
+          }));
+        }
       }catch{}
     };
     sync();
-    // Also react when another tab/save updates storage
-    window.addEventListener("storage",sync);
-    return ()=>window.removeEventListener("storage",sync);
+    // React when another tab saves (storage) OR same-tab saves (custom event)
+    window.addEventListener("storage", sync);
+    window.addEventListener("ch_case_saved", sync);
+    return ()=>{
+      window.removeEventListener("storage", sync);
+      window.removeEventListener("ch_case_saved", sync);
+    };
   },[]);
 
   const nob = san(form.bizFilename);
@@ -8036,8 +8075,9 @@ function FileNameGeneratorPage() {
 
   const N=40;
   const logoVals=[applyFmt(format.logo),applyFmt(format.favicon),applyFmt(format.blogLogo),applyFmt(format.asst),applyFmt(format.introWhy),applyFmt(format.recentReviews),applyFmt(format.videoSplash),applyFmt(format.waveZip),applyFmt(format.waveAssist)];
-  const heroCustVals=Array.from({length:N},(_,i)=>applyFmt(format.heroCust,{nn:nn(i)}));
-  const heroBiVals=Array.from({length:N},(_,i)=>applyFmt(format.heroBi,{nn:nn(i)}));
+  const heroPages=form.pages.filter(Boolean);
+  const heroCustVals=heroPages.length ? heroPages.map(p=>applyFmt(format.heroCust,{page:san(p)})) : [applyFmt(format.heroCust,{page:'home'})];
+  const heroBiVals=heroPages.length ? heroPages.map(p=>applyFmt(format.heroBi,{page:san(p)})) : [applyFmt(format.heroBi,{page:'home'})];
   const galNonVals=Array.from({length:N},(_,i)=>applyFmt(format.galleryNon,{nn:nn(i)}));
   const galSpecVals=form.pages.filter(Boolean).flatMap(p=>Array.from({length:20},(_,i)=>applyFmt(format.gallerySpec,{page:san(p),nn:nn(i)})));
   const baVals=Array.from({length:N},(_,i)=>[applyFmt(format.before,{nn:nn(i)}),applyFmt(format.after,{nn:nn(i)})]).flat();
@@ -8144,8 +8184,24 @@ function FileNameGeneratorPage() {
           <div style={{marginTop:12}}><button onClick={()=>copyAll(logoVals,'logo-all')} className="btn btn-ghost" style={{width:'100%',justifyContent:'center',fontSize:12}}>{copiedAll==='logo-all'?'✓ Copied All':'Copy All Logo & Misc'}</button></div>
         </>)}
         {tab==='hero'&&(<>
-          <FngSection title="Hero — AI Artwork / Customer Supplied" vals={heroCustVals} sk="hero-cust">{heroCustVals.map((v,i)=><CopyCell key={i} val={v} id={`hc-${i}`}/>)}</FngSection>
-          <FngSection title="Hero — Business Images" vals={heroBiVals} sk="hero-bi">{heroBiVals.map((v,i)=><CopyCell key={i} val={v} id={`hbi-${i}`}/>)}</FngSection>
+          <FngSection title="Hero — AI Artwork / Customer Supplied" vals={heroCustVals} sk="hero-cust">
+            {nob&&heroPages.length ? heroPages.map((p,pi)=>(
+              <div key={pi} style={{marginBottom:8}}>
+                <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:4}}>{p}</div>
+                <CopyCell val={applyFmt(format.heroCust,{page:san(p)})} id={`hc-${pi}`}/>
+              </div>
+            )) : <CopyCell val={heroCustVals[0]} id="hc-0"/>}
+            {!nob&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter business name and page names above.</div>}
+          </FngSection>
+          <FngSection title="Hero — Business Images" vals={heroBiVals} sk="hero-bi">
+            {nob&&heroPages.length ? heroPages.map((p,pi)=>(
+              <div key={pi} style={{marginBottom:8}}>
+                <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:4}}>{p}</div>
+                <CopyCell val={applyFmt(format.heroBi,{page:san(p)})} id={`hbi-${pi}`}/>
+              </div>
+            )) : <CopyCell val={heroBiVals[0]} id="hbi-0"/>}
+            {!nob&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter business name and page names above.</div>}
+          </FngSection>
         </>)}
         {tab==='gallery'&&(<>
           <FngSection title="Gallery (Nondescript)" vals={galNonVals} sk="gal-non">{galNonVals.map((v,i)=><CopyCell key={i} val={v} id={`gn-${i}`}/>)}</FngSection>
