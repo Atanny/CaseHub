@@ -2528,7 +2528,7 @@ function TocPanel({ openStep, setOpenStep, isSC, page, doneMap={}, specialReques
     </div>
   );
 }
-function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, onAutoSaveDraft, onStartBreak, draftData, user, onTimerEnd, specialRequestors, timerLimitSecs, globalTimeIn, isEditMode=false, isMinimisedResume=false, caseStartTime=null, externalFormRef=null, isResumingDraft=false, originalOutcome="", originalTotalSecs=0, containerStyle={}, onTimerTick=null }) {
+function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, onAutoSaveDraft, onStartBreak, draftData, user, onTimerEnd, specialRequestors, timerLimitSecs, globalTimeIn, isEditMode=false, isMinimisedResume=false, caseStartTime=null, externalFormRef=null, isResumingDraft=false, originalOutcome="", originalTotalSecs=0, containerStyle={}, onTimerTick=null, prolongedActive=false, onProlongedDismiss=null }) {
   const isSC = mode==="siteComment";
   const entryLabel = isSC?"Site Comment":"Assumption";
   const rawName = user?.name || "User";
@@ -2587,6 +2587,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
     if(!isEditMode && typeof window!=="undefined"){
       const toSave={...form,_mode:mode,_startTime:startTimeRef.current,images:(form.images||[]).filter(i=>i._inDB),backupImages:(form.backupImages||[]).filter(i=>i._inDB)};
       localStorage.setItem("ch_minimised_form",JSON.stringify(toSave));
+      window.dispatchEvent(new Event("ch_case_saved"));
     }
   },[form]);
 
@@ -2693,8 +2694,8 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
   // For inbound: exclude closeSiteComment (SC-only) and check closeInboundCase instead.
   // For siteComment: exclude closeInboundCase and check closeSiteComment instead.
   const relevantChecklistKeys = isSC
-    ? ["backup","caseComment","combinedTracker","qaChecklist","closeSiteComment","completeJob","emailSales","trackerChecklist","completeStatus"]
-    : ["backup","caseComment","combinedTracker","qaChecklist","completeJob","closeInboundCase","emailSales","trackerChecklist","completeStatus"];
+    ? ["backup","caseComment",...(prolongedActive?[]:["combinedTracker"]),"qaChecklist","closeSiteComment","completeJob","emailSales","trackerChecklist","completeStatus"]
+    : ["backup","caseComment",...(prolongedActive?[]:["combinedTracker"]),"qaChecklist","completeJob","closeInboundCase","emailSales","trackerChecklist","completeStatus"];
   const step7Done = relevantChecklistKeys.every(k => !!form.checklist[k]);
 
   const addEntry    = ()=>setF({entries:[...form.entries,emptyEntry()]});
@@ -2951,12 +2952,20 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
             {(isSC
               ? [["closeSiteComment","Close Site Comment?"],["backup","Before/After Backup?"],["caseComment","Case Comment"],["combinedTracker","Combined Tracker?"],["qaChecklist","QA Checklist?"],["completeJob","Complete Job?"],["emailSales","Email Sales?"],["trackerChecklist","Complete Status Tracker?"],["completeStatus","Tracker Checklist?"]]
               : [["backup","Before/After Backup?"],["caseComment","Case Comment"],["combinedTracker","Combined Tracker?"],["qaChecklist","QA Checklist?"],["completeJob","Complete Job?"],["closeInboundCase","Close Inbound Case?"],["emailSales","Email Sales?"],["trackerChecklist","Complete Status Tracker?"],["completeStatus","Tracker Checklist?"]]
-            ).map(([k,l])=>(
+            ).map(([k,l])=>{
+              const isProlongedTracker = k==="combinedTracker" && prolongedActive;
+              return (
               <div key={k}>
+                {isProlongedTracker ? (
+                  <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:30,border:"1px dashed rgba(245,158,11,.4)",background:"rgba(245,158,11,.06)",opacity:.7}}>
+                    <span style={{fontSize:13}}>⏳</span>
+                    <span style={{fontSize:12,color:"#f59e0b",fontFamily:"'Poppins',sans-serif",fontWeight:600}}>Combined Tracker — due after prolonged timer</span>
+                  </div>
+                ) : (
                 <label className={cls("check-label",form.checklist[k]&&"checked")} style={{width:"fit-content"}}><input type="checkbox" checked={!!form.checklist[k]} onChange={e=>{
                   const newChecklist={...form.checklist,[k]:e.target.checked};
                   if(phase2StartRef.current===null){
-                    const allThree=newChecklist.backup&&newChecklist.caseComment&&newChecklist.combinedTracker;
+                    const allThree=newChecklist.backup&&newChecklist.caseComment&&(prolongedActive||newChecklist.combinedTracker);
                     if(allThree){
                       const t=Date.now();
                       phase2StartRef.current=t;
@@ -2968,9 +2977,10 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
                   }
                   setF({checklist:newChecklist});
                 }}/>{l}</label>
-
+                )}
               </div>
-            ))}
+              );
+            })}
           </div>
           <div className="field" style={{marginTop:14,marginBottom:0}}>
             <label style={{fontSize:10,fontWeight:700,color:"var(--accent)",marginBottom:4,display:"block",textTransform:"uppercase",letterSpacing:".7px"}}>🔗 Tracker Link</label>
@@ -3471,7 +3481,36 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
   const [activeDraftId,setActiveDraftId]=useState(null); // tracks which specific draft to resume
   const [toast,showToast]=useToast();
   const [bundleModal,setBundleModal]=useState(false); // bundle linking modal
-  const [bundleForm,setBundleForm]=useState({type:"site",caseNum:""});
+  const [prolongedModal,setProlongedModal]=useState(false);
+  const [prolongedMins,setProlongedMins]=useState(30);
+  const [prolongedMode,setProlongedMode]=useState(false);
+  const [prolongedQueue,setProlongedQueue]=useState([]);
+  const [prolongedCurrent,setProlongedCurrent]=useState(null);
+  const [,setProlongedTick]=useState(0);
+  useEffect(()=>{
+    if(!prolongedCurrent) return;
+    const iv=setInterval(()=>setProlongedTick(t=>t+1),1000);
+    return ()=>clearInterval(iv);
+  },[prolongedCurrent]);
+  const prolongedActive=!!prolongedCurrent||prolongedQueue.length>0;
+  const enqueueProlongedTimer=(caseNum,caseType,mins)=>{
+    const entry={caseNum,caseType,mins};
+    setProlongedCurrent(cur=>{
+      if(!cur) return {...entry,deadline:Date.now()+(mins*60000),index:0,total:1};
+      // Already running — add to queue
+      setProlongedQueue(q=>[...q,entry]);
+      return cur;
+    });
+  };
+  const dismissProlongedCurrent=()=>{
+    setProlongedQueue(prev=>{
+      if(prev.length===0){setProlongedCurrent(null);return [];}
+      const [next,...rest]=prev;
+      setProlongedCurrent({...next,deadline:Date.now()+(next.mins*60000),index:0,total:1});
+      return rest;
+    });
+  };
+    const [bundleForm,setBundleForm]=useState({type:"site",caseNum:""});
   // Tracks the case number of the existing case chosen in the bundle modal (a DIFFERENT case number)
   const [activeBundleCaseNum,setActiveBundleCaseNum]=useState(()=>{
     if(typeof window==="undefined") return "";
@@ -3561,6 +3600,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
     }
   };
   const exitMode=()=>{
+    setProlongedMode(false);
     setMode(null);
     setUseDraft(false);
     setActiveDraftId(null);
@@ -3751,7 +3791,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
           </div>
           <TimerBar {...headerTimerState} fmtElapsed={fmtElapsed}/>
         </div>
-        <PostLiveForm key={`${mode}-${activeDraftId||"new"}-${isEditingFromLog?"edit":"new"}`} mode={mode} draftData={currentDraft} user={user} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={alarmMins*60} isEditMode={isEditingFromLog} isMinimisedResume={isResumingMinimised} caseStartTime={caseStartTimeRef.current} externalFormRef={sharedFormRef} isResumingDraft={useDraft} onTimerTick={t=>setHeaderTimerState(t)}
+        <PostLiveForm key={`${mode}-${activeDraftId||"new"}-${isEditingFromLog?"edit":"new"}`} mode={mode} draftData={currentDraft} user={user} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={alarmMins*60} isEditMode={isEditingFromLog} isMinimisedResume={isResumingMinimised} caseStartTime={caseStartTimeRef.current} externalFormRef={sharedFormRef} isResumingDraft={useDraft} onTimerTick={t=>setHeaderTimerState(t)} prolongedActive={prolongedActive} onProlongedDismiss={()=>{setProlongedActive(false);setProlongedDeadline(null);}}
           originalOutcome={isEditingFromLog?(editingCase.savedCase._saveOutcome||""):useDraft?"Suspended":""}
           originalTotalSecs={(()=>{
             const targetCase = isEditingFromLog ? editingCase.savedCase : currentDraft;
@@ -3849,6 +3889,11 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
   });
    idbClearImages("backup").catch(()=>{});
     idbClearImages("main").catch(()=>{});
+  // If this was a prolonged case, enqueue the tracker reminder timer
+  if(prolongedMode){
+    setProlongedMode(false);
+    enqueueProlongedTimer(f.caseNum||"", mode, prolongedMins);
+  }
   exitMode();
 }}
           onSaveDraftDirect={async(fd)=>{
@@ -4028,7 +4073,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
             <button className="btn btn-primary" style={{background:"var(--amber)",borderColor:"var(--amber)"}} onClick={()=>{onArchiveDraft&&onArchiveDraft(deleteDraftConfirm.id,deleteDraftConfirm.mode);setDeleteDraftConfirm(null);}}>📦 Move to Archive</button>
           </div>
         </div></div>)}
-        <button className="pl-type-btn" disabled={amendTypesDisabled} onClick={()=>enterMode("siteComment")} style={{opacity:amendTypesDisabled?.4:1,flex:1,minWidth:220}}>
+        <button className="pl-type-btn" disabled={amendTypesDisabled||prolongedActive} onClick={()=>enterMode("siteComment")} style={{opacity:(amendTypesDisabled||prolongedActive)?.4:1,flex:1,minWidth:220}}>
           <div className="pl-type-icon"><Icon name="sitecomment" size={26} color="var(--accent)"/></div>
           <div style={{flex:1}}>
             <div className="pl-type-title">Site Comment</div>
@@ -4036,7 +4081,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
           </div>
           <Icon name="back" size={14} color="var(--muted)" style={{transform:"rotate(180deg)",opacity:.5}}/>
         </button>
-        <button className="pl-type-btn" disabled={amendTypesDisabled} onClick={()=>enterMode("inbound")} style={{opacity:amendTypesDisabled?.4:1,flex:1,minWidth:220}}>
+        <button className="pl-type-btn" disabled={amendTypesDisabled||prolongedActive} onClick={()=>enterMode("inbound")} style={{opacity:(amendTypesDisabled||prolongedActive)?.4:1,flex:1,minWidth:220}}>
           <div className="pl-type-icon" style={{background:"rgba(124,58,237,.12)",borderColor:"rgba(124,58,237,.25)"}}><Icon name="inbound" size={26} color="#7c3aed"/></div>
           <div style={{flex:1}}>
             <div className="pl-type-title">Inbound Email</div>
@@ -4044,7 +4089,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
           </div>
           <Icon name="back" size={14} color="var(--muted)" style={{transform:"rotate(180deg)",opacity:.5}}/>
         </button>
-        <button className="pl-type-btn" disabled={amendTypesDisabled} onClick={()=>{setBundleForm({type:"site",caseNum:""});setBundleModal(true);}} style={{opacity:amendTypesDisabled?.4:1,flex:1,minWidth:220,borderColor:"rgba(16,185,129,.3)"}}>
+        <button className="pl-type-btn" disabled={amendTypesDisabled||prolongedActive} onClick={()=>{setBundleForm({type:"site",caseNum:""});setBundleModal(true);}} style={{opacity:(amendTypesDisabled||prolongedActive)?.4:1,flex:1,minWidth:220,borderColor:"rgba(16,185,129,.3)"}}>
           <div className="pl-type-icon" style={{background:"rgba(16,185,129,.12)",borderColor:"rgba(16,185,129,.25)"}}><span style={{fontSize:22}}>🔗</span></div>
           <div style={{flex:1}}>
             <div className="pl-type-title">Bundle</div>
@@ -4052,7 +4097,88 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
           </div>
           <Icon name="back" size={14} color="var(--muted)" style={{transform:"rotate(180deg)",opacity:.5}}/>
         </button>
+        <button className="pl-type-btn" disabled={amendTypesDisabled} onClick={()=>setProlongedModal(true)} style={{opacity:amendTypesDisabled?.4:1,flex:1,minWidth:220,borderColor:"rgba(245,158,11,.3)"}}>
+          <div className="pl-type-icon" style={{background:"rgba(245,158,11,.1)",borderColor:"rgba(245,158,11,.25)"}}><span style={{fontSize:22}}>⏳</span></div>
+          <div style={{flex:1}}>
+            <div className="pl-type-title" style={{color:"#f59e0b"}}>Spend a Prolonged</div>
+            <div className="pl-type-sub">Tracker fills later</div>
+          </div>
+          <Icon name="back" size={14} color="var(--muted)" style={{transform:"rotate(180deg)",opacity:.5}}/>
+        </button>
       </div>
+      {/* Prolonged active indicator — shown when a prolonged timer is running */}
+      {prolongedCurrent&&(()=>{
+        const remaining=Math.max(0,prolongedCurrent.deadline-Date.now());
+        const remSecs=Math.ceil(remaining/1000);
+        const remMins=Math.floor(remSecs/60);
+        const remSecsPart=String(remSecs%60).padStart(2,'0');
+        const overdue=remaining===0;
+        const queueLeft=prolongedQueue.length;
+        const typeTag=prolongedCurrent.caseType==="inbound"
+          ?<span style={{fontSize:9,padding:"1px 7px",borderRadius:10,background:"rgba(124,58,237,.12)",border:"1px solid rgba(124,58,237,.3)",color:"#7c3aed",fontWeight:700,marginLeft:5}}>Inbound</span>
+          :<span style={{fontSize:9,padding:"1px 7px",borderRadius:10,background:"rgba(1,118,211,.1)",border:"1px solid rgba(1,118,211,.25)",color:"var(--accent)",fontWeight:700,marginLeft:5}}>Site</span>;
+        return (
+          <div style={{marginBottom:12,background:overdue?"rgba(244,63,94,.08)":"rgba(245,158,11,.06)",border:overdue?"2px solid rgba(244,63,94,.5)":"1px solid rgba(245,158,11,.35)",borderRadius:10,overflow:"hidden"}}>
+            <div style={{height:3,background:"var(--border)"}}>
+              <div style={{height:"100%",width:overdue?"100%":`${Math.max(0,Math.round((1-remaining/(prolongedCurrent.mins*60000))*100))}%`,background:overdue?"#f43f5e":"#f59e0b",transition:"width 1s linear"}}/>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",fontSize:12,fontFamily:"'Poppins',sans-serif"}}>
+              <span style={{fontSize:18}}>{overdue?"🚨":"⏳"}</span>
+              <span style={{flex:1,color:"var(--text)",lineHeight:1.6}}>
+                {overdue
+                  ? <div><strong style={{color:"#f43f5e",fontSize:12}}>Fill combined tracker for #{prolongedCurrent.caseNum}</strong>{typeTag}{queueLeft>0&&<div style={{color:"var(--muted)",fontSize:11,marginTop:1}}>{queueLeft} more case{queueLeft!==1?"s":""} waiting after this</div>}</div>
+                  : <div>
+                      <strong style={{color:"#f59e0b"}}>⏳ Prolonged active</strong>{" — "}#{prolongedCurrent.caseNum}{typeTag}
+                      <span style={{marginLeft:8,fontFamily:"monospace",fontWeight:700,fontSize:13,color:"var(--text)"}}>{remMins}:{remSecsPart}</span>
+                      {queueLeft>0&&<span style={{color:"var(--muted)",fontSize:11,marginLeft:6}}> · {queueLeft} more queued</span>}
+                      <div style={{fontSize:11,color:"var(--muted)",marginTop:1}}>Site/Inbound/Bundle locked — you can still queue another Prolonged.</div>
+                    </div>
+                }
+              </span>
+              {overdue
+                ? <button onClick={dismissProlongedCurrent} style={{fontSize:11,padding:"5px 14px",borderRadius:8,border:"1px solid rgba(244,63,94,.4)",background:"rgba(244,63,94,.12)",color:"#f43f5e",cursor:"pointer",fontWeight:700,fontFamily:"'Poppins',sans-serif",whiteSpace:"nowrap",flexShrink:0}}>{queueLeft>0?"Done → Next ▶":"Done ✓"}</button>
+                : <button onClick={()=>{setProlongedCurrent(null);setProlongedQueue([]);}} style={{fontSize:10,padding:"3px 10px",borderRadius:6,border:"1px solid var(--border)",background:"var(--glass-bg)",color:"var(--muted)",cursor:"pointer",fontFamily:"'Poppins',sans-serif",flexShrink:0}}>Cancel all</button>
+              }
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Prolonged Modal — pick type then open normal form */}
+      {prolongedModal&&(
+        <div className="modal-bg" onClick={e=>{if(e.target===e.currentTarget)setProlongedModal(false);}}>
+          <div className="modal" style={{maxWidth:380}}>
+            <div style={{textAlign:"center",marginBottom:12}}>
+              <span style={{fontSize:28}}>⏳</span>
+              <h3 style={{margin:"8px 0 4px"}}>Spend a Prolonged</h3>
+              <p style={{fontSize:12,color:"var(--muted)",lineHeight:1.5,margin:0}}>
+                Fill the form normally — combined tracker is not required now.<br/>
+                A timer will fire after you submit to remind you to fill it.
+              </p>
+            </div>
+            <div className="field" style={{marginBottom:16}}>
+              <label style={{marginBottom:6,display:"block"}}>Minutes before tracker reminder</label>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                {[15,30,45,60,90,120].map(m=>(
+                  <button key={m} onClick={()=>setProlongedMins(m)} style={{padding:"4px 12px",borderRadius:8,border:prolongedMins===m?"2px solid #f59e0b":"1px solid var(--border)",background:prolongedMins===m?"rgba(245,158,11,.12)":"var(--glass-bg)",color:prolongedMins===m?"#f59e0b":"var(--muted)",fontWeight:prolongedMins===m?700:400,cursor:"pointer",fontSize:12,fontFamily:"'Poppins',sans-serif"}}>{m}m</button>
+                ))}
+                <input type="number" min={1} max={480} value={prolongedMins} onChange={e=>setProlongedMins(Math.max(1,Number(e.target.value)))} className="inp" style={{width:64,textAlign:"center"}}/>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:10,marginTop:4}}>
+              <button className="pl-type-btn" style={{flex:1,opacity:1}} onClick={()=>{setProlongedMode(true);setProlongedModal(false);enterMode("siteComment");}}>
+                <div className="pl-type-icon"><Icon name="sitecomment" size={22} color="var(--accent)"/></div>
+                <div style={{flex:1}}><div className="pl-type-title" style={{fontSize:13}}>Site Comment</div></div>
+              </button>
+              <button className="pl-type-btn" style={{flex:1,opacity:1}} onClick={()=>{setProlongedMode(true);setProlongedModal(false);enterMode("inbound");}}>
+                <div className="pl-type-icon" style={{background:"rgba(124,58,237,.1)",borderColor:"rgba(124,58,237,.25)"}}><Icon name="email" size={22} color="#7c3aed"/></div>
+                <div style={{flex:1}}><div className="pl-type-title" style={{fontSize:13,color:"#7c3aed"}}>Inbound</div></div>
+              </button>
+            </div>
+            <button className="btn btn-ghost" style={{width:"100%",marginTop:10}} onClick={()=>setProlongedModal(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
 
       {/* Bundle Modal */}
       {bundleModal&&(()=>{
@@ -4577,6 +4703,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
         "Editing…":"var(--muted)",
         "Continued Draft Saved":"var(--amber)",
         "Draft Saved":"var(--amber)",
+        "Prolonged":"#f59e0b",
         "Break Ended":"var(--amber)",
         "Open Hour Ended":"var(--accent)",
         "Cancelled":"var(--red)",
@@ -4627,6 +4754,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
       const showButton = isCaseEntry && 
                          caseNum && 
                          !isOngoing && 
+                         outcome !== "Prolonged" &&
                          !suspendedButLaterCompleted &&
                          (!isDuplicate || isLatestForCase);
 
@@ -4730,6 +4858,8 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
           <div>
             {isDeleted?(
               <span style={{fontSize:10,fontWeight:700,color:"#f43f5e",fontFamily:"'Poppins',sans-serif",background:"rgba(244,63,94,.12)",padding:"3px 8px",borderRadius:2,border:"1px solid rgba(244,63,94,.3)"}}>🗑 Deleted</span>
+            ):outcome==="Prolonged"?(
+              <span style={{fontSize:9,fontWeight:700,color:"#f59e0b",fontFamily:"'Poppins',sans-serif",background:"rgba(245,158,11,.1)",padding:"3px 8px",borderRadius:6,border:"1px solid rgba(245,158,11,.3)"}}>⏳ Tracker pending</span>
             ):showButton?(
               <button
                 className="session-log-edit-btn"
@@ -4768,6 +4898,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
                     const completedCount=sessionLog.filter(e=>e.outcome==="Completed").length;
                     const clarificationCount=sessionLog.filter(e=>e.outcome==="Clarification").length;
                     const suspendedCount=sessionLog.filter(e=>e.outcome==="Suspended").length;
+                    const prolongedCount=sessionLog.filter(e=>e.outcome==="Prolonged").length;
 
                     // ── Weighted case score (Minor=1, Major=2, Complex=3) ──
                     const cxWeight=(cx)=>cx==="complex"?3:cx==="major"?2:1;
@@ -4808,6 +4939,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
                           {pill("Completed",completedCount,"var(--green)","rgba(16,185,129,.07)")}
                           {pill("Clarification",clarificationCount,"var(--amber)","rgba(245,158,11,.07)")}
                           {pill("Suspended",suspendedCount,"var(--red)","rgba(244,63,94,.07)")}
+                          {prolongedCount>0&&pill("Prolonged",prolongedCount,"#f59e0b","rgba(245,158,11,.07)")}
                           {breakMs>0&&pill("Break Time",fmtMs(breakMs),"var(--muted)")}
                         </div>
                       </>
@@ -6391,7 +6523,11 @@ function App() {
   // ── Session Log ──
   const [sessionLog,setSessionLog]=useState(()=>{
     if(typeof window!=="undefined"){
-      try{return JSON.parse(localStorage.getItem("ch_session_log")||"[]");}catch{return [];}
+      try{
+        const raw=JSON.parse(localStorage.getItem("ch_session_log")||"[]");
+        // Filter out malformed entries — valid entries must have id and startedAt (numbers)
+        return raw.filter(e=>e&&typeof e==="object"&&typeof e.id==="number"&&typeof e.startedAt==="number"&&typeof e.status==="string");
+      }catch{return [];}
     }
     return [];
   });
@@ -6420,8 +6556,9 @@ function App() {
     fetch(`/api/sessions?action=get_log&session_id=${dbId}`)
       .then(r=>r.json()).then(d=>{
       if(d.log&&d.log.length>0){
-        setSessionLog(d.log);
-        localStorage.setItem("ch_session_log",JSON.stringify(d.log));
+        const clean=d.log.filter(e=>e&&typeof e==="object"&&typeof e.id==="number"&&typeof e.startedAt==="number"&&typeof e.status==="string");
+        setSessionLog(clean);
+        localStorage.setItem("ch_session_log",JSON.stringify(clean));
       }
     }).catch(()=>{});
   },[]);
@@ -7945,50 +8082,26 @@ function FileNameGeneratorPage() {
   useEffect(()=>{
     if(typeof window==="undefined") return;
     const sync=()=>{
-      const active   =localStorage.getItem("ch_minimised_form");
-      const lastSaved=localStorage.getItem("ch_last_saved_case");
-      const src=active||lastSaved;
+      // Priority: active minimised form (live typing) > last saved case
+      const activeSrc = localStorage.getItem("ch_minimised_form");
+      const lastSaved = localStorage.getItem("ch_last_saved_case");
+      const src = activeSrc || lastSaved;
       if(!src) return;
       try{
-        const fd=JSON.parse(src);
-        const biz=fd.businessName||"";
-        const acc=fd.accountNum||"";
-        const bizFull=(fd.businessName||"")+(fd.businessSuffix?' '+fd.businessSuffix:'');
-        const newBizFn = biz;
+        const fd = JSON.parse(src);
+        const biz    = fd.businessName||"";
+        const acc    = fd.accountNum||"";
+        const bizFull= (fd.businessName||"")+(fd.businessSuffix?' '+fd.businessSuffix:'');
+        const newBizFn  = biz;
         const newBizAlt = bizFull||biz;
-        const newAcc = acc;
-
-        // Track what we last autofilled so we know if the active case has changed
-        const lastRaw = localStorage.getItem("ch_fng_last_source");
-        const last = lastRaw ? JSON.parse(lastRaw) : null;
-        const sourceChanged = !last ||
-          last.businessName !== biz ||
-          last.accountNum   !== acc;
-
-        setForm(f=>{
-          // If the source case changed, update fields — but only if the user hasn't
-          // typed something *different* from what we last autofilled.
-          // (If they cleared or changed it manually, leave it alone.)
-          const prevFilled = last || {bizFilename:"",bizAlt:"",accountNum:""};
-          const bizFnChanged  = f.bizFilename !== prevFilled.bizFilename;
-          const bizAltChanged = f.bizAlt      !== prevFilled.bizAlt;
-          const accChanged    = f.accountNum  !== prevFilled.accountNum;
-          return {
-            ...f,
-            bizFilename: (sourceChanged && !bizFnChanged)  ? newBizFn  : f.bizFilename||newBizFn,
-            bizAlt:      (sourceChanged && !bizAltChanged) ? newBizAlt : f.bizAlt||newBizAlt,
-            accountNum:  (sourceChanged && !accChanged)    ? newAcc    : f.accountNum||newAcc,
-          };
-        });
-
-        if(sourceChanged){
-          localStorage.setItem("ch_fng_last_source", JSON.stringify({
-            businessName: biz,
-            accountNum:   acc,
-            bizFilename:  newBizFn,
-            bizAlt:       newBizAlt,
-          }));
-        }
+        const newAcc    = acc;
+        // Always update with latest active form data
+        setForm(f=>({
+          ...f,
+          bizFilename: newBizFn  || f.bizFilename,
+          bizAlt:      newBizAlt || f.bizAlt,
+          accountNum:  newAcc    || f.accountNum,
+        }));
       }catch{}
     };
     sync();
