@@ -3956,6 +3956,24 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
     }
   },[resumeTick]);
 
+  // ── When break ends, auto-activate the first queued tab ──
+  const prevBreakActive=useRef(breakActive);
+  useEffect(()=>{
+    const wasActive=prevBreakActive.current;
+    prevBreakActive.current=breakActive;
+    if(wasActive&&!breakActive){
+      // Break just ended — find first queued tab and activate it
+      setActiveLiveTabs(prev=>{
+        const queuedIdx=prev.findIndex(t=>t.startTime===null);
+        if(queuedIdx===-1) return prev;
+        const now=Date.now();
+        const updated=prev.map((t,i)=>i===queuedIdx?{...t,startTime:now}:t);
+        setActiveFormTabId(updated[queuedIdx].id);
+        return updated;
+      });
+    }
+  },[breakActive]);
+
   // Only load draft when user explicitly clicked "Continue Suspended" — never on new form button
   // When editing from session log, use the savedCase as the form's initial data
   // When resuming minimised form, use the saved minimised form data
@@ -4002,7 +4020,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
                 <div key={tab.id}
                   onClick={()=>setActiveFormTabId(tab.id)}
                   style={{display:"flex",alignItems:"center",gap:6,padding:"0 10px 0 12px",cursor:"pointer",minWidth:150,maxWidth:240,borderRadius:"6px 6px 0 0",marginTop:4,marginRight:2,background:isActive?"var(--card)":"rgba(255,255,255,.07)",borderTop:isActive?"2px solid var(--accent)":"2px solid transparent",position:"relative",flexShrink:0}}>
-                  <span style={{width:8,height:8,borderRadius:"50%",flexShrink:0,background:tab.mode==='inbound'?"#3b82f6":"#8b5cf6",boxShadow:isActive?(tab.mode==='inbound'?"0 0 6px rgba(59,130,246,.7)":"0 0 6px rgba(139,92,246,.7)"):"none",display:"inline-block"}} title={tab.mode==='inbound'?"Inbound Email":"Site Comment"}/>
+                  <span style={{width:8,height:8,borderRadius:"50%",flexShrink:0,background:tab.mode==='inbound'?"#8b5cf6":"#3b82f6",boxShadow:isActive?(tab.mode==='inbound'?"0 0 6px rgba(139,92,246,.7)":"0 0 6px rgba(59,130,246,.7)"):"none",display:"inline-block"}} title={tab.mode==='inbound'?"Inbound Email":"Site Comment"}/>
                   <span style={{fontSize:11,fontWeight:isActive?700:400,color:isActive?"var(--text)":"rgba(255,255,255,.6)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",flex:1,minWidth:0,fontFamily:"'Poppins',sans-serif"}}>{tabDisplay}</span>
                   {hasTimer&&!isQueued&&<span style={{fontSize:9,fontWeight:700,fontFamily:"monospace",color:isActive?"var(--accent)":"rgba(255,255,255,.45)",flexShrink:0,letterSpacing:".3px"}}>{timerStr}</span>}
                   {isQueued&&<span style={{fontSize:9,fontWeight:700,color:"var(--amber)",background:"rgba(245,158,11,.15)",border:"1px solid rgba(245,158,11,.3)",borderRadius:4,padding:"1px 5px",flexShrink:0,fontFamily:"'Poppins',sans-serif",letterSpacing:".4px"}}>QUEUED</span>}
@@ -4207,25 +4225,20 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
       exitMode();
       return [];
     }
-    // Switch to adjacent tab, give it a fresh startTime and remount key
+    // Switch to adjacent tab — DO NOT remount other tabs (would wipe their form state)
     const savedIdx=prev.findIndex(t=>t.id===tabId);
     const nextIdx=Math.min(savedIdx,remaining.length-1);
-    const t2=Date.now();
+    // Just update which tab is active — no key change, no startTime stamp for existing tabs
     const updated=remaining.map((t,i)=>{
-      if(i===nextIdx){
-        // Activate this tab: stamp start time and change key so PostLiveForm remounts fresh
-        return {...t,startTime:t2,key:`${t.id}-activated-${t2}`};
+      if(i===nextIdx && t.startTime===null){
+        // Only activate a queued (startTime===null) tab by giving it a startTime
+        return {...t,startTime:Date.now()};
       }
-      return t;
+      return t; // All other tabs: keep exactly as-is, no remount
     });
     setActiveFormTabId(updated[nextIdx].id);
-    // Clean up saved tab's timer state
+    // Clean up ONLY the saved tab's timer state — leave others alone
     setTabTimerStates(prev=>{const n={...prev};delete n[tabId];return n;});
-    // Clear phase2/resume localStorage so next tab starts fresh from 0
-    if(typeof window!=="undefined"){
-      localStorage.removeItem("ch_phase2_start");
-      localStorage.removeItem("ch_resume_start");
-    }
     // Update global mode to match newly active tab
     setMode(updated[nextIdx].mode||mode);
     if(typeof window!=="undefined") localStorage.setItem("ch_active_form_mode",updated[nextIdx].mode||mode);
