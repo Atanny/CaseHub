@@ -557,7 +557,7 @@ body.light .action-bar{background:rgba(255,248,243,.92);}
 
 /* Choice buttons */
 .pl-type-btn{
-  flex:1;min-width:200px;padding:18px 20px;border-radius:30px;
+  flex:1;padding:18px 20px;border-radius:30px;
   border:1.5px solid var(--border);background:var(--card);color:var(--text);
   display:flex;align-items:center;gap:14px;
   transition:.18s;text-align:left;cursor:pointer;
@@ -1605,17 +1605,20 @@ function CopyName({ name, onCopy }) {
 // Step card — single-open: receives openStep/setOpenStep from parent
 function StepCard({ num, title, children, done, locked, openStep, setOpenStep }) {
   const isOpen = openStep === num;
+  const cardRef = useRef();
   const handleToggle = () => {
     if(locked) return;
     const opening = !isOpen;
     setOpenStep(opening ? num : null);
     if(opening){
       setTimeout(()=>{
-        const el=document.getElementById(`step-${num}`);
+        const el=cardRef.current||document.getElementById(`step-${num}`);
         const container=document.querySelector('.form-left');
         if(el && container){
-          const offset=el.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
-          container.scrollTo({top: Math.max(0, offset - 12), behavior:'smooth'});
+          const elTop = el.getBoundingClientRect().top;
+          const containerTop = container.getBoundingClientRect().top;
+          const scrollOffset = container.scrollTop + (elTop - containerTop) - 16;
+          container.scrollTo({top: Math.max(0, scrollOffset), behavior:'smooth'});
         } else if(el){
           el.scrollIntoView({behavior:"smooth",block:"start"});
         }
@@ -1623,7 +1626,7 @@ function StepCard({ num, title, children, done, locked, openStep, setOpenStep })
     }
   };
   return (
-    <div id={`step-${num}`} className={cls("step-card", locked?"locked":"unlocked", done&&"done", isOpen&&!locked&&"open")}>
+    <div id={`step-${num}`} ref={cardRef} className={cls("step-card", locked?"locked":"unlocked", done&&"done", isOpen&&!locked&&"open")}>
       <div className="step-header" onClick={handleToggle}>
         <div className="step-num" style={{position:"relative"}}>
           {done ? <span style={{fontSize:14}}>✓</span> : <span>{num}</span>}
@@ -1671,7 +1674,8 @@ async function uploadImageToStorage(file, name) {
 // ── IndexedDB helpers: persist pending images across refreshes ──
 const IDB_NAME = 'ch_pending_images';
 const IDB_STORE = 'blobs';
-const IDB_VERSION = 1;
+const IDB_DIR_STORE = 'dirhandles';
+const IDB_VERSION = 2;
 
 function idbOpen() {
   return new Promise((resolve, reject) => {
@@ -1683,8 +1687,48 @@ function idbOpen() {
       if (!db.objectStoreNames.contains(IDB_STORE)) {
         db.createObjectStore(IDB_STORE, { keyPath: 'id' });
       }
+      if (!db.objectStoreNames.contains(IDB_DIR_STORE)) {
+        db.createObjectStore(IDB_DIR_STORE, { keyPath: 'id' });
+      }
     };
   });
+}
+
+// Persist the chosen directory handle in IDB so it survives page reloads.
+// The browser retains the permission for the current session; we just need
+// to remember WHICH folder was picked so we don't re-ask on every click.
+async function idbSaveDirHandle(handle) {
+  try {
+    const db = await idbOpen();
+    return new Promise((res, rej) => {
+      const tx = db.transaction(IDB_DIR_STORE, 'readwrite');
+      tx.objectStore(IDB_DIR_STORE).put({ id: 'savedDir', handle });
+      tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+    });
+  } catch(e) { /* IDB unavailable — non-fatal */ }
+}
+
+async function idbLoadDirHandle() {
+  try {
+    const db = await idbOpen();
+    return new Promise((res) => {
+      const tx = db.transaction(IDB_DIR_STORE, 'readonly');
+      const req = tx.objectStore(IDB_DIR_STORE).get('savedDir');
+      req.onsuccess = () => res(req.result?.handle || null);
+      req.onerror = () => res(null);
+    });
+  } catch(e) { return null; }
+}
+
+async function idbClearDirHandle() {
+  try {
+    const db = await idbOpen();
+    return new Promise((res) => {
+      const tx = db.transaction(IDB_DIR_STORE, 'readwrite');
+      tx.objectStore(IDB_DIR_STORE).delete('savedDir');
+      tx.oncomplete = res; tx.onerror = res;
+    });
+  } catch(e) { /* non-fatal */ }
 }
 
 async function idbPutImage(id, file, meta = {}) {
@@ -1775,24 +1819,33 @@ async function uploadPendingImages(images) {
 }
 
 // immediateUpload=true  → upload to Storage right away (editing an already-saved case)
-// immediateUpload=false → keep in RAM as blob (new unsaved form — upload on case save)
-// ── Persistent directory handle — survives re-renders and page navigation ──
-// Stored at module level so all ImageUpload instances and downloadCase share it.
+// ── Persistent directory handle — module-level, lives for the whole page session ──
+// One handle is shared by all tabs/components. A lock prevents "picker already active".
 let _savedDirHandle = null;
+let _pickerOpen = false; // prevents concurrent showDirectoryPicker calls
+function resetSessionDir() { _savedDirHandle = null; }
 async function getOrPickDir() {
-  if (_savedDirHandle) {
-    try {
-      // Verify we still have permission; re-request if needed
-      const perm = await _savedDirHandle.queryPermission({ mode: "readwrite" });
-      if (perm === "granted") return _savedDirHandle;
-      const req = await _savedDirHandle.requestPermission({ mode: "readwrite" });
-      if (req === "granted") return _savedDirHandle;
-    } catch(e) { /* handle was invalidated, fall through to re-pick */ }
+  // Already have a valid handle — return immediately, no picker needed
+  if (_savedDirHandle) return _savedDirHandle;
+  // Another call already opened the picker — wait for it to finish
+  if (_pickerOpen) {
+    await new Promise(res => {
+      const interval = setInterval(() => {
+        if (!_pickerOpen) { clearInterval(interval); res(); }
+      }, 100);
+    });
+    if (_savedDirHandle) return _savedDirHandle;
   }
-  _savedDirHandle = await window.showDirectoryPicker({ mode: "readwrite", startIn: "downloads" });
-  return _savedDirHandle;
+  // Open the picker exactly once
+  _pickerOpen = true;
+  try {
+    _savedDirHandle = await window.showDirectoryPicker({ mode: "readwrite", startIn: "downloads" });
+    return _savedDirHandle;
+  } finally {
+    _pickerOpen = false;
+  }
 }
-function ImageUpload({ baseName, multiple, onImages, immediateUpload=false, initialImages=[], caseNum="", storageKey="default" }) {
+function ImageUpload({ baseName, multiple, onImages, immediateUpload=false, initialImages=[], caseNum="", businessName="", storageKey="default", isActive=false }) {
   // Filter out dead blob URLs that may come from server-saved drafts
   const validInitial = (initialImages || []).filter(img => !img.url?.startsWith('blob:'));
   const [images,setImages] = useState(()=>validInitial||[]);
@@ -1897,21 +1950,48 @@ function ImageUpload({ baseName, multiple, onImages, immediateUpload=false, init
         const dir = await getOrPickDir();
         const fh = await dir.getFileHandle(fileName, { create: true });
         const wr = await fh.createWritable();
-        const r = await fetch(img.url); const blob = await r.blob();
-        await wr.write(blob); await wr.close(); return;
-      } catch(e) { if (e.name === "AbortError") return; }
+        // Fetch blob — handle both http URLs and blob: URLs
+        let blob;
+        if (img._file) {
+          blob = img._file;
+        } else if (img.url?.startsWith("blob:")) {
+          const r = await fetch(img.url);
+          blob = await r.blob();
+        } else {
+          const r = await fetch(img.url);
+          if (!r.ok) throw new Error("fetch failed: " + r.status);
+          blob = await r.blob();
+        }
+        await wr.write(blob);
+        await wr.close();
+        showToast && showToast(`✅ Saved: ${fileName}`, "success");
+        return;
+      } catch(e) {
+        if (e.name === "AbortError") return; // user cancelled folder picker
+        // If folder picker failed (permission issue), reset so next click asks again
+        if (e.name === "SecurityError") {
+          resetSessionDir();
+        }
+        // Fallthrough to <a> download as fallback
+      }
     }
+    // Fallback: browser download
     const a = document.createElement("a"); a.href = img.url; a.download = fileName; a.click();
   };
 
   useEffect(() => {
+    // Only capture paste events when this upload accordion is the active/open one
+    if(!isActive) return;
     const h = (e) => { 
+      // Don't intercept if user is typing in an input/textarea
+      const tag=(document.activeElement?.tagName||"").toLowerCase();
+      if(tag==="input"||tag==="textarea") return;
       const items = Array.from(e.clipboardData?.items||[]).filter(i=>i.kind==="file"); 
-      if(items.length) addFiles(items.map(i=>i.getAsFile())); 
+      if(items.length){ e.preventDefault(); addFiles(items.map(i=>i.getAsFile())); }
     };
     window.addEventListener("paste", h); 
     return () => window.removeEventListener("paste", h);
-  }, [addFiles]);
+  }, [addFiles, isActive]);
 
   return (
     <div>
@@ -2192,70 +2272,56 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
       try {
         const bizPart = (f.businessName || "").trim();
         const folderName = `${f.caseNum || "unknown"}${bizPart ? " - " + bizPart : ""}`
-          .replace(/[^a-zA-Z0-9 _()-]/g, "_").trim();
+          .replace(/[^a-zA-Z0-9 _()-]/g, "").replace(/\s+/g," ").trim();
+
+        // Helper: get blob — prefer _file (in-memory), fallback fetch
+        const getBlob = async (img) => {
+          if (img._file instanceof File || img._file instanceof Blob) return img._file;
+          const r = await fetch(img.url); return r.blob();
+        };
 
         if (window.showDirectoryPicker) {
-          try {
-            const rootDir = await getOrPickDir();
-            const caseDir = await rootDir.getDirectoryHandle(folderName, { create: true });
-
-            for (const img of allImages) {
-              try {
-                const urlExt = (img.url || "").split("?")[0].split(".").pop().toLowerCase();
-                const safeExt = ["jpg", "jpeg", "png", "gif", "webp"].includes(urlExt) ? urlExt : "png";
-                const baseName = (img.name || "screenshot").replace(/\.[^/.]+$/, "");
-
-                const r = await fetch(img.url);
-                const blob = await r.blob();
-
-                const fh = await caseDir.getFileHandle(`${baseName}.${safeExt}`, { create: true });
-                const wr = await fh.createWritable();
-                await wr.write(blob);
-                await wr.close();
-              } catch (err) {
-                console.warn("img failed:", err);
-              }
-            }
-            setDlState("done"); setTimeout(()=>setDlState("idle"),3000);
-            return;
-          } catch (err) {
+          // Must call getOrPickDir immediately (first await) to preserve user-gesture context
+          let rootDir;
+          try { rootDir = await getOrPickDir(); }
+          catch (err) {
             if (err.name === "AbortError"){ setDlState("idle"); return; }
+            // Permission/security error — reset cached handle so next click re-asks
+            if (err.name === "SecurityError") { resetSessionDir(); }
+            throw err; // re-throw so outer catch shows error state
           }
+
+          const caseDir = await rootDir.getDirectoryHandle(folderName, { create: true });
+          for (const img of allImages) {
+            try {
+              const urlExt = (img.url || "").split("?")[0].split(".").pop().toLowerCase();
+              const safeExt = ["jpg","jpeg","png","gif","webp"].includes(urlExt) ? urlExt : "png";
+              const baseName = (img.name || "screenshot").replace(/\.[^/.]+$/, "");
+              const blob = await getBlob(img);
+              const fh = await caseDir.getFileHandle(`${baseName}.${safeExt}`, { create: true });
+              const wr = await fh.createWritable();
+              await wr.write(blob);
+              await wr.close();
+            } catch (imgErr) { console.warn("img failed:", imgErr); }
+          }
+          setDlState("done"); setTimeout(()=>setDlState("idle"),3000);
+          return;
         }
 
-        if (!window.JSZip) {
-          await new Promise((res, rej) => {
-            const s = document.createElement("script");
-            s.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
-            s.onload = res;
-            s.onerror = rej;
-            document.head.appendChild(s);
-          });
-        }
-
-        const zip = new window.JSZip();
-        const folder = zip.folder(folderName);
-
+        // Fallback for browsers without File System API (Firefox etc): individual <a> downloads — no zip
         for (const img of allImages) {
           try {
-            const urlExt = (img.url || "").split("?")[0].split(".").pop().toLowerCase();
-            const safeExt = ["jpg", "jpeg", "png", "gif", "webp"].includes(urlExt) ? urlExt : "png";
-            const baseName = (img.name || "screenshot").replace(/\.[^/.]+$/, "");
-
-            const r = await fetch(img.url);
-            const blob = await r.blob();
-
-            folder.file(`${baseName}.${safeExt}`, blob);
-          } catch (err) {
-            console.warn("img failed:", err);
-          }
+            const urlExt = (img.url||"").split("?")[0].split(".").pop().toLowerCase();
+            const safeExt = ["jpg","jpeg","png","gif","webp"].includes(urlExt) ? urlExt : "png";
+            const baseName = (img.name || "screenshot").replace(/\.[^/.]+$/,"");
+            const blob = await getBlob(img);
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = `${baseName}.${safeExt}`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(a.href);
+          } catch (err) { console.warn("img failed:", err); }
         }
-
-        const zipBlob = await zip.generateAsync({ type: "blob" });
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(zipBlob);
-        a.download = `${folderName}.zip`;
-        a.click();
         setDlState("done"); setTimeout(()=>setDlState("idle"),3000);
       } catch (err) {
         console.error("Bulk download failed:", err);
@@ -2528,7 +2594,7 @@ function TocPanel({ openStep, setOpenStep, isSC, page, doneMap={}, specialReques
     </div>
   );
 }
-function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, onAutoSaveDraft, onStartBreak, draftData, user, onTimerEnd, specialRequestors, timerLimitSecs, globalTimeIn, isEditMode=false, isMinimisedResume=false, caseStartTime=null, externalFormRef=null, isResumingDraft=false, originalOutcome="", originalTotalSecs=0, containerStyle={}, onTimerTick=null, prolongedActive=false, onProlongedDismiss=null }) {
+function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, onAutoSaveDraft, onStartBreak, draftData, user, onTimerEnd, specialRequestors, timerLimitSecs, globalTimeIn, isEditMode=false, isMinimisedResume=false, caseStartTime=null, externalFormRef=null, isResumingDraft=false, originalOutcome="", originalTotalSecs=0, containerStyle={}, onTimerTick=null, prolongedActive=false, onProlongedDismiss=null, onProceedWithNext=null, prolongedMinsForNext=30, tabStorageKey=null, onTabDataChange=null }) {
   const isSC = mode==="siteComment";
   const entryLabel = isSC?"Site Comment":"Assumption";
   const rawName = user?.name || "User";
@@ -2589,11 +2655,15 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
       localStorage.setItem("ch_minimised_form",JSON.stringify(toSave));
       window.dispatchEvent(new Event("ch_case_saved"));
     }
+    // Notify parent tab strip with latest caseNum + businessName for live label update
+    if(onTabDataChange) onTabDataChange({ caseNum: form.caseNum||'', businessName: form.businessName||'' });
   },[form]);
 
   // Always use caseStartTime (globalTimeIn passed from session) so the form timer is consistent
   // with the session active timer — whether opening fresh, continuing suspended, or editing.
-  const startTimeRef = useRef(caseStartTime || (draftData?._startTime) || Date.now());
+  // If caseStartTime is null the tab is queued and not yet active — timer stays frozen at 0.
+  const isQueued = caseStartTime === null;
+  const startTimeRef = useRef(isQueued ? Date.now() : (caseStartTime || (draftData?._startTime) || Date.now()));
 
   // isDraft: true only for resumed *suspended* drafts — locks case info fields.
   // Minimised resume is NOT a draft lock — user should be able to edit case info.
@@ -2642,12 +2712,14 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
   const [draftSaving,setDraftSaving] = useState(false);
   const [breakConfirmData,setBreakConfirmData] = useState(null); // {label,mins} for break confirmation
   // Footer timer — ticks every second for the action-bar elapsed display
-  const [footerElapsed,setFooterElapsed] = useState(()=>Math.floor((Date.now()-startTimeRef.current)/1000));
+  const [footerElapsed,setFooterElapsed] = useState(()=> isQueued ? 0 : Math.floor((Date.now()-startTimeRef.current)/1000));
   const [resumeElapsed,setResumeElapsed] = useState(0); // seconds since this resume started
   // Freeze the main elapsed value the moment Phase 2 starts — it won't tick further
   const frozenElapsedRef = useRef(null);
   const frozenResumeRef  = useRef(null);
   useEffect(()=>{
+    // Queued tabs (caseStartTime===null) stay frozen at 0 — don't tick
+    if(isQueued) return;
     const t=setInterval(()=>{
       const phase2Active = phase2StartRef.current !== null;
       // Once Phase 2 starts, freeze the main timer at the value it had when Phase 2 began
@@ -2814,7 +2886,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
 
           <StepCard num={3} title={`Additional Backup Screenshots${form.backupImages?.length>0?" ("+form.backupImages.length+")":""}`} done={form.backupImages?.length>0} locked={!step2Done&&!isDraft} {...stepProps}>
           <p style={{fontSize:13,color:"var(--muted)",marginBottom:11}}>Each renamed <span style={{color:"var(--accent)",fontWeight:600}}>backup-screenshot-N</span> on download.</p>
-          <ImageUpload baseName="backup-screenshot" multiple onImages={imgs=>setF({backupImages:imgs,checklist:{...formRef.current.checklist}})} immediateUpload={false} initialImages={form.backupImages||[]} caseNum={form.caseNum||""} storageKey="backup"/>
+          <ImageUpload baseName="backup-screenshot" multiple onImages={imgs=>setF({backupImages:imgs,checklist:{...formRef.current.checklist}})} immediateUpload={false} initialImages={form.backupImages||[]} caseNum={form.caseNum||""} businessName={form.businessName||""} storageKey={tabStorageKey?`${tabStorageKey}-backup`:"backup"} isActive={openStep===3}/>
         </StepCard>
 
         
@@ -2942,7 +3014,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
            <StepCard num={7} title="Before/After Backup" done={!!form._screenshotCopied||form.images?.length>0} locked={!step6Done&&!isDraft} {...stepProps}>
           <p style={{fontSize:13,color:"var(--muted)",marginBottom:9}}>Upload screenshot — renamed automatically on download.</p>
           <CopyName name={screenshotName} onCopy={()=>setF({_screenshotCopied:true})}/>
-          <div style={{marginTop:12}}><ImageUpload baseName={screenshotName} multiple={false} onImages={imgs=>{setF({images:imgs,_screenshotCopied:imgs&&imgs.length>0?true:form._screenshotCopied});}} immediateUpload={false} initialImages={form.images||[]} caseNum={form.caseNum||""} storageKey="main"/></div>
+          <div style={{marginTop:12}}><ImageUpload baseName={screenshotName} multiple={false} onImages={imgs=>{setF({images:imgs,_screenshotCopied:imgs&&imgs.length>0?true:form._screenshotCopied});}} immediateUpload={false} initialImages={form.images||[]} caseNum={form.caseNum||""} businessName={form.businessName||""} storageKey={tabStorageKey?`${tabStorageKey}-main`:"main"} isActive={openStep===7}/></div>
         </StepCard>
 
      
@@ -2950,8 +3022,8 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
           <p style={{fontSize:12,color:"var(--muted)",marginBottom:11}}>All items must be checked <span className="req">*</span></p>
           <div className="check-group" style={{flexDirection:"column"}}>
             {(isSC
-              ? [["closeSiteComment","Close Site Comment?"],["backup","Before/After Backup?"],["caseComment","Case Comment"],["combinedTracker","Combined Tracker?"],["qaChecklist","QA Checklist?"],["completeJob","Complete Job?"],["emailSales","Email Sales?"],["trackerChecklist","Complete Status Tracker?"],["completeStatus","Tracker Checklist?"]]
-              : [["backup","Before/After Backup?"],["caseComment","Case Comment"],["combinedTracker","Combined Tracker?"],["qaChecklist","QA Checklist?"],["completeJob","Complete Job?"],["closeInboundCase","Close Inbound Case?"],["emailSales","Email Sales?"],["trackerChecklist","Complete Status Tracker?"],["completeStatus","Tracker Checklist?"]]
+              ? [["closeSiteComment","Close Site Comment?"],["backup","Before/After Backup?"],["caseComment","Case Comment"],["completeJob","Complete Job?"],["emailSales","Email Sales?"],["trackerChecklist","Complete Status Tracker?"],["combinedTracker","Combined Tracker?"],["qaChecklist","QA Checklist?"],["completeStatus","Tracker Checklist?"]]
+              : [["backup","Before/After Backup?"],["caseComment","Case Comment"],["completeJob","Complete Job?"],["closeInboundCase","Close Inbound Case?"],["emailSales","Email Sales?"],["trackerChecklist","Complete Status Tracker?"],["combinedTracker","Combined Tracker?"],["qaChecklist","QA Checklist?"],["completeStatus","Tracker Checklist?"]]
             ).map(([k,l])=>{
               const isProlongedTracker = k==="combinedTracker" && prolongedActive;
               return (
@@ -2993,6 +3065,24 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
               style={{fontSize:12}}
             />
           </div>
+          {/* Proceed with Next Case — multi-tab prolonged mode */}
+          {onProceedWithNext&&!isEditMode&&(
+            <div style={{marginTop:18,paddingTop:14,borderTop:"1px solid var(--border)"}}>
+              <button
+                style={{width:"100%",padding:"13px",borderRadius:10,border:"2px solid rgba(245,158,11,.4)",background:"rgba(245,158,11,.08)",color:"#f59e0b",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:"'Poppins',sans-serif",display:"flex",alignItems:"center",justifyContent:"center",gap:10}}
+                onClick={()=>{
+                  const elapsed=Math.floor((Date.now()-startTimeRef.current)/1000);
+                  const f={...formRef.current,_saveOutcome:'completed',_elapsedAtSave:elapsed,_totalElapsed:elapsed};
+                  onSave&&onSave(f);
+                  onProceedWithNext(f,prolongedMinsForNext);
+                }}
+              >
+                <span style={{fontSize:18}}>⏭</span>
+                Proceed with Next Case
+                <span style={{fontSize:11,fontWeight:400,color:"rgba(245,158,11,.7)"}}>saves this case &amp; opens next form</span>
+              </button>
+            </div>
+          )}
         </StepCard>
 
   
@@ -3044,6 +3134,14 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
 
       <div className="action-group action-group-right">
         {!isResumingDraft&&<button className="btn btn-draft" style={{borderRadius:8}} onClick={handleDraft}>💾 Suspend Case</button>}
+        {onProceedWithNext&&!isEditMode&&(
+          <button className="btn" style={{borderRadius:8,background:"rgba(245,158,11,.15)",border:"1px solid rgba(245,158,11,.4)",color:"#f59e0b",fontWeight:700,fontSize:13}} onClick={()=>{
+            const elapsed=Math.floor((Date.now()-startTimeRef.current)/1000);
+            const f={...formRef.current,_saveOutcome:'completed',_elapsedAtSave:elapsed,_totalElapsed:elapsed};
+            onSave&&onSave(f);
+            onProceedWithNext(f, prolongedMinsForNext);
+          }}>⏭ Next Case</button>
+        )}
         <button className="btn btn-save" style={{borderRadius:8}} onClick={handleSave}>✅ Save Case</button>
       </div>
     </>
@@ -3412,7 +3510,7 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
               <button className="h-btn" style={{marginTop:10,fontSize:11,padding:"5px 12px",borderColor:"var(--green)",color:"var(--green)",fontWeight:700,display:"inline-flex",alignItems:"center",gap:6}} onClick={async(e)=>{
                 e.stopPropagation();
                 try{
-                  const bizPart=(c.businessName||"").trim();const folderName=`${c.caseNum||"unknown"}${bizPart?" - "+bizPart:""}`.replace(/[^a-zA-Z0-9 _()-]/g,"_").trim();
+                  const bizPart=(c.businessName||"").trim();const folderName=`${c.caseNum||"unknown"}${bizPart?" - "+bizPart:""}`.replace(/[^a-zA-Z0-9 _()-]/g,"").replace(/\s+/g," ").trim();
                   if(window.showDirectoryPicker){
                     try{
                       const rootDir=await getOrPickDir();
@@ -3430,19 +3528,20 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
                       return;
                     }catch(e){if(e.name==="AbortError")return;}
                   }
-                  if(!window.JSZip){await new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
-                  const zip=new window.JSZip();const folder=zip.folder(folderName);
+                  // Fallback: individual downloads with folder/filename path
                   for(const img of allImages){
                     try{
                       const urlExt=(img.url||"").split("?")[0].split(".").pop().toLowerCase();
                       const safeExt=["jpg","jpeg","png","gif","webp"].includes(urlExt)?urlExt:"png";
                       const baseName=(img.name||"screenshot").replace(/\.[^/.]+$/,"");
                       const r=await fetch(img.url);const blob=await r.blob();
-                      folder.file(`${baseName}.${safeExt}`,blob);
+                      const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+                      a.download=`${folderName}/${baseName}.${safeExt}`;
+                      document.body.appendChild(a);a.click();document.body.removeChild(a);
+                      URL.revokeObjectURL(a.href);
+                      await new Promise(r=>setTimeout(r,120));
                     }catch(e){console.warn("img failed:",e);}
                   }
-                  const zipBlob=await zip.generateAsync({type:"blob"});
-                  const a=document.createElement("a");a.href=URL.createObjectURL(zipBlob);a.download=`${folderName}.zip`;a.click();
                 }catch(e){console.error("Bulk download failed:",e);}
               }}>⬇ Bulk Download ({allImages.length})</button>
             </div>
@@ -3459,6 +3558,15 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
 function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, onFormInFields, onMinimise, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, onArchiveDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, globalTimeIn, timedIn, breakActive=false, onTimeIn, onTimeOut, onTimerReset, sessionDbId, sessionLog=[], addSessionLog, setSessionLog, closeWithOutcome, closeSessionLog, clearSessionLog, onStartBreak, onStartBreakFull, resumeTick=0 }) {
   const [mode,setMode]=useState(()=>{
     if(typeof window==="undefined") return null;
+    // If live tabs are persisted, restore mode from the active tab
+    try{
+      const tabs=JSON.parse(localStorage.getItem("ch_live_tabs")||"[]");
+      const activeId=localStorage.getItem("ch_live_tab_active");
+      if(tabs.length>0){
+        const activeTab=tabs.find(t=>t.id===activeId)||tabs[0];
+        return activeTab.mode||localStorage.getItem("ch_active_form_mode")||null;
+      }
+    }catch{}
     return localStorage.getItem("ch_form_active")==="1"
       ? (localStorage.getItem("ch_active_form_mode")||null)
       : null;
@@ -3469,6 +3577,77 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
   });
   const [backConfirm,setBackConfirm]=useState(false);
   const [deleteDraftConfirm,setDeleteDraftConfirm]=useState(null); // {id,mode}
+  // ── Chrome-style multi-case tab system ─────────────────────────────────────
+  const [formTabs,setFormTabs]=useState([]);        // [{id,mode,caseNum,label,status,timerDeadline,timerMins,warnFired}]
+  // activeLiveTabs: open form tabs (each has its own PostLiveForm instance) — persisted across minimise/refresh
+  const [activeLiveTabs,setActiveLiveTabs]=useState(()=>{
+    if(typeof window==="undefined") return [];
+    try{ const v=localStorage.getItem("ch_live_tabs"); return v?JSON.parse(v):[]; }catch{ return []; }
+  });
+  const [showTabPicker,setShowTabPicker]=useState(false);
+  const [showAddTabPicker,setShowAddTabPicker]=useState(false);
+  const [prolongedMins,setProlongedMins]=useState(30);
+  const [prolongedMode,setProlongedMode]=useState(false);
+  const [prolongedWarnToast,setProlongedWarnToast]=useState(null);
+  const prolongedActive=formTabs.some(t=>t.status!=='done');
+  const [activeFormTabId,setActiveFormTabId]=useState(()=>{
+    if(typeof window==="undefined") return null;
+    return localStorage.getItem("ch_live_tab_active")||null;
+  });
+  const [formTabTick,setFormTabTick]=useState(0);
+  // Persist live tabs + active tab ID so they survive minimise/refresh
+  useEffect(()=>{
+    if(typeof window==="undefined") return;
+    if(activeLiveTabs.length>0){
+      localStorage.setItem("ch_live_tabs",JSON.stringify(activeLiveTabs));
+    } else {
+      localStorage.removeItem("ch_live_tabs");
+    }
+  },[activeLiveTabs]);
+  useEffect(()=>{
+    if(typeof window==="undefined") return;
+    if(activeFormTabId) localStorage.setItem("ch_live_tab_active",activeFormTabId);
+    else localStorage.removeItem("ch_live_tab_active");
+  },[activeFormTabId]);
+  // Tick every second while a tab is running
+  useEffect(()=>{
+    const hasRun=formTabs.some(t=>t.status==='running');
+    if(!hasRun) return;
+    const iv=setInterval(()=>setFormTabTick(n=>n+1),1000);
+    return ()=>clearInterval(iv);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[formTabs.map(t=>t.status).join(',')]);
+  // Auto-advance timer queue
+  useEffect(()=>{
+    if(!formTabs.length) return;
+    setFormTabs(tabs=>{
+      const running=tabs.find(t=>t.status==='running');
+      if(!running) return tabs;
+      const rem=running.timerDeadline-Date.now();
+      // 1-min warning
+      if(!running.warnFired&&rem<=60000&&rem>0){
+        onTimerEnd&&onTimerEnd();
+        return tabs.map(t=>t.id===running.id?{...t,warnFired:true}:t);
+      }
+      // Expired — mark overdue, update log, auto-start next
+      if(rem<=0){
+        setSessionLog&&setSessionLog(prev=>{
+          const next=prev.map(e=>e.caseNum===running.caseNum&&e.outcome==='Pending'?{...e,outcome:'Completed Prolonged'}:e);
+          if(typeof window!=='undefined') localStorage.setItem('ch_session_log',JSON.stringify(next));
+          return next;
+        });
+        setTimeout(()=>setFormTabs(ts=>{
+          const upd=ts.map(t=>t.id===running.id?{...t,status:'done'}:t);
+          const np=upd.find(t=>t.status==='pending');
+          if(np) return upd.map(t=>t.id===np.id?{...t,status:'running',timerDeadline:Date.now()+(t.timerMins*60000),warnFired:false}:t);
+          return upd;
+        }),1200);
+        return tabs.map(t=>t.id===running.id?{...t,status:'overdue'}:t);
+      }
+      return tabs;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[formTabTick]);
   const [openSavedId,setOpenSavedId]=useState(null);
   const [editCase,setEditCase]=useState(null);
   const [showLog,setShowLog]=useState(true);
@@ -3481,36 +3660,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
   const [activeDraftId,setActiveDraftId]=useState(null); // tracks which specific draft to resume
   const [toast,showToast]=useToast();
   const [bundleModal,setBundleModal]=useState(false); // bundle linking modal
-  const [prolongedModal,setProlongedModal]=useState(false);
-  const [prolongedMins,setProlongedMins]=useState(30);
-  const [prolongedMode,setProlongedMode]=useState(false);
-  const [prolongedQueue,setProlongedQueue]=useState([]);
-  const [prolongedCurrent,setProlongedCurrent]=useState(null);
-  const [,setProlongedTick]=useState(0);
-  useEffect(()=>{
-    if(!prolongedCurrent) return;
-    const iv=setInterval(()=>setProlongedTick(t=>t+1),1000);
-    return ()=>clearInterval(iv);
-  },[prolongedCurrent]);
-  const prolongedActive=!!prolongedCurrent||prolongedQueue.length>0;
-  const enqueueProlongedTimer=(caseNum,caseType,mins)=>{
-    const entry={caseNum,caseType,mins};
-    setProlongedCurrent(cur=>{
-      if(!cur) return {...entry,deadline:Date.now()+(mins*60000),index:0,total:1};
-      // Already running — add to queue
-      setProlongedQueue(q=>[...q,entry]);
-      return cur;
-    });
-  };
-  const dismissProlongedCurrent=()=>{
-    setProlongedQueue(prev=>{
-      if(prev.length===0){setProlongedCurrent(null);return [];}
-      const [next,...rest]=prev;
-      setProlongedCurrent({...next,deadline:Date.now()+(next.mins*60000),index:0,total:1});
-      return rest;
-    });
-  };
-    const [bundleForm,setBundleForm]=useState({type:"site",caseNum:""});
+  const [bundleForm,setBundleForm]=useState({type:"site",caseNum:""});
   // Tracks the case number of the existing case chosen in the bundle modal (a DIFFERENT case number)
   const [activeBundleCaseNum,setActiveBundleCaseNum]=useState(()=>{
     if(typeof window==="undefined") return "";
@@ -3518,7 +3668,20 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
   });
   const handledResumeTick=useRef(0);
   const sharedFormRef=useRef(null); // shared ref so minimiseMode can access PostLiveForm's current fields
-  const [headerTimerState,setHeaderTimerState]=useState({footerElapsed:0,resumeElapsed:0,phase2Elapsed:null,isDraftResumed:false,isEditMode:false,prevElapsedSecs:0,originalTotalSecs:0,originalOutcome:""});
+  const [tabTimerStates,setTabTimerStates]=useState({}); // {[tabId]: timerState}
+  const zeroTimerState={footerElapsed:0,resumeElapsed:0,phase2Elapsed:null,isDraftResumed:false,isEditMode:false,prevElapsedSecs:0,originalTotalSecs:0,originalOutcome:""};
+  // ── Browser tab title: show case# + business name + live timer ──
+  useEffect(()=>{
+    const activeTab=activeLiveTabs.find(t=>t.id===activeFormTabId)||activeLiveTabs[0];
+    if(!activeTab){ document.title="CaseHub"; return; }
+    const cnum=activeTab.caseNum?`#${activeTab.caseNum}`:'';
+    const biz=(activeTab.label||'').replace(/^(Inbound Email|Site Comment)\s*[-—]?\s*/i,'').replace(/\s*#\S*\s*$/,'').trim();
+    const tState=tabTimerStates[activeTab.id];
+    const secs=tState&&activeTab.startTime!==null?tState.elapsed||0:0;
+    const timerStr=secs>0?` ${Math.floor(secs/60)}:${String(secs%60).padStart(2,"0")}`:'';
+    const parts=[cnum,biz].filter(Boolean);
+    document.title=(parts.length?parts.join(' — '):'CaseHub')+timerStr+' | CaseHub';
+  },[activeLiveTabs,activeFormTabId,tabTimerStates]);
   // Tracks when the current case was started — persists across Site Comment ↔ Inbound switches
   const caseStartTimeRef=useRef((()=>{
     if(typeof window==="undefined") return globalTimeIn||Date.now();
@@ -3526,7 +3689,35 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
     return v?Number(v):(globalTimeIn||Date.now());
   })());
 
+  const handleProceedWithNextCase=(savedForm,timerMins)=>{
+    const id=String(Date.now());
+    const caseNum=savedForm?.caseNum||'';
+    const label=(mode==='inbound'?'Inbound Email':'Site Comment')+(caseNum?' — #'+caseNum:'');
+    setFormTabs(tabs=>{
+      const hasRunning=tabs.some(t=>t.status==='running');
+      const status=hasRunning?'pending':'running';
+      const deadline=hasRunning?0:Date.now()+(timerMins*60000);
+      return [...tabs,{id,mode,caseNum,label,status,timerDeadline:deadline,timerMins,warnFired:false}];
+    });
+    // Add a new live tab for the next case (same mode)
+    const newTabId=String(Date.now()+1);
+    setActiveLiveTabs(ts=>[...ts,{id:newTabId,mode,key:newTabId}]);
+    setActiveFormTabId(newTabId);
+  };
   const enterMode = (m, withDraft = false, draftId = null, bundleCaseNum = null) => {
+    // Always create a fresh live tab when opening a new form
+    if(!withDraft && !editingCase){
+      const tid=String(Date.now());
+      setActiveLiveTabs(ts=>{
+        // If there's already an empty unfilled tab of same mode, reuse it
+        const existing=ts.find(t=>t.mode===m&&t.label.includes('New')&&!t.caseNum);
+        if(existing){ setActiveFormTabId(existing.id); return ts; }
+        const label=(m==='inbound'?'Inbound Email':'Site Comment')+' — New';
+        setActiveFormTabId(tid);
+        const t0 = globalTimeIn || Date.now();
+        return [...ts,{id:tid,mode:m,key:tid,label,caseNum:'',startTime:t0}];
+      });
+    }
     if (breakActive) {
       showToast("Finish your break first before opening an amend form", "error");
       return;
@@ -3601,6 +3792,8 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
   };
   const exitMode=()=>{
     setProlongedMode(false);
+    setActiveFormTabId(null);
+    setActiveLiveTabs([]);
     setMode(null);
     setUseDraft(false);
     setActiveDraftId(null);
@@ -3617,6 +3810,8 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
       localStorage.removeItem("ch_phase2_start");
       localStorage.removeItem("ch_bundle_case_num");
       localStorage.removeItem("ch_bundle_prefill");
+      localStorage.removeItem("ch_live_tabs");
+      localStorage.removeItem("ch_live_tab_active");
     }
     idbClearImages("backup").catch(()=>{});
     idbClearImages("main").catch(()=>{});
@@ -3782,19 +3977,126 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
   const amendTypesDisabled=!timedIn||breakActive||isMinimised;
 
   if(mode==="siteComment"||mode==="inbound"){
+    // Determine active live tab label for display
+    const activeLiveTab=activeLiveTabs.find(t=>t.id===activeFormTabId)||activeLiveTabs[0];
     return (
       <div style={{display:"flex",flexDirection:"column",height:"100%",overflow:"hidden",minHeight:0}}>
+
+        {/* Chrome-style tab bar at the very top */}
+        {(activeLiveTabs.length>0)&&(
+          <div style={{display:"flex",alignItems:"stretch",gap:0,background:"#1a1f2e",borderBottom:"1px solid rgba(255,255,255,.08)",padding:"0 8px",flexShrink:0,minHeight:38,overflowX:"auto"}}>
+            {/* Live (filling) tabs */}
+            {activeLiveTabs.map((tab,i)=>{
+              const isActive=tab.id===activeFormTabId||(activeLiveTabs.length===1&&!activeFormTabId);
+              const isQueued=tab.startTime===null&&!isActive;
+              // Build compact label from live tab data
+              const tState=tabTimerStates[tab.id];
+              const hasTimer=tState&&tab.startTime!==null&&(tState.elapsed||0)>0;
+              const timerSecs=hasTimer?(tState.elapsed||0):0;
+              const timerStr=hasTimer?` ${Math.floor(timerSecs/60)}:${String(timerSecs%60).padStart(2,"0")}`:'';
+              const cnum=tab.caseNum?`#${tab.caseNum}`:'';
+              // Business name = everything after the mode prefix in the label
+              const bizRaw=(tab.label||'').replace(/^(Inbound Email|Site Comment)\s*[-—]?\s*/i,'').replace(/\s*#\S*\s*$/,'').trim();
+              const tabDisplay=[cnum,bizRaw].filter(Boolean).join(' — ')||(tab.mode==='inbound'?'Inbound Email':'Site Comment');
+              return (
+                <div key={tab.id}
+                  onClick={()=>setActiveFormTabId(tab.id)}
+                  style={{display:"flex",alignItems:"center",gap:6,padding:"0 10px 0 12px",cursor:"pointer",minWidth:150,maxWidth:240,borderRadius:"6px 6px 0 0",marginTop:4,marginRight:2,background:isActive?"var(--card)":"rgba(255,255,255,.07)",borderTop:isActive?"2px solid var(--accent)":"2px solid transparent",position:"relative",flexShrink:0}}>
+                  <span style={{width:8,height:8,borderRadius:"50%",flexShrink:0,background:tab.mode==='inbound'?"#3b82f6":"#8b5cf6",boxShadow:isActive?(tab.mode==='inbound'?"0 0 6px rgba(59,130,246,.7)":"0 0 6px rgba(139,92,246,.7)"):"none",display:"inline-block"}} title={tab.mode==='inbound'?"Inbound Email":"Site Comment"}/>
+                  <span style={{fontSize:11,fontWeight:isActive?700:400,color:isActive?"var(--text)":"rgba(255,255,255,.6)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",flex:1,minWidth:0,fontFamily:"'Poppins',sans-serif"}}>{tabDisplay}</span>
+                  {hasTimer&&!isQueued&&<span style={{fontSize:9,fontWeight:700,fontFamily:"monospace",color:isActive?"var(--accent)":"rgba(255,255,255,.45)",flexShrink:0,letterSpacing:".3px"}}>{timerStr}</span>}
+                  {isQueued&&<span style={{fontSize:9,fontWeight:700,color:"var(--amber)",background:"rgba(245,158,11,.15)",border:"1px solid rgba(245,158,11,.3)",borderRadius:4,padding:"1px 5px",flexShrink:0,fontFamily:"'Poppins',sans-serif",letterSpacing:".4px"}}>QUEUED</span>}
+                  {activeLiveTabs.length>1&&<button onClick={e=>{e.stopPropagation();setActiveLiveTabs(ts=>ts.filter(t=>t.id!==tab.id));if(isActive&&activeLiveTabs.length>1) setActiveFormTabId(activeLiveTabs.find(t=>t.id!==tab.id)?.id||null);}} style={{background:"none",border:"none",color:isActive?"var(--text)":"rgba(255,255,255,.5)",cursor:"pointer",fontSize:15,padding:"0 0 0 4px",marginLeft:2,lineHeight:1,flexShrink:0,opacity:.6}} onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=.6}>×</button>}
+                </div>
+              );
+            })}
+            {/* Saved/timer tabs */}
+            {formTabs.map(tab=>{
+              const isRunning=tab.status==="running";
+              const isOverdue=tab.status==="overdue";
+              const isDone=tab.status==="done";
+              const rem=isRunning?Math.max(0,tab.timerDeadline-Date.now()):0;
+              const remM=Math.floor(rem/60000);
+              const remS=String(Math.floor((rem%60000)/1000)).padStart(2,"0");
+              return (
+                <div key={tab.id} style={{display:"flex",alignItems:"center",gap:6,padding:"0 12px",minWidth:160,maxWidth:220,borderRadius:"6px 6px 0 0",marginTop:4,marginRight:2,background:"rgba(255,255,255,.04)",borderTop:"2px solid transparent",flexShrink:0,cursor:"default"}}>
+                  <span style={{fontSize:11}}>{isOverdue?"🚨":isRunning?"⏳":isDone?"✅":"⌛"}</span>
+                  <span style={{fontSize:11,color:"rgba(255,255,255,.5)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:100,fontFamily:"'Poppins',sans-serif"}}>{tab.label}</span>
+                  {isRunning&&<span style={{fontSize:10,fontFamily:"monospace",fontWeight:700,color:rem<=60000?"#f43f5e":"#f59e0b",marginLeft:"auto",flexShrink:0}}>{remM}:{remS}</span>}
+                  {isDone&&<button onClick={()=>setFormTabs(ts=>ts.filter(t=>t.id!==tab.id))} style={{background:"none",border:"none",color:"rgba(255,255,255,.3)",cursor:"pointer",fontSize:13,padding:0,marginLeft:"auto",lineHeight:1,flexShrink:0}}>×</button>}
+                </div>
+              );
+            })}
+            {/* Add new tab button — visible even when a form is minimised */}
+            {timedIn&&!breakActive&&(
+              <button onClick={()=>setShowAddTabPicker(true)} style={{display:"flex",alignItems:"center",justifyContent:"center",width:34,height:30,marginTop:4,borderRadius:"6px 6px 0 0",background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.1)",borderBottom:"none",color:"rgba(255,255,255,.7)",cursor:"pointer",fontSize:20,fontWeight:300,flexShrink:0,alignSelf:"flex-end",lineHeight:1}}>+</button>
+            )}
+            {/* Add-tab type picker modal */}
+            {showAddTabPicker&&(
+              <div className="modal-bg" onClick={e=>{if(e.target===e.currentTarget)setShowAddTabPicker(false);}}>
+                <div className="modal" style={{maxWidth:480,width:"92%"}}>
+                  <h3 style={{textAlign:"center",marginBottom:4}}>New Tab</h3>
+                  <p style={{textAlign:"center",color:"var(--muted)",fontSize:13,marginBottom:18}}>What type of case is this?</p>
+                  <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+                    {[{m:"siteComment",label:"Site Comment",icon:"sitecomment"},{m:"inbound",label:"Inbound Email",icon:"inbound"}].map(({m,label,icon})=>(
+                      <button key={m} className="pl-type-btn" style={{flex:"1 1 180px",minWidth:0,padding:"16px 18px"}} onClick={()=>{
+                        setShowAddTabPicker(false);
+                        const tid=String(Date.now());
+                        const tabLabel=label+' — New';
+                        // New queued tabs start frozen (startTime=null) until the active tab is saved
+                        setActiveLiveTabs(ts=>[...ts,{id:tid,mode:m,key:tid,label:tabLabel,caseNum:'',startTime:null}]);
+                        setActiveFormTabId(tid);
+                        // Update global mode so header/context stays correct
+                        setMode(m);
+                        if(typeof window!=="undefined") localStorage.setItem("ch_active_form_mode",m);
+                      }}>
+                        <div className="pl-type-icon"><Icon name={icon} size={20} color="var(--accent)"/></div>
+                        <div style={{fontSize:13,fontWeight:600}}>{label}</div>
+                      </button>
+                    ))}
+                  </div>
+                  <button className="btn btn-ghost" style={{width:"100%",marginTop:10}} onClick={()=>setShowAddTabPicker(false)}>Cancel</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="page-header" style={{padding:"12px 32px 10px",flexShrink:0,borderBottom:"1px solid var(--glass-border)",margin:0,display:"flex",alignItems:"center",gap:0,justifyContent:"space-between"}}>
           <div>
-            <div className="page-title" style={{fontSize:20}}>{isEditingFromLog?`Editing Case #${editingCase.savedCase.caseNum}`:currentDraft&&!isResumingMinimised?`Continuing Suspended Case #${currentDraft.caseNum||""}`:mode==="siteComment"?"Post-Live — Site Comment":"Post-Live — Inbound Email"}</div>
-            <div className="page-sub">{isEditingFromLog?"Editing saved case — all fields are editable.":currentDraft&&!isResumingMinimised?"Resuming suspended case — all fields are editable.":mode==="siteComment"?"Fill in each step. Steps unlock as you progress.":"Assumption-based format with email details."}</div>
+            {(()=>{
+              // Use the ACTIVE tab's mode for the title, not the global mode
+              const activeTabMode=(activeLiveTabs.find(t=>t.id===activeFormTabId)||activeLiveTabs[0])?.mode||mode;
+              const isSC=activeTabMode==="siteComment";
+              return (<>
+                <div className="page-title" style={{fontSize:20}}>{isEditingFromLog?`Editing Case #${editingCase.savedCase.caseNum}`:currentDraft&&!isResumingMinimised?`Continuing Suspended Case #${currentDraft.caseNum||""}`:isSC?"Post-Live — Site Comment":"Post-Live — Inbound Email"}</div>
+                <div className="page-sub">{isEditingFromLog?"Editing saved case — all fields are editable.":currentDraft&&!isResumingMinimised?"Resuming suspended case — all fields are editable.":isSC?"Fill in each step. Steps unlock as you progress.":"Assumption-based format with email details."}</div>
+              </>);
+            })()}
           </div>
-          <TimerBar {...headerTimerState} fmtElapsed={fmtElapsed}/>
+          <TimerBar {...(()=>{
+            const activeTab=activeLiveTabs.find(t=>t.id===activeFormTabId)||activeLiveTabs[0];
+            if(activeTab&&activeTab.startTime===null) return zeroTimerState;
+            return tabTimerStates[activeFormTabId]||zeroTimerState;
+          })()} fmtElapsed={fmtElapsed}/>
         </div>
-        <PostLiveForm key={`${mode}-${activeDraftId||"new"}-${isEditingFromLog?"edit":"new"}`} mode={mode} draftData={currentDraft} user={user} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={alarmMins*60} isEditMode={isEditingFromLog} isMinimisedResume={isResumingMinimised} caseStartTime={caseStartTimeRef.current} externalFormRef={sharedFormRef} isResumingDraft={useDraft} onTimerTick={t=>setHeaderTimerState(t)} prolongedActive={prolongedActive} onProlongedDismiss={()=>{setProlongedActive(false);setProlongedDeadline(null);}}
-          originalOutcome={isEditingFromLog?(editingCase.savedCase._saveOutcome||""):useDraft?"Suspended":""}
+
+        {/* Render one PostLiveForm per live tab; only show active */}
+        {(activeLiveTabs.length>0?activeLiveTabs:[{id:'default',mode,key:`${mode}-${activeDraftId||"new"}-${isEditingFromLog?"edit":"new"}`,isFirstTab:true}]).map((tab,tabIdx)=>{
+          const tabMode=tab.mode||mode; // each tab can have its own mode
+          const isActiveTab=tab.id===activeFormTabId||(activeLiveTabs.length<=1&&!activeFormTabId)||activeLiveTabs.length===0;
+          // Only the first tab gets draft/edit data; additional tabs are always fresh
+          const isFirstTab = tabIdx===0 || tab.isFirstTab;
+          const tabDraftData = isFirstTab ? currentDraft : null;
+          const tabIsEdit = isFirstTab && isEditingFromLog;
+          const tabIsResumingMin = isFirstTab && isResumingMinimised;
+          const tabUseDraft = isFirstTab && useDraft;
+          return (
+          <div key={tab.key||tab.id} style={{display:isActiveTab?"flex":"none",flexDirection:"column",flex:isActiveTab?1:undefined,overflow:"hidden",minHeight:isActiveTab?0:undefined}}>
+          <PostLiveForm key={tab.key||`${tabMode}-${activeDraftId||"new"}-${isEditingFromLog?"edit":"new"}`} mode={tabMode} draftData={tabDraftData} user={user} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={alarmMins*60} isEditMode={tabIsEdit} isMinimisedResume={tabIsResumingMin} caseStartTime={tab.startTime!==undefined?tab.startTime:caseStartTimeRef.current} externalFormRef={isFirstTab?sharedFormRef:null} isResumingDraft={tabUseDraft} onTimerTick={tab.startTime!==null?t=>setTabTimerStates(prev=>({...prev,[tab.id]:t})):null} prolongedActive={prolongedActive} onProlongedDismiss={()=>{setProlongedActive(false);setProlongedDeadline(null);}} onProceedWithNext={prolongedMode?handleProceedWithNextCase:null} prolongedMinsForNext={prolongedMins} tabStorageKey={tab.id||null} onTabDataChange={({caseNum,businessName})=>setActiveLiveTabs(ts=>ts.map(t=>t.id===tab.id?{...t,caseNum,label:(t.mode==='inbound'?'Inbound Email':'Site Comment')+(businessName?' — '+businessName:'')+(caseNum?' #'+caseNum:'')}:t))}
+          originalOutcome={tabIsEdit?(editingCase.savedCase._saveOutcome||""):tabUseDraft?"Suspended":""}
           originalTotalSecs={(()=>{
-            const targetCase = isEditingFromLog ? editingCase.savedCase : currentDraft;
+            const targetCase = tabIsEdit ? editingCase.savedCase : tabDraftData;
             const caseNum = (targetCase?.caseNum||"").trim();
             // Use only the LATEST closed entry for this caseNum to avoid double-counting duplicates
             if(caseNum && sessionLog?.length){
@@ -3813,7 +4115,8 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
           })()}
           containerStyle={{flex:1,overflow:"hidden",minHeight:0}}
           onSave={f=>{
-  const now=new Date();const rec={...f,_mode:mode,savedAt:now.toLocaleString(),endedAt:now.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})};
+  const tabId=tab.id;
+  const now=new Date();const rec={...f,_mode:tabMode,savedAt:now.toLocaleString(),endedAt:now.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})};
   // Check if this case was started as a bundle
   const bundledWith = typeof window!=="undefined" ? (localStorage.getItem("ch_bundle_case_num")||"").trim() : "";
   if(bundledWith) {
@@ -3845,7 +4148,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
     onUpdateCase&&onUpdateCase(editingCase.savedCase._id,rec);
     setEditingCase(null);
   } else {
-    if(currentDraft?._id) onDeleteDraft&&onDeleteDraft(currentDraft._id,mode,true);
+    if(currentDraft?._id) onDeleteDraft&&onDeleteDraft(currentDraft._id,tabMode,true);
     onSaveCase&&onSaveCase(rec);
   }
   // Clear minimised form data since it's now saved
@@ -3862,8 +4165,8 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
   
   // Set outcome based on save type (clarification / completed) and whether it was a draft
   const rawOutcome = f._saveOutcome === "clarification" ? "Clarification" : "Completed";
-  const outcomeLabel = isEditingFromLog ? "Updated" : (useDraft ? "Completed" : rawOutcome);
-  const statusLabel = mode === "siteComment" ? "Site Comment" : "Inbound Email";
+  const outcomeLabel = isEditingFromLog ? "Updated" : prolongedMode ? "Pending" : (useDraft ? "Completed" : rawOutcome);
+  const statusLabel = tabMode === "siteComment" ? "Site Comment" : "Inbound Email";
   
   // For edit mode: just update the existing open row's caseNum/outcome in-place, revert to Ongoing — no new row added.
   // For new/suspended saves: close the open row and add a fresh Ongoing row.
@@ -3889,12 +4192,45 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
   });
    idbClearImages("backup").catch(()=>{});
     idbClearImages("main").catch(()=>{});
-  // If this was a prolonged case, enqueue the tracker reminder timer
+    // Clear per-tab IDB keys for this specific tab
+    idbClearImages(`${tabId}-backup`).catch(()=>{});
+    idbClearImages(`${tabId}-main`).catch(()=>{});
   if(prolongedMode){
     setProlongedMode(false);
-    enqueueProlongedTimer(f.caseNum||"", mode, prolongedMins);
+    enqueueProlongedTimer(f.caseNum||"", tabMode, prolongedMins);
   }
-  exitMode();
+  // Close only the saved tab; if more tabs remain keep them open, else full exit
+  setActiveLiveTabs(prev=>{
+    const remaining=prev.filter(t=>t.id!==tabId);
+    if(remaining.length===0){
+      // Last tab saved — full exit
+      exitMode();
+      return [];
+    }
+    // Switch to adjacent tab, give it a fresh startTime and remount key
+    const savedIdx=prev.findIndex(t=>t.id===tabId);
+    const nextIdx=Math.min(savedIdx,remaining.length-1);
+    const t2=Date.now();
+    const updated=remaining.map((t,i)=>{
+      if(i===nextIdx){
+        // Activate this tab: stamp start time and change key so PostLiveForm remounts fresh
+        return {...t,startTime:t2,key:`${t.id}-activated-${t2}`};
+      }
+      return t;
+    });
+    setActiveFormTabId(updated[nextIdx].id);
+    // Clean up saved tab's timer state
+    setTabTimerStates(prev=>{const n={...prev};delete n[tabId];return n;});
+    // Clear phase2/resume localStorage so next tab starts fresh from 0
+    if(typeof window!=="undefined"){
+      localStorage.removeItem("ch_phase2_start");
+      localStorage.removeItem("ch_resume_start");
+    }
+    // Update global mode to match newly active tab
+    setMode(updated[nextIdx].mode||mode);
+    if(typeof window!=="undefined") localStorage.setItem("ch_active_form_mode",updated[nextIdx].mode||mode);
+    return updated;
+  });
 }}
           onSaveDraftDirect={async(fd)=>{
             // Apply bundle info before suspending (mirrors onSave logic)
@@ -3903,13 +4239,13 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
               const prevOwn = fd._bundledWith ? (Array.isArray(fd._bundledWith)?fd._bundledWith:[fd._bundledWith]) : [];
               fd = {...fd, _bundledWith:[...new Set([...prevOwn,bundledWithDraft])]};
             }
-            await onSaveDraft(mode,{...fd,_mode:mode});
+            await onSaveDraft(tabMode,{...fd,_mode:tabMode});
             // Clear minimised form data since it's now properly suspended
             setMinimisedFormData(null);
             if(typeof window!=="undefined") localStorage.removeItem("ch_minimised_form");
             onTimerReset&&onTimerReset();
             const nowMs=Date.now();
-            const statusLabel = mode === "siteComment" ? "Site Comment" : "Inbound Email";
+            const statusLabel = tabMode === "siteComment" ? "Site Comment" : "Inbound Email";
             setSessionLog&&setSessionLog(prev=>{
               const closed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,status:statusLabel,endedAt:nowMs,outcome:"Suspended",caseNum:fd.caseNum||e.caseNum||""}:e);
               const fresh={id:nowMs+1,status:"Ongoing",note:"",startedAt:nowMs,endedAt:null,outcome:"",endNote:""};
@@ -3917,13 +4253,37 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
               if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
               return next;
             });
-            if(sessionDbId) fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'log_case',session_id:sessionDbId,email:user?.email,case_num:fd.caseNum,case_type:mode,note:'draft'})}).catch(()=>{});
-            exitMode();
+            if(sessionDbId) fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'log_case',session_id:sessionDbId,email:user?.email,case_num:fd.caseNum,case_type:tabMode,note:'draft'})}).catch(()=>{});
+            // Close only this tab; full exit if last one
+            setActiveLiveTabs(prev=>{
+              const remaining=prev.filter(t=>t.id!==tab.id);
+              if(remaining.length===0){ exitMode(); return []; }
+              const savedIdx=prev.findIndex(t=>t.id===tab.id);
+              const nextIdx=Math.min(savedIdx,remaining.length-1);
+              const t2=Date.now();
+              const updated=remaining.map((t,i)=>{
+                if(i===nextIdx) return {...t,startTime:t2,key:`${t.id}-activated-${t2}`};
+                return t;
+              });
+              setActiveFormTabId(updated[nextIdx].id);
+              setTabTimerStates(prev=>{const n={...prev};delete n[tab.id];return n;});
+              // Clear phase2/resume localStorage so next tab starts fresh
+              if(typeof window!=="undefined"){
+                localStorage.removeItem("ch_phase2_start");
+                localStorage.removeItem("ch_resume_start");
+              }
+              setMode(updated[nextIdx].mode||mode);
+              if(typeof window!=="undefined") localStorage.setItem("ch_active_form_mode",updated[nextIdx].mode||mode);
+              return updated;
+            });
           }}
           onBack={()=>setBackConfirm(true)}
           onCancelForm={cancelMode}
           onStartBreak={onStartBreakFull||onStartBreak}
           setSessionLog={setSessionLog}/>
+          </div>
+          );
+        })}
         
         {backConfirm && (
           <div className="modal-bg">
@@ -4063,7 +4423,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
       </div>
 
       {/* Amend type chooser */}
-      <div style={{display:"flex",gap:14,marginBottom:28,flexWrap:"wrap"}}>
+      <div style={{display:"flex",gap:14,marginBottom:formTabs.length?8:28,flexWrap:"wrap"}}>
         {deleteDraftConfirm&&(<div className="modal-bg"><div className="modal">
           <div style={{marginBottom:14,fontSize:36}}>📦</div>
           <h3>Archive Suspended Case?</h3>
@@ -4082,9 +4442,9 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
           <Icon name="back" size={14} color="var(--muted)" style={{transform:"rotate(180deg)",opacity:.5}}/>
         </button>
         <button className="pl-type-btn" disabled={amendTypesDisabled||prolongedActive} onClick={()=>enterMode("inbound")} style={{opacity:(amendTypesDisabled||prolongedActive)?.4:1,flex:1,minWidth:220}}>
-          <div className="pl-type-icon" style={{background:"rgba(124,58,237,.12)",borderColor:"rgba(124,58,237,.25)"}}><Icon name="inbound" size={26} color="#7c3aed"/></div>
+          <div className="pl-type-icon" style={{background:"rgba(124,58,237,.1)",borderColor:"rgba(124,58,237,.25)"}}><Icon name="inbound" size={26} color="#7c3aed"/></div>
           <div style={{flex:1}}>
-            <div className="pl-type-title">Inbound Email</div>
+            <div className="pl-type-title" style={{color:"#7c3aed"}}>Inbound Email</div>
             <div className="pl-type-sub">Assumption-based format</div>
           </div>
           <Icon name="back" size={14} color="var(--muted)" style={{transform:"rotate(180deg)",opacity:.5}}/>
@@ -4097,67 +4457,21 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
           </div>
           <Icon name="back" size={14} color="var(--muted)" style={{transform:"rotate(180deg)",opacity:.5}}/>
         </button>
-        <button className="pl-type-btn" disabled={amendTypesDisabled} onClick={()=>setProlongedModal(true)} style={{opacity:amendTypesDisabled?.4:1,flex:1,minWidth:220,borderColor:"rgba(245,158,11,.3)"}}>
-          <div className="pl-type-icon" style={{background:"rgba(245,158,11,.1)",borderColor:"rgba(245,158,11,.25)"}}><span style={{fontSize:22}}>⏳</span></div>
-          <div style={{flex:1}}>
-            <div className="pl-type-title" style={{color:"#f59e0b"}}>Spend a Prolonged</div>
-            <div className="pl-type-sub">Tracker fills later</div>
-          </div>
-          <Icon name="back" size={14} color="var(--muted)" style={{transform:"rotate(180deg)",opacity:.5}}/>
-        </button>
       </div>
-      {/* Prolonged active indicator — shown when a prolonged timer is running */}
-      {prolongedCurrent&&(()=>{
-        const remaining=Math.max(0,prolongedCurrent.deadline-Date.now());
-        const remSecs=Math.ceil(remaining/1000);
-        const remMins=Math.floor(remSecs/60);
-        const remSecsPart=String(remSecs%60).padStart(2,'0');
-        const overdue=remaining===0;
-        const queueLeft=prolongedQueue.length;
-        const typeTag=prolongedCurrent.caseType==="inbound"
-          ?<span style={{fontSize:9,padding:"1px 7px",borderRadius:10,background:"rgba(124,58,237,.12)",border:"1px solid rgba(124,58,237,.3)",color:"#7c3aed",fontWeight:700,marginLeft:5}}>Inbound</span>
-          :<span style={{fontSize:9,padding:"1px 7px",borderRadius:10,background:"rgba(1,118,211,.1)",border:"1px solid rgba(1,118,211,.25)",color:"var(--accent)",fontWeight:700,marginLeft:5}}>Site</span>;
-        return (
-          <div style={{marginBottom:12,background:overdue?"rgba(244,63,94,.08)":"rgba(245,158,11,.06)",border:overdue?"2px solid rgba(244,63,94,.5)":"1px solid rgba(245,158,11,.35)",borderRadius:10,overflow:"hidden"}}>
-            <div style={{height:3,background:"var(--border)"}}>
-              <div style={{height:"100%",width:overdue?"100%":`${Math.max(0,Math.round((1-remaining/(prolongedCurrent.mins*60000))*100))}%`,background:overdue?"#f43f5e":"#f59e0b",transition:"width 1s linear"}}/>
-            </div>
-            <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",fontSize:12,fontFamily:"'Poppins',sans-serif"}}>
-              <span style={{fontSize:18}}>{overdue?"🚨":"⏳"}</span>
-              <span style={{flex:1,color:"var(--text)",lineHeight:1.6}}>
-                {overdue
-                  ? <div><strong style={{color:"#f43f5e",fontSize:12}}>Fill combined tracker for #{prolongedCurrent.caseNum}</strong>{typeTag}{queueLeft>0&&<div style={{color:"var(--muted)",fontSize:11,marginTop:1}}>{queueLeft} more case{queueLeft!==1?"s":""} waiting after this</div>}</div>
-                  : <div>
-                      <strong style={{color:"#f59e0b"}}>⏳ Prolonged active</strong>{" — "}#{prolongedCurrent.caseNum}{typeTag}
-                      <span style={{marginLeft:8,fontFamily:"monospace",fontWeight:700,fontSize:13,color:"var(--text)"}}>{remMins}:{remSecsPart}</span>
-                      {queueLeft>0&&<span style={{color:"var(--muted)",fontSize:11,marginLeft:6}}> · {queueLeft} more queued</span>}
-                      <div style={{fontSize:11,color:"var(--muted)",marginTop:1}}>Site/Inbound/Bundle locked — you can still queue another Prolonged.</div>
-                    </div>
-                }
-              </span>
-              {overdue
-                ? <button onClick={dismissProlongedCurrent} style={{fontSize:11,padding:"5px 14px",borderRadius:8,border:"1px solid rgba(244,63,94,.4)",background:"rgba(244,63,94,.12)",color:"#f43f5e",cursor:"pointer",fontWeight:700,fontFamily:"'Poppins',sans-serif",whiteSpace:"nowrap",flexShrink:0}}>{queueLeft>0?"Done → Next ▶":"Done ✓"}</button>
-                : <button onClick={()=>{setProlongedCurrent(null);setProlongedQueue([]);}} style={{fontSize:10,padding:"3px 10px",borderRadius:6,border:"1px solid var(--border)",background:"var(--glass-bg)",color:"var(--muted)",cursor:"pointer",fontFamily:"'Poppins',sans-serif",flexShrink:0}}>Cancel all</button>
-              }
-            </div>
-          </div>
-        );
-      })()}
 
-      {/* Prolonged Modal — pick type then open normal form */}
-      {prolongedModal&&(
-        <div className="modal-bg" onClick={e=>{if(e.target===e.currentTarget)setProlongedModal(false);}}>
-          <div className="modal" style={{maxWidth:380}}>
-            <div style={{textAlign:"center",marginBottom:12}}>
+      {/* Tab picker modal for adding new prolonged case */}
+      {showTabPicker&&(
+        <div className="modal-bg" onClick={e=>{if(e.target===e.currentTarget){setShowTabPicker(false);setProlongedMode(false);}}}>
+          <div className="modal" style={{maxWidth:400}}>
+            <div style={{textAlign:"center",marginBottom:14}}>
               <span style={{fontSize:28}}>⏳</span>
-              <h3 style={{margin:"8px 0 4px"}}>Spend a Prolonged</h3>
+              <h3 style={{margin:"8px 0 4px"}}>New Prolonged Case</h3>
               <p style={{fontSize:12,color:"var(--muted)",lineHeight:1.5,margin:0}}>
-                Fill the form normally — combined tracker is not required now.<br/>
-                A timer will fire after you submit to remind you to fill it.
+                Fill the form normally — combined tracker reminder fires after you submit.
               </p>
             </div>
             <div className="field" style={{marginBottom:16}}>
-              <label style={{marginBottom:6,display:"block"}}>Minutes before tracker reminder</label>
+              <label style={{display:"block",marginBottom:6}}>Tracker reminder after</label>
               <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                 {[15,30,45,60,90,120].map(m=>(
                   <button key={m} onClick={()=>setProlongedMins(m)} style={{padding:"4px 12px",borderRadius:8,border:prolongedMins===m?"2px solid #f59e0b":"1px solid var(--border)",background:prolongedMins===m?"rgba(245,158,11,.12)":"var(--glass-bg)",color:prolongedMins===m?"#f59e0b":"var(--muted)",fontWeight:prolongedMins===m?700:400,cursor:"pointer",fontSize:12,fontFamily:"'Poppins',sans-serif"}}>{m}m</button>
@@ -4165,18 +4479,28 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
                 <input type="number" min={1} max={480} value={prolongedMins} onChange={e=>setProlongedMins(Math.max(1,Number(e.target.value)))} className="inp" style={{width:64,textAlign:"center"}}/>
               </div>
             </div>
-            <div style={{display:"flex",gap:10,marginTop:4}}>
-              <button className="pl-type-btn" style={{flex:1,opacity:1}} onClick={()=>{setProlongedMode(true);setProlongedModal(false);enterMode("siteComment");}}>
-                <div className="pl-type-icon"><Icon name="sitecomment" size={22} color="var(--accent)"/></div>
-                <div style={{flex:1}}><div className="pl-type-title" style={{fontSize:13}}>Site Comment</div></div>
+            <div style={{display:"flex",gap:10}}>
+              <button className="pl-type-btn" style={{flex:1}} onClick={()=>{setShowTabPicker(false);enterMode("siteComment");}}>
+                <div className="pl-type-icon"><Icon name="sitecomment" size={20} color="var(--accent)"/></div>
+                <div style={{flex:1}}><div className="pl-type-title" style={{fontSize:12}}>Site Comment</div></div>
               </button>
-              <button className="pl-type-btn" style={{flex:1,opacity:1}} onClick={()=>{setProlongedMode(true);setProlongedModal(false);enterMode("inbound");}}>
-                <div className="pl-type-icon" style={{background:"rgba(124,58,237,.1)",borderColor:"rgba(124,58,237,.25)"}}><Icon name="email" size={22} color="#7c3aed"/></div>
-                <div style={{flex:1}}><div className="pl-type-title" style={{fontSize:13,color:"#7c3aed"}}>Inbound</div></div>
+              <button className="pl-type-btn" style={{flex:1}} onClick={()=>{setShowTabPicker(false);enterMode("inbound");}}>
+                <div className="pl-type-icon" style={{background:"rgba(124,58,237,.1)",borderColor:"rgba(124,58,237,.25)"}}><Icon name="inbound" size={20} color="#7c3aed"/></div>
+                <div style={{flex:1}}><div className="pl-type-title" style={{fontSize:12,color:"#7c3aed"}}>Inbound</div></div>
               </button>
             </div>
-            <button className="btn btn-ghost" style={{width:"100%",marginTop:10}} onClick={()=>setProlongedModal(false)}>Cancel</button>
+            <button className="btn btn-ghost" style={{width:"100%",marginTop:10}} onClick={()=>{setShowTabPicker(false);setProlongedMode(false);}}>Cancel</button>
           </div>
+        </div>
+      )}
+
+
+
+      {/* 1-min warning toast */}
+      {prolongedWarnToast&&(
+        <div style={{position:"fixed",top:20,right:20,zIndex:9999,background:"rgba(244,63,94,.95)",border:"1px solid rgba(244,63,94,.6)",borderRadius:10,padding:"12px 18px",color:"#fff",fontFamily:"'Poppins',sans-serif",fontSize:13,fontWeight:700,boxShadow:"0 4px 20px rgba(0,0,0,.3)",display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontSize:20}}>🚨</span>
+          <div><div>1 minute left!</div><div style={{fontFamily:"monospace",fontSize:15}}>Fill tracker for #{prolongedWarnToast}</div></div>
         </div>
       )}
 
@@ -4704,6 +5028,8 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
         "Continued Draft Saved":"var(--amber)",
         "Draft Saved":"var(--amber)",
         "Prolonged":"#f59e0b",
+        "Completed Prolonged":"var(--green)",
+        "Pending":"#f59e0b",
         "Break Ended":"var(--amber)",
         "Open Hour Ended":"var(--accent)",
         "Cancelled":"var(--red)",
@@ -4754,7 +5080,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
       const showButton = isCaseEntry && 
                          caseNum && 
                          !isOngoing && 
-                         outcome !== "Prolonged" &&
+                         outcome !== "Prolonged" && outcome !== "Pending" && outcome !== "Completed Prolonged" &&
                          !suspendedButLaterCompleted &&
                          (!isDuplicate || isLatestForCase);
 
@@ -4858,8 +5184,10 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
           <div>
             {isDeleted?(
               <span style={{fontSize:10,fontWeight:700,color:"#f43f5e",fontFamily:"'Poppins',sans-serif",background:"rgba(244,63,94,.12)",padding:"3px 8px",borderRadius:2,border:"1px solid rgba(244,63,94,.3)"}}>🗑 Deleted</span>
-            ):outcome==="Prolonged"?(
+            ):(outcome==="Prolonged"||outcome==="Pending")?(
               <span style={{fontSize:9,fontWeight:700,color:"#f59e0b",fontFamily:"'Poppins',sans-serif",background:"rgba(245,158,11,.1)",padding:"3px 8px",borderRadius:6,border:"1px solid rgba(245,158,11,.3)"}}>⏳ Tracker pending</span>
+            ):outcome==="Completed Prolonged"?(
+              <span style={{fontSize:9,fontWeight:700,color:"var(--green)",fontFamily:"'Poppins',sans-serif",background:"rgba(16,185,129,.1)",padding:"3px 8px",borderRadius:6,border:"1px solid rgba(16,185,129,.3)"}}>✅ Prolonged done</span>
             ):showButton?(
               <button
                 className="session-log-edit-btn"
@@ -4939,7 +5267,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
                           {pill("Completed",completedCount,"var(--green)","rgba(16,185,129,.07)")}
                           {pill("Clarification",clarificationCount,"var(--amber)","rgba(245,158,11,.07)")}
                           {pill("Suspended",suspendedCount,"var(--red)","rgba(244,63,94,.07)")}
-                          {prolongedCount>0&&pill("Prolonged",prolongedCount,"#f59e0b","rgba(245,158,11,.07)")}
+                          {(()=>{const pendingCount=(sessionLog||[]).filter(e=>e.outcome==="Pending").length;const doneCount=(sessionLog||[]).filter(e=>e.outcome==="Completed Prolonged").length;return<>{pendingCount>0&&pill("Pending",pendingCount,"#f59e0b","rgba(245,158,11,.07)")}{doneCount>0&&pill("Prolonged Done",doneCount,"var(--green)","rgba(16,185,129,.07)")}</>})()}
                           {breakMs>0&&pill("Break Time",fmtMs(breakMs),"var(--muted)")}
                         </div>
                       </>
@@ -5077,32 +5405,50 @@ async function downloadCase(c) {
   if(!isSC&&c.emailAddress){const tl=c.emailType==="clarification"?"Clarification email sent to":"Email completed sent to";txt+=`\n${tl} ${c.emailAddress}.`;}
   const meta=[`Post-Live Amends Case Export`,"─".repeat(36),`Saved: ${c.savedAt}`,`Type: ${isSC?"Site Comment":"Inbound Email"}`,`Case #: ${c.caseNum||"—"}`,`Account #: ${c.accountNum||"—"}`,...(isSC?[]:[`Inbound #: ${c.inboundNum||"—"}`]),`Amend Type: ${c.amendType||"—"}`,``,txt].join("\n");
   const bizPart=(c.businessName||"").trim();
-  const zipName=`${c.caseNum||"unknown"}${bizPart?" - "+bizPart:""}`.replace(/[^a-zA-Z0-9 _()-]/g,"_").trim();
+  const folderName=`${c.caseNum||"unknown"}${bizPart?" - "+bizPart:""}`.replace(/[^a-zA-Z0-9 _()-]/g,"").replace(/\s+/g," ").trim();
 
-  // Load JSZip
-  if(!window.JSZip){await new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
-  const zip=new window.JSZip();
-  zip.file("case_data.txt",meta);
-  for(const img of [...(c.images||[]),...(c.backupImages||[])]){
-    try{const r=await fetch(img.url);const blob=await r.blob();const ext=(img.name||"screenshot").split(".").pop()||"png";zip.file(`${img.name||"screenshot"}.${ext}`,blob);}catch(e){console.warn("Image fetch failed:",e);}
-  }
-  const zipBlob=await zip.generateAsync({type:"blob"});
-
-  // Try folder picker API (Chrome/Edge) — reuses last chosen directory
+  // Try folder picker API (Chrome/Edge) — save files into a real folder
   if(window.showDirectoryPicker){
     try{
       const dir=await getOrPickDir();
-      const fileHandle=await dir.getFileHandle(`${zipName}.zip`,{create:true});
-      const writable=await fileHandle.createWritable();
-      await writable.write(zipBlob);
-      await writable.close();
+      const caseDir=await dir.getDirectoryHandle(folderName,{create:true});
+      // Save case data text
+      const txtHandle=await caseDir.getFileHandle("case_data.txt",{create:true});
+      const txtWr=await txtHandle.createWritable();
+      await txtWr.write(new Blob([meta],{type:"text/plain"}));
+      await txtWr.close();
+      // Save images
+      for(const img of [...(c.images||[]),...(c.backupImages||[])]){
+        try{
+          const r=await fetch(img.url);const blob=await r.blob();
+          const ext=(img.name||"screenshot").split(".").pop()||"png";
+          const baseName=(img.name||"screenshot").replace(/\.[^/.]+$/,"");
+          const fh=await caseDir.getFileHandle(`${baseName}.${ext}`,{create:true});
+          const wr=await fh.createWritable();await wr.write(blob);await wr.close();
+        }catch(e){console.warn("Image fetch failed:",e);}
+      }
       return;
     }catch(e){
       if(e.name==="AbortError")return;
     }
   }
-  // Fallback: normal browser download
-  const a=document.createElement("a");a.href=URL.createObjectURL(zipBlob);a.download=`${zipName}.zip`;a.click();
+  // Fallback: download case_data.txt + each image with folder/filename path
+  const txtBlob=new Blob([meta],{type:"text/plain"});
+  const ta=document.createElement("a");ta.href=URL.createObjectURL(txtBlob);
+  ta.download=`${folderName}/case_data.txt`;ta.click();URL.revokeObjectURL(ta.href);
+  await new Promise(r=>setTimeout(r,120));
+  for(const img of [...(c.images||[]),...(c.backupImages||[])]){
+    try{
+      const r=await fetch(img.url);const blob=await r.blob();
+      const ext=(img.name||"screenshot").split(".").pop()||"png";
+      const baseName=(img.name||"screenshot").replace(/\.[^/.]+$/,"");
+      const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+      a.download=`${folderName}/${baseName}.${ext}`;
+      document.body.appendChild(a);a.click();document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+      await new Promise(r=>setTimeout(r,120));
+    }catch(e){console.warn("Image fetch failed:",e);}
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -5442,7 +5788,7 @@ function EditableCaseCard({ c, onUpdate, onRequestDelete, onLightbox, openId, se
                         <button className="h-btn" style={{fontSize:11,padding:"4px 10px",borderColor:"var(--accent)",color:"var(--accent)"}} onClick={startEdit}>＋ Add / Edit</button>
                         <button className="h-btn" style={{fontSize:11,padding:"4px 10px",borderColor:"var(--green)",color:"var(--green)",fontWeight:700}} onClick={async()=>{
                           try{
-                            const bizPart=(c.businessName||"").trim();const folderName=`${c.caseNum||"unknown"}${bizPart?" - "+bizPart:""}`.replace(/[^a-zA-Z0-9 _()-]/g,"_").trim();
+                            const bizPart=(c.businessName||"").trim();const folderName=`${c.caseNum||"unknown"}${bizPart?" - "+bizPart:""}`.replace(/[^a-zA-Z0-9 _()-]/g,"").replace(/\s+/g," ").trim();
                             if(window.showDirectoryPicker){
                               try{
                                 const rootDir=await getOrPickDir();
@@ -5462,21 +5808,20 @@ function EditableCaseCard({ c, onUpdate, onRequestDelete, onLightbox, openId, se
                                 return;
                               }catch(e){if(e.name==="AbortError")return;}
                             }
-                            // Fallback: zip with folder named after case
-                            if(!window.JSZip){await new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
-                            const zip=new window.JSZip();
-                            const folder=zip.folder(folderName);
+                            // Fallback: individual downloads with folder/filename path
                             for(const img of allImages){
                               try{
                                 const urlExt=(img.url||"").split("?")[0].split(".").pop().toLowerCase();
                                 const safeExt=["jpg","jpeg","png","gif","webp"].includes(urlExt)?urlExt:"png";
                                 const baseName=(img.name||"screenshot").replace(/\.[^/.]+$/,"");
                                 const r=await fetch(img.url);const blob=await r.blob();
-                                folder.file(`${baseName}.${safeExt}`,blob);
+                                const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+                                a.download=`${folderName}/${baseName}.${safeExt}`;
+                                document.body.appendChild(a);a.click();document.body.removeChild(a);
+                                URL.revokeObjectURL(a.href);
+                                await new Promise(r=>setTimeout(r,120));
                               }catch(e){console.warn("Image fetch failed:",e);}
                             }
-                            const zipBlob=await zip.generateAsync({type:"blob"});
-                            const a=document.createElement("a");a.href=URL.createObjectURL(zipBlob);a.download=`${folderName}.zip`;a.click();
                           }catch(e){console.error("Bulk download failed:",e);}
                         }}>⬇ Bulk Download</button>
                       </div>
@@ -6423,6 +6768,8 @@ function App() {
   });
   const [sessionRefreshKey,setSessionRefreshKey]=useState(0);
   const doTimeIn=()=>{
+    // Fresh session — clear any leftover dir handle so first download asks for path
+    resetSessionDir();
     const now=Date.now();
     setTimedIn(true);
     setGlobalTimeIn(now);
@@ -6452,6 +6799,8 @@ function App() {
     if(typeof window!=="undefined") localStorage.setItem("ch_timein",String(now));
   };
   const doTimeOut=()=>{
+    // Clear the saved folder handle — next session will ask for path on first download
+    resetSessionDir();
     // Close the current open entry first, then add Time Out entry
     const now=Date.now();
     setSessionLog(prev=>{
@@ -8082,6 +8431,22 @@ function FileNameGeneratorPage() {
   useEffect(()=>{
     if(typeof window==="undefined") return;
     const sync=()=>{
+      // Update active live tab label with business name
+      const activeSrc2 = localStorage.getItem("ch_minimised_form");
+      if(activeSrc2){
+        try{
+          const fd2=JSON.parse(activeSrc2);
+          const biz=fd2.businessName||fd2.customerName||'';
+          const cnum=fd2.caseNum||'';
+          if(biz||cnum){
+            setActiveLiveTabs(ts=>ts.map(t=>
+              t.id===activeFormTabId
+                ?{...t,label:(t.mode==='inbound'?'Inbound Email':'Site Comment')+(biz?' — '+biz:'')+(cnum?' #'+cnum:''),caseNum:cnum}
+                :t
+            ));
+          }
+        }catch{}
+      }
       // Priority: active minimised form (live typing) > last saved case
       const activeSrc = localStorage.getItem("ch_minimised_form");
       const lastSaved = localStorage.getItem("ch_last_saved_case");
