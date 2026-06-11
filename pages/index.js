@@ -2166,7 +2166,7 @@ function GreetingRow({ greetingMessages, caseNum, inboundNum, isSC }) {
   );
 }
 
-function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailText, onTimerEnd, specialRequestors, timerLimitSecs, greetingMessages }) {
+function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailText, onTimerEnd, specialRequestors, timerLimitSecs, greetingMessages, footerElapsed=0 }) {
   const [elapsed,setElapsed]=useState(0);
   const [now,setNow]=useState(new Date());
   const firedRef=useRef(false);
@@ -2182,15 +2182,17 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
     }
   }, []);
 
+  // Use footerElapsed from parent (same source as tab timer) — stays in sync with the header TimerBar
   useEffect(()=>{
-    const t=setInterval(()=>{
-      const secs=Math.floor((Date.now()-startTimeRef.current)/1000);
-      setElapsed(secs); setNow(new Date());
-      const limit=timerLimitSecs||1800;
-      if(!firedRef.current && secs>=limit){ firedRef.current=true; onTimerEnd&&onTimerEnd(); }
-    },1000);
-    return()=>clearInterval(t);
-  },[startTimeRef,onTimerEnd]);
+    // Reset firedRef when timer goes back to 0 (new case started) so alarm can fire again
+    if(footerElapsed===0) { firedRef.current=false; }
+    setElapsed(footerElapsed);
+    setNow(new Date());
+    const limit=timerLimitSecs||1800;
+    if(!firedRef.current && limit>0 && footerElapsed>0 && footerElapsed>=limit){
+      firedRef.current=true; onTimerEnd&&onTimerEnd();
+    }
+  },[footerElapsed,timerLimitSecs,onTimerEnd]);
   // form is real React state — re-renders on every form change, images update instantly
   const f=form;
   const emailTypeLabel=f.emailType==="clarification"?"Clarification":"Completed";
@@ -2521,24 +2523,24 @@ function TimerBar({ footerElapsed, resumeElapsed, phase2Elapsed, isDraftResumed,
         <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 16px",borderLeft:"1px solid var(--glass-border)",marginLeft:8,flexWrap:"wrap"}}>
           {block("Total Time Spent", originalTotalSecs, "var(--muted)")}
           {sep}
-          {block("Elapsed now", footerElapsed, phase2Active?"var(--muted)":"var(--accent)", {paused:phase2Active})}
-          {phase2Active && <>{sep}{block("Phase 2", phase2Elapsed, "var(--green)", {pulsing:true})}</>}
+          {block("Combined Tracker", footerElapsed, phase2Active?"var(--muted)":"var(--accent)", {paused:phase2Active})}
+          {phase2Active && <>{sep}{block("QA Checklist", phase2Elapsed, "var(--green)", {pulsing:true})}</>}
         </div>
       );
     }
     return (
       <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 16px",borderLeft:"1px solid var(--glass-border)",marginLeft:8,flexWrap:"wrap"}}>
-        {block("Before suspended", prevElapsedSecs, "var(--muted)")}
+        {block("Combined Tracker", prevElapsedSecs, "var(--muted)")}
         {sep}
-        {block("Elapsed now", footerElapsed, phase2Active?"var(--muted)":"var(--accent)", {paused:phase2Active})}
-        {phase2Active && <>{sep}{block("Phase 2", phase2Elapsed, "var(--green)", {pulsing:true})}</>}
+        {block("Combined Tracker", footerElapsed, phase2Active?"var(--muted)":"var(--accent)", {paused:phase2Active})}
+        {phase2Active && <>{sep}{block("QA Checklist", phase2Elapsed, "var(--green)", {pulsing:true})}</>}
       </div>
     );
   }
   return (
     <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 16px",borderLeft:"1px solid var(--glass-border)",marginLeft:8}}>
-      {block("Elapsed", footerElapsed, phase2Active?"var(--muted)":"var(--accent)", {paused:phase2Active})}
-      {phase2Active && <>{sep}{block("Phase 2", phase2Elapsed, "var(--green)", {pulsing:true})}</>}
+      {block("Combined Tracker", footerElapsed, phase2Active?"var(--muted)":"var(--accent)", {paused:phase2Active})}
+      {phase2Active && <>{sep}{block("QA Checklist", phase2Elapsed, "var(--green)", {pulsing:true})}</>}
     </div>
   );
 }
@@ -2698,12 +2700,13 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
     : 0;
 
   // Phase 2 timer: starts when Combined Tracker checkbox is first checked
-  // Persist/restore from localStorage so refresh doesn't reset it
-  const _phase2Init = typeof window!=="undefined" ? (() => { const v=localStorage.getItem("ch_phase2_start"); return v?Number(v):null; })() : null;
+  // Scoped per-tab using tabStorageKey so tabs never share phase2 state
+  const p2Key = tabStorageKey ? `ch_phase2_start_${tabStorageKey}` : null;
+  const _phase2Init = (p2Key && typeof window!=="undefined") ? (() => { const v=localStorage.getItem(p2Key); return v?Number(v):null; })() : null;
   const phase2StartRef = useRef(_phase2Init);
   const [phase2Elapsed, setPhase2Elapsed] = useState(()=>{
-    if(typeof window==="undefined") return null;
-    const v=localStorage.getItem("ch_phase2_start");
+    if(!p2Key||typeof window==="undefined") return null;
+    const v=localStorage.getItem(p2Key);
     return v?Math.floor((Date.now()-Number(v))/1000):null;
   });
 
@@ -2726,11 +2729,27 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
   // Track active state — starts false for queued tabs, flips true when caseStartTime becomes non-null
   const timerActiveRef = useRef(!isQueued);
   useEffect(()=>{
-    if(caseStartTime!==null && !timerActiveRef.current){
+    if(caseStartTime===null){
+      // Tab was queued or reset — fully clear phase2 state
+      timerActiveRef.current = false;
+      frozenElapsedRef.current = null;
+      frozenResumeRef.current = null;
+      phase2StartRef.current = null;
+      setPhase2Elapsed(null);
+      setFooterElapsed(0);
+      setResumeElapsed(0);
+      if(p2Key && typeof window!=="undefined") localStorage.removeItem(p2Key);
+    } else if(!timerActiveRef.current){
       // Tab just became active — stamp startTime and begin ticking
       startTimeRef.current = caseStartTime;
       resumeStartRef.current = caseStartTime;
       timerActiveRef.current = true;
+      // Reset phase2 frozen refs so newly activated tab never inherits stale values
+      frozenElapsedRef.current = null;
+      frozenResumeRef.current = null;
+      phase2StartRef.current = null;
+      setPhase2Elapsed(null);
+      if(p2Key && typeof window!=="undefined") localStorage.removeItem(p2Key);
     }
   },[caseStartTime]);
   useEffect(()=>{
@@ -2859,7 +2878,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
   return (
     <div className="form-cols" style={containerStyle}>
       <div className="form-right">
-        <StickyPanel startTimeRef={startTimeRef} form={form} isSC={isSC} buildEntriesText={buildEntriesText} buildEmailText={buildEmailText} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={timerLimitSecs} greetingMessages={user?.greetingMessages}/>
+        <StickyPanel startTimeRef={startTimeRef} form={form} isSC={isSC} buildEntriesText={buildEntriesText} buildEmailText={buildEmailText} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={timerLimitSecs} greetingMessages={user?.greetingMessages} footerElapsed={footerElapsed}/>
       </div>
 
       <div className="form-left">
@@ -3056,7 +3075,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
                     if(allThree){
                       const t=Date.now();
                       phase2StartRef.current=t;
-                      if(typeof window!=="undefined") localStorage.setItem("ch_phase2_start",String(t));
+                      if(p2Key&&typeof window!=="undefined") localStorage.setItem(p2Key,String(t));
                       setFooterElapsed(f=>f);
                       setResumeElapsed(r=>r);
                       setPhase2Elapsed(0);
@@ -3168,10 +3187,10 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
     resumeStartRef.current=Date.now();
     if(typeof window!=="undefined"){
         localStorage.setItem("ch_resume_start",String(Date.now()));
-        localStorage.removeItem("ch_phase2_start");
+        if(p2Key) localStorage.removeItem(p2Key);
     }
     phase2StartRef.current=null;
-    setPhase2Elapsed(null);
+    setPhase2Elapsed(null); frozenElapsedRef.current=null; frozenResumeRef.current=null;
     setModal(null);
     showToast("All fields cleared","info");
     // ADD THESE TWO LINES ↓
@@ -3234,7 +3253,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
                 const data=breakConfirmData;
                 setModal(null);
                 setBreakConfirmData(null);
-                onSave&&onSave({...formRef.current,trackerChecklistLink:formRef.current.trackerChecklistLink||""});
+                onSave&&onSave({...formRef.current,trackerChecklistLink:formRef.current.trackerChecklistLink||"",_breakPending:true});
                 setTimeout(()=>onStartBreak&&onStartBreak(data.label.replace(/[☕🧘🍱]/g,"").trim()+" break",data.mins),80);
               }}
             >
@@ -3822,7 +3841,6 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
       localStorage.removeItem("ch_minimised_form");
       localStorage.removeItem("ch_case_start_time");
       localStorage.removeItem("ch_resume_start");
-      localStorage.removeItem("ch_phase2_start");
       localStorage.removeItem("ch_bundle_case_num");
       localStorage.removeItem("ch_bundle_prefill");
       localStorage.removeItem("ch_live_tabs");
@@ -4164,7 +4182,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
           const tabUseDraft = isFirstTab && useDraft;
           return (
           <div key={tab.key||tab.id} style={{display:(isActiveTab&&!isMinimised)?"flex":"none",flexDirection:"column",flex:(isActiveTab&&!isMinimised)?1:undefined,overflow:"hidden",minHeight:(isActiveTab&&!isMinimised)?0:undefined}}>
-          <PostLiveForm key={tab.key||`${tabMode}-${activeDraftId||"new"}-${isEditingFromLog?"edit":"new"}`} mode={tabMode} draftData={tabDraftData} user={user} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={alarmMins*60} isEditMode={tabIsEdit} isMinimisedResume={tabIsResumingMin} caseStartTime={tab.startTime!==undefined?tab.startTime:caseStartTimeRef.current} externalFormRef={isFirstTab?sharedFormRef:null} isResumingDraft={tabUseDraft} onTimerTick={tab.startTime!==null?t=>setTabTimerStates(prev=>({...prev,[tab.id]:t})):null} prolongedActive={prolongedActive} onProlongedDismiss={()=>{setProlongedActive(false);setProlongedDeadline(null);}} onProceedWithNext={prolongedMode?handleProceedWithNextCase:null} prolongedMinsForNext={prolongedMins} tabStorageKey={tab.id||null} onTabDataChange={({caseNum,businessName,complexity})=>setActiveLiveTabs(ts=>ts.map(t=>t.id===tab.id?{...t,caseNum,complexity:complexity||'minor',label:(t.mode==='inbound'?'Inbound Email':'Site Comment')+(businessName?' — '+businessName:'')+(caseNum?' #'+caseNum:'')}:t))}
+          <PostLiveForm key={tab.key||`${tabMode}-${activeDraftId||"new"}-${isEditingFromLog?"edit":"new"}`} mode={tabMode} draftData={tabDraftData} user={user} onTimerEnd={isActiveTab&&(alarmMins>0)?onTimerEnd:null} specialRequestors={specialRequestors} timerLimitSecs={alarmMins*60} isEditMode={tabIsEdit} isMinimisedResume={tabIsResumingMin} caseStartTime={tab.startTime!==undefined?tab.startTime:caseStartTimeRef.current} externalFormRef={isFirstTab?sharedFormRef:null} isResumingDraft={tabUseDraft} onTimerTick={tab.startTime!==null?t=>setTabTimerStates(prev=>({...prev,[tab.id]:t})):null} prolongedActive={prolongedActive} onProlongedDismiss={()=>{setProlongedActive(false);setProlongedDeadline(null);}} onProceedWithNext={prolongedMode?handleProceedWithNextCase:null} prolongedMinsForNext={prolongedMins} tabStorageKey={tab.id||null} onTabDataChange={({caseNum,businessName,complexity})=>setActiveLiveTabs(ts=>ts.map(t=>t.id===tab.id?{...t,caseNum,complexity:complexity||'minor',label:(t.mode==='inbound'?'Inbound Email':'Site Comment')+(businessName?' — '+businessName:'')+(caseNum?' #'+caseNum:'')}:t))}
           originalOutcome={tabIsEdit?(editingCase.savedCase._saveOutcome||""):tabUseDraft?"Suspended":""}
           originalTotalSecs={(()=>{
             const targetCase = tabIsEdit ? editingCase.savedCase : tabDraftData;
@@ -4282,9 +4300,10 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
     const savedIdx=prev.findIndex(t=>t.id===tabId);
     const nextIdx=Math.min(savedIdx,remaining.length-1);
     // Just update which tab is active — no key change
-    // Only auto-start a queued tab if we are NOT on a break
+    // Only auto-start a queued tab if we are NOT on a break AND this save wasn't triggered by a break button
+    const isBreakSave = !!(f&&f._breakPending);
     const updated=remaining.map((t,i)=>{
-      if(i===nextIdx && t.startTime===null && !breakActive){
+      if(i===nextIdx && t.startTime===null && !breakActive && !isBreakSave){
         // Not on break — activate the next queued tab immediately
         return {...t,startTime:Date.now()};
       }
@@ -4334,11 +4353,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
               });
               setActiveFormTabId(updated[nextIdx].id);
               setTabTimerStates(prev=>{const n={...prev};delete n[tab.id];return n;});
-              // Clear phase2/resume localStorage so next tab starts fresh
-              if(typeof window!=="undefined"){
-                localStorage.removeItem("ch_phase2_start");
-                localStorage.removeItem("ch_resume_start");
-              }
+              // Each tab clears its own scoped ch_phase2_start_{tabId} key on save — no global clear needed
               setMode(updated[nextIdx].mode||mode);
               if(typeof window!=="undefined") localStorage.setItem("ch_active_form_mode",updated[nextIdx].mode||mode);
               return updated;
