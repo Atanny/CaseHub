@@ -483,6 +483,7 @@ body.light .action-bar{background:rgba(255,248,243,.92);}
 
 /* Stat cards */
 .stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;margin-bottom:28px;}
+#fngen-dropdown.open{display:block!important;}
 .stat-card{
   background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius);
   padding:20px;position:relative;overflow:hidden;transition:.2s;cursor:default;
@@ -2166,10 +2167,11 @@ function GreetingRow({ greetingMessages, caseNum, inboundNum, isSC }) {
   );
 }
 
-function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailText, onTimerEnd, specialRequestors, timerLimitSecs, greetingMessages, footerElapsed=0 }) {
+function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailText, onTimerEnd, onQaTimerEnd, specialRequestors, timerLimitSecs, qaTimerLimitSecs=600, greetingMessages, footerElapsed=0, phase2Elapsed=null }) {
   const [elapsed,setElapsed]=useState(0);
   const [now,setNow]=useState(new Date());
   const firedRef=useRef(false);
+  const qaFiredRef=useRef(false);
   const [dlState,setDlState]=useState("idle"); // idle | downloading | done | error
   const summaryPanelRef=useRef(null);
 
@@ -2184,7 +2186,6 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
 
   // Use footerElapsed from parent (same source as tab timer) — stays in sync with the header TimerBar
   useEffect(()=>{
-    // Reset firedRef when timer goes back to 0 (new case started) so alarm can fire again
     if(footerElapsed===0) { firedRef.current=false; }
     setElapsed(footerElapsed);
     setNow(new Date());
@@ -2193,6 +2194,15 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
       firedRef.current=true; onTimerEnd&&onTimerEnd();
     }
   },[footerElapsed,timerLimitSecs,onTimerEnd]);
+
+  // QA Checklist alarm — fires when phase2Elapsed hits qaTimerLimitSecs
+  useEffect(()=>{
+    if(phase2Elapsed===null||phase2Elapsed===0){ qaFiredRef.current=false; return; }
+    const qaLimit=qaTimerLimitSecs||600;
+    if(!qaFiredRef.current && qaLimit>0 && phase2Elapsed>=qaLimit){
+      qaFiredRef.current=true; onQaTimerEnd&&onQaTimerEnd();
+    }
+  },[phase2Elapsed,qaTimerLimitSecs,onQaTimerEnd]);
   // form is real React state — re-renders on every form change, images update instantly
   const f=form;
   const emailTypeLabel=f.emailType==="clarification"?"Clarification":"Completed";
@@ -2599,7 +2609,7 @@ function TocPanel({ openStep, setOpenStep, isSC, page, doneMap={}, specialReques
     </div>
   );
 }
-function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, onAutoSaveDraft, onStartBreak, draftData, user, onTimerEnd, specialRequestors, timerLimitSecs, globalTimeIn, isEditMode=false, isMinimisedResume=false, caseStartTime=null, externalFormRef=null, isResumingDraft=false, originalOutcome="", originalTotalSecs=0, containerStyle={}, onTimerTick=null, prolongedActive=false, onProlongedDismiss=null, onProceedWithNext=null, prolongedMinsForNext=30, tabStorageKey=null, onTabDataChange=null }) {
+function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, onAutoSaveDraft, onStartBreak, draftData, user, onTimerEnd, onQaTimerEnd, specialRequestors, timerLimitSecs, qaTimerLimitSecs=600, globalTimeIn, isEditMode=false, isMinimisedResume=false, caseStartTime=null, externalFormRef=null, isResumingDraft=false, originalOutcome="", originalTotalSecs=0, containerStyle={}, onTimerTick=null, prolongedActive=false, onProlongedDismiss=null, onProceedWithNext=null, prolongedMinsForNext=30, tabStorageKey=null, onTabDataChange=null }) {
   const isSC = mode==="siteComment";
   const entryLabel = isSC?"Site Comment":"Assumption";
   const rawName = user?.name || "User";
@@ -2663,6 +2673,21 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
     // Notify parent tab strip with latest caseNum + businessName + complexity for live label update
     if(onTabDataChange) onTabDataChange({ caseNum: form.caseNum||'', businessName: form.businessName||'', complexity: form._caseComplexity||'minor' });
   },[form]);
+
+  // ── File Name Generator — listen for fill event, only apply to the active tab ──
+  useEffect(()=>{
+    if(caseStartTime===null) return; // queued tab — ignore
+    const h=(e)=>{
+      const {caseNum,businessName,complexity}=e.detail||{};
+      setF({
+        ...(caseNum?{caseNum}:{}),
+        ...(businessName?{businessName}:{}),
+        ...(complexity?{_caseComplexity:complexity}:{}),
+      });
+    };
+    window.addEventListener("fngen_fill",h);
+    return()=>window.removeEventListener("fngen_fill",h);
+  },[caseStartTime]);
 
   // Always use caseStartTime (globalTimeIn passed from session) so the form timer is consistent
   // with the session active timer — whether opening fresh, continuing suspended, or editing.
@@ -2878,7 +2903,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
   return (
     <div className="form-cols" style={containerStyle}>
       <div className="form-right">
-        <StickyPanel startTimeRef={startTimeRef} form={form} isSC={isSC} buildEntriesText={buildEntriesText} buildEmailText={buildEmailText} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={timerLimitSecs} greetingMessages={user?.greetingMessages} footerElapsed={footerElapsed}/>
+        <StickyPanel startTimeRef={startTimeRef} form={form} isSC={isSC} buildEntriesText={buildEntriesText} buildEmailText={buildEmailText} onTimerEnd={onTimerEnd} onQaTimerEnd={onQaTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={timerLimitSecs} qaTimerLimitSecs={qaTimerLimitSecs} greetingMessages={user?.greetingMessages} footerElapsed={footerElapsed} phase2Elapsed={phase2Elapsed}/>
       </div>
 
       <div className="form-left">
@@ -3589,7 +3614,7 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // POST LIVE PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, onFormInFields, onMinimise, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, onArchiveDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, globalTimeIn, timedIn, breakActive=false, breakTimer=null, onTimeIn, onTimeOut, onTimerReset, sessionDbId, sessionLog=[], addSessionLog, setSessionLog, closeWithOutcome, closeSessionLog, clearSessionLog, onStartBreak, onStartBreakFull, resumeTick=0 }) {
+function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, onFormInFields, onMinimise, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, onArchiveDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, qaAlarmMins=10, globalTimeIn, timedIn, breakActive=false, breakTimer=null, onTimeIn, onTimeOut, onTimerReset, sessionDbId, sessionLog=[], addSessionLog, setSessionLog, closeWithOutcome, closeSessionLog, clearSessionLog, onStartBreak, onStartBreakFull, onStopBreak, resumeTick=0 }) {
   const [mode,setMode]=useState(()=>{
     if(typeof window==="undefined") return null;
     // If live tabs are persisted, restore mode from the active tab
@@ -3704,18 +3729,8 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
   const sharedFormRef=useRef(null); // shared ref so minimiseMode can access PostLiveForm's current fields
   const [tabTimerStates,setTabTimerStates]=useState({}); // {[tabId]: timerState}
   const zeroTimerState={footerElapsed:0,resumeElapsed:0,phase2Elapsed:null,isDraftResumed:false,isEditMode:false,prevElapsedSecs:0,originalTotalSecs:0,originalOutcome:""};
-  // ── Browser tab title: show case# + business name + live timer ──
-  useEffect(()=>{
-    const activeTab=activeLiveTabs.find(t=>t.id===activeFormTabId)||activeLiveTabs[0];
-    if(!activeTab){ document.title="CaseHub"; return; }
-    const cnum=activeTab.caseNum?`#${activeTab.caseNum}`:'';
-    const biz=(activeTab.label||'').replace(/^(Inbound Email|Site Comment)\s*[-—]?\s*/i,'').replace(/\s*#\S*\s*$/,'').trim();
-    const tState=tabTimerStates[activeTab.id];
-    const secs=tState&&activeTab.startTime!==null?tState.footerElapsed||0:0;
-    const timerStr=secs>0?` ${Math.floor(secs/60)}:${String(secs%60).padStart(2,"0")}`:'';
-    const parts=[cnum,biz].filter(Boolean);
-    document.title=(parts.length?parts.join(' — '):'CaseHub')+timerStr+' | CaseHub';
-  },[activeLiveTabs,activeFormTabId,tabTimerStates]);
+  // ── Browser tab title: always CaseHub ──
+  useEffect(()=>{ document.title="CaseHub"; },[]);
   // Tracks when the current case was started — persists across Site Comment ↔ Inbound switches
   const caseStartTimeRef=useRef((()=>{
     if(typeof window==="undefined") return globalTimeIn||Date.now();
@@ -4028,7 +4043,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
     return()=>clearInterval(t);
   },[timedIn,globalTimeIn]);
 
-  const amendTypesDisabled=!timedIn||breakActive||isMinimised;
+  const amendTypesDisabled=!timedIn||isMinimised; // break no longer blocks adding new tabs
 
   if(mode==="siteComment"||mode==="inbound"||isMinimised){
     // Determine active live tab label for display
@@ -4124,7 +4139,6 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
         <div className="page-header" style={{padding:"12px 32px 10px",flexShrink:0,borderBottom:"1px solid var(--glass-border)",margin:0,display:"flex",alignItems:"center",gap:0,justifyContent:"space-between"}}>
           <div>
             {(()=>{
-              // Use the ACTIVE tab's mode for the title, not the global mode
               const activeTabMode=(activeLiveTabs.find(t=>t.id===activeFormTabId)||activeLiveTabs[0])?.mode||mode;
               const isSC=activeTabMode==="siteComment";
               return (<>
@@ -4133,6 +4147,38 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
               </>);
             })()}
           </div>
+          {/* ── File Name Generator: click a tab to auto-fill the active form ── */}
+          {activeLiveTabs.filter(t=>t.caseNum||t.label).length>0&&(
+            <div style={{position:"relative",flexShrink:0}} className="fngen-wrap">
+              <button style={{fontSize:11,padding:"6px 13px",borderRadius:8,border:"1px solid var(--accent)",background:"var(--accent)",color:"#fff",display:"flex",alignItems:"center",gap:6,cursor:"pointer",fontFamily:"'Poppins',sans-serif",fontWeight:600,letterSpacing:".2px"}}
+                onClick={e=>{e.stopPropagation();document.getElementById("fngen-dropdown")?.classList.toggle("open");}}>
+                <span style={{fontSize:13}}>📋</span> File Name Generator
+              </button>
+              <div id="fngen-dropdown" style={{display:"none",position:"absolute",top:"110%",right:0,zIndex:200,background:"var(--card)",border:"1px solid var(--glass-border)",borderRadius:10,padding:8,minWidth:270,boxShadow:"0 8px 32px rgba(0,0,0,.35)"}}>
+                <div style={{fontSize:11,color:"var(--muted)",padding:"2px 8px 8px",fontWeight:600,fontFamily:"Poppins,sans-serif",borderBottom:"1px solid var(--glass-border)",marginBottom:6}}>Click a tab to auto-fill this form</div>
+                {activeLiveTabs.map(t=>{
+                  const cx=t.complexity||"minor";
+                  const cxColor=cx==="complex"?"#f43f5e":cx==="major"?"#f59e0b":"#10b981";
+                  const cxLetter=cx==="complex"?"C":cx==="major"?"M":"m";
+                  const biz=(t.label||"").replace(/^(Inbound Email|Site Comment)\s*[-—]?\s*/i,"").replace(/\s*#\S*\s*$/,"").trim();
+                  return (
+                    <button key={t.id} style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"8px 10px",borderRadius:7,background:"none",border:"none",cursor:"pointer",textAlign:"left",fontFamily:"Poppins,sans-serif"}}
+                      onMouseEnter={e=>e.currentTarget.style.background="var(--card2)"}
+                      onMouseLeave={e=>e.currentTarget.style.background="none"}
+                      onClick={()=>{
+                        // Find the active PostLiveForm and dispatch a custom event with the tab data
+                        window.dispatchEvent(new CustomEvent("fngen_fill",{detail:{caseNum:t.caseNum||"",businessName:biz,complexity:cx}}));
+                        document.getElementById("fngen-dropdown")?.classList.remove("open");
+                      }}>
+                      <span style={{width:8,height:8,borderRadius:"50%",background:t.mode==="inbound"?"#8b5cf6":"#3b82f6",flexShrink:0,display:"inline-block"}}/>
+                      <span style={{fontSize:11,fontWeight:700,color:cxColor,flexShrink:0}}>{cxLetter}</span>
+                      <span style={{fontSize:12,color:"var(--text)",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:500}}>{t.caseNum?`#${t.caseNum}`:""}{biz?` — ${biz}`:""}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <TimerBar {...(()=>{
             const activeTab=activeLiveTabs.find(t=>t.id===activeFormTabId)||activeLiveTabs[0];
             if(activeTab&&activeTab.startTime===null) return zeroTimerState;
@@ -4140,32 +4186,28 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
           })()} fmtElapsed={fmtElapsed}/>
         </div>
 
-        {/* Break timer banner — visible in the forms view while on break */}
+
+
+        {/* Break timer banner — same design as global break-bar */}
         {breakActive&&breakTimer&&(()=>{
+          const pct=breakTimer.ended?100:Math.round((1-(breakTimer.secsLeft/(breakTimer.mins*60)))*100);
+          const st=breakTimer.ended?"ended":breakTimer.warned?"warn":"";
           const mm=Math.floor((breakTimer.secsLeft||0)/60);
           const ss=String((breakTimer.secsLeft||0)%60).padStart(2,"0");
-          const pct=breakTimer.ended?100:Math.round((1-(breakTimer.secsLeft/(breakTimer.mins*60)))*100);
-          const isWarn=breakTimer.warned&&!breakTimer.ended;
-          const isEnded=breakTimer.ended;
           return (
-            <div style={{display:"flex",alignItems:"center",gap:14,padding:"11px 20px",flexShrink:0,
-              background:isEnded?"rgba(16,185,129,.12)":isWarn?"rgba(244,63,94,.12)":"rgba(245,158,11,.1)",
-              borderBottom:`2px solid ${isEnded?"rgba(16,185,129,.4)":isWarn?"rgba(244,63,94,.4)":"rgba(245,158,11,.35)"}`,
-              fontFamily:"'Poppins',sans-serif"}}>
-              <span style={{fontSize:24,flexShrink:0}}>{breakTimer.label.split(" ")[0]}</span>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:13,fontWeight:700,color:isEnded?"#10b981":isWarn?"#f43f5e":"#f59e0b",marginBottom:4}}>
-                  {isEnded?"✅ Break over — ready to go!":isWarn?"⚠️ Almost done — wrap up!":"🛑 On Break"}
-                </div>
-                <div style={{height:6,borderRadius:3,background:"rgba(255,255,255,.1)",overflow:"hidden"}}>
-                  <div style={{height:"100%",borderRadius:3,width:pct+"%",transition:"width .8s linear",
-                    background:isEnded?"#10b981":isWarn?"#f43f5e":"#f59e0b"}}/>
+            <div className={cls("break-bar",st)} style={{position:"relative",flexShrink:0}}>
+              <span style={{fontSize:18}}>{breakTimer.label.split(" ")[0]}</span>
+              <div>
+                <div className="break-label">{breakTimer.label.split(" ").slice(1).join(" ")}</div>
+                <div style={{fontSize:10,color:"var(--muted)"}}>
+                  {breakTimer.ended?"✅ Break over!":breakTimer.warned?"⚠️ 5 min warning!":"On break"}
                 </div>
               </div>
-              <div style={{fontSize:22,fontWeight:800,fontFamily:"monospace",flexShrink:0,letterSpacing:1,
-                color:isEnded?"#10b981":isWarn?"#f43f5e":"#f59e0b",minWidth:54,textAlign:"right"}}>
-                {isEnded?"Done!":mm+":"+ss}
+              <div className="break-time">{breakTimer.ended?"Done!":mm+":"+ss}</div>
+              <div className="break-progress" style={{flex:1}}>
+                <div className="break-progress-fill" style={{width:pct+"%"}}/>
               </div>
+              <button className="break-stop" onClick={onStopBreak}>✕ End</button>
             </div>
           );
         })()}
@@ -4182,7 +4224,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
           const tabUseDraft = isFirstTab && useDraft;
           return (
           <div key={tab.key||tab.id} style={{display:(isActiveTab&&!isMinimised)?"flex":"none",flexDirection:"column",flex:(isActiveTab&&!isMinimised)?1:undefined,overflow:"hidden",minHeight:(isActiveTab&&!isMinimised)?0:undefined}}>
-          <PostLiveForm key={tab.key||`${tabMode}-${activeDraftId||"new"}-${isEditingFromLog?"edit":"new"}`} mode={tabMode} draftData={tabDraftData} user={user} onTimerEnd={isActiveTab&&(alarmMins>0)?onTimerEnd:null} specialRequestors={specialRequestors} timerLimitSecs={alarmMins*60} isEditMode={tabIsEdit} isMinimisedResume={tabIsResumingMin} caseStartTime={tab.startTime!==undefined?tab.startTime:caseStartTimeRef.current} externalFormRef={isFirstTab?sharedFormRef:null} isResumingDraft={tabUseDraft} onTimerTick={tab.startTime!==null?t=>setTabTimerStates(prev=>({...prev,[tab.id]:t})):null} prolongedActive={prolongedActive} onProlongedDismiss={()=>{setProlongedActive(false);setProlongedDeadline(null);}} onProceedWithNext={prolongedMode?handleProceedWithNextCase:null} prolongedMinsForNext={prolongedMins} tabStorageKey={tab.id||null} onTabDataChange={({caseNum,businessName,complexity})=>setActiveLiveTabs(ts=>ts.map(t=>t.id===tab.id?{...t,caseNum,complexity:complexity||'minor',label:(t.mode==='inbound'?'Inbound Email':'Site Comment')+(businessName?' — '+businessName:'')+(caseNum?' #'+caseNum:'')}:t))}
+          <PostLiveForm key={tab.key||`${tabMode}-${activeDraftId||"new"}-${isEditingFromLog?"edit":"new"}`} mode={tabMode} draftData={tabDraftData} user={user} onTimerEnd={isActiveTab&&(alarmMins>0)?onTimerEnd:null} onQaTimerEnd={isActiveTab&&(qaAlarmMins>0)?onTimerEnd:null} specialRequestors={specialRequestors} timerLimitSecs={alarmMins*60} qaTimerLimitSecs={qaAlarmMins*60} isEditMode={tabIsEdit} isMinimisedResume={tabIsResumingMin} caseStartTime={tab.startTime!==undefined?tab.startTime:caseStartTimeRef.current} externalFormRef={isFirstTab?sharedFormRef:null} isResumingDraft={tabUseDraft} onTimerTick={tab.startTime!==null?t=>setTabTimerStates(prev=>({...prev,[tab.id]:t})):null} prolongedActive={prolongedActive} onProlongedDismiss={()=>{setProlongedActive(false);setProlongedDeadline(null);}} onProceedWithNext={prolongedMode?handleProceedWithNextCase:null} prolongedMinsForNext={prolongedMins} tabStorageKey={tab.id||null} onTabDataChange={({caseNum,businessName,complexity})=>setActiveLiveTabs(ts=>ts.map(t=>t.id===tab.id?{...t,caseNum,complexity:complexity||'minor',label:(t.mode==='inbound'?'Inbound Email':'Site Comment')+(businessName?' — '+businessName:'')+(caseNum?' #'+caseNum:'')}:t))}
           originalOutcome={tabIsEdit?(editingCase.savedCase._saveOutcome||""):tabUseDraft?"Suspended":""}
           originalTotalSecs={(()=>{
             const targetCase = tabIsEdit ? editingCase.savedCase : tabDraftData;
@@ -4571,7 +4613,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
                 <div style={{flex:1}}><div className="pl-type-title" style={{fontSize:12,color:"#7c3aed"}}>Inbound</div></div>
               </button>
             </div>
-            <button className="btn btn-ghost" style={{width:"100%",marginTop:10}} onClick={()=>{setShowTabPicker(false);setProlongedMode(false);}}>Cancel</button>
+            <button className="btn btn-ghost" style={{width:"100%",marginTop:10,textAlign:"center",justifyContent:"center"}} onClick={()=>{setShowTabPicker(false);setProlongedMode(false);}}>Cancel</button>
           </div>
         </div>
       )}
@@ -6300,7 +6342,7 @@ function LinksPage({ links, setLinks, addLink, updateLink, removeLink }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // PROFILE PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, shiftStartTime="", saveShiftStartTime, shiftStartWarnMins=10, saveShiftStartWarnMins, shiftEndTime="", saveShiftEndTime, shiftWarnMins=10, saveShiftWarnMins, specialRequestors=[], addRequestor, removeRequestor }) {
+function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, qaLimit=10, saveQaLimit, shiftStartTime="", saveShiftStartTime, shiftStartWarnMins=10, saveShiftStartWarnMins, shiftEndTime="", saveShiftEndTime, shiftWarnMins=10, saveShiftWarnMins, specialRequestors=[], addRequestor, removeRequestor }) {
   const [editing,setEditing]=useState(false);
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
@@ -6331,6 +6373,7 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, shif
   });
   const [pwForm,setPwForm]=useState({next:"",confirm:""});
   const [timerInput,setTimerInput]=useState(String(timerLimit||30));
+  const [qaTimerInput,setQaTimerInput]=useState(String(qaLimit||10));
   const [shiftStartInput,setShiftStartInput]=useState(shiftStartTime||"");
   const [shiftStartWarnInput,setShiftStartWarnInput]=useState(String(shiftStartWarnMins||10));
   const [shiftEndInput,setShiftEndInput]=useState(shiftEndTime||"");
@@ -6596,23 +6639,34 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, shif
         <button className="btn btn-primary" onClick={changePw} disabled={saving}>{saving?"Updating...":"Update Password"}</button>
       </div>
 
-      {/* ── Timer settings card ── */}
+      {/* ── Combined Tracker timer card ── */}
       <div className="profile-card">
-        <h3 style={{fontSize:16,fontWeight:700,marginBottom:4}}>Case Timer Alert</h3>
-        <p style={{fontSize:12,color:"var(--muted)",marginBottom:16}}>Alarm fires after this many minutes on a case. Default is 30 minutes.</p>
+        <h3 style={{fontSize:16,fontWeight:700,marginBottom:4}}>⏱ Combined Tracker Alert</h3>
+        <p style={{fontSize:12,color:"var(--muted)",marginBottom:16}}>Alarm fires after this many minutes of case elapsed time. Default is 30 min.</p>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
           <input className="inp" type="number" min="1" max="240" style={{width:90,textAlign:"center",fontWeight:700,fontSize:15}}
-            value={timerInput}
-            onChange={e=>setTimerInput(e.target.value)}
-            onKeyDown={e=>e.key==="Enter"&&(saveTimerLimit(timerInput),showToast("Timer updated ✅"))}
-          />
+            value={timerInput} onChange={e=>setTimerInput(e.target.value)}
+            onKeyDown={e=>e.key==="Enter"&&(saveTimerLimit(timerInput),showToast("Combined Tracker timer updated ✅"))}/>
           <span style={{fontSize:13,color:"var(--muted)"}}>minutes</span>
           <button className="btn btn-primary" style={{marginLeft:"auto",padding:"8px 18px",fontSize:12}}
-            onClick={()=>{saveTimerLimit(timerInput);showToast("Timer alert updated ✅");}}>
-            Save
-          </button>
+            onClick={()=>{saveTimerLimit(timerInput);showToast("Combined Tracker timer updated ✅");}}>Save</button>
         </div>
         <div style={{fontSize:11,color:"var(--muted)",marginTop:8}}>Currently: <strong style={{color:"var(--accent)"}}>{timerLimit} min</strong></div>
+      </div>
+
+      {/* ── QA Checklist timer card ── */}
+      <div className="profile-card">
+        <h3 style={{fontSize:16,fontWeight:700,marginBottom:4}}>✅ QA Checklist Alert</h3>
+        <p style={{fontSize:12,color:"var(--muted)",marginBottom:16}}>Alarm fires after this many minutes since QA Checklist was started. Default is 10 min.</p>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <input className="inp" type="number" min="1" max="240" style={{width:90,textAlign:"center",fontWeight:700,fontSize:15}}
+            value={qaTimerInput} onChange={e=>setQaTimerInput(e.target.value)}
+            onKeyDown={e=>e.key==="Enter"&&(saveQaLimit(qaTimerInput),showToast("QA Checklist timer updated ✅"))}/>
+          <span style={{fontSize:13,color:"var(--muted)"}}>minutes</span>
+          <button className="btn btn-primary" style={{marginLeft:"auto",padding:"8px 18px",fontSize:12}}
+            onClick={()=>{saveQaLimit(qaTimerInput);showToast("QA Checklist timer updated ✅");}}>Save</button>
+        </div>
+        <div style={{fontSize:11,color:"var(--muted)",marginTop:8}}>Currently: <strong style={{color:"var(--accent)"}}>{qaLimit} min</strong></div>
       </div>
 
       {/* ── Shift Start Alarm card ── */}
@@ -7098,15 +7152,19 @@ function App() {
     return false;
   });
   const [specialRequestors,setSpecialRequestors]=useState([]);
-  const [timerLimit,setTimerLimit]=useState(()=>{
-    if(typeof window!=="undefined"){const v=parseInt(localStorage.getItem("ch_timer_limit"));return isNaN(v)?30:v;}
+  const [ctLimit,setCtLimit]=useState(()=>{
+    if(typeof window!=="undefined"){const v=parseInt(localStorage.getItem("ch_ct_limit"));return isNaN(v)?30:v;}
     return 30;
   });
-  const saveTimerLimit=(mins)=>{
-    const v=Math.max(1,Math.min(240,parseInt(mins)||30));
-    setTimerLimit(v);
-    if(typeof window!=="undefined") localStorage.setItem("ch_timer_limit",v);
-  };
+  const saveCtLimit=(mins)=>{ const v=Math.max(1,Math.min(240,parseInt(mins)||30)); setCtLimit(v); if(typeof window!=="undefined") localStorage.setItem("ch_ct_limit",v); };
+  const [qaLimit,setQaLimit]=useState(()=>{
+    if(typeof window!=="undefined"){const v=parseInt(localStorage.getItem("ch_qa_limit"));return isNaN(v)?10:v;}
+    return 10;
+  });
+  const saveQaLimit=(mins)=>{ const v=Math.max(1,Math.min(240,parseInt(mins)||10)); setQaLimit(v); if(typeof window!=="undefined") localStorage.setItem("ch_qa_limit",v); };
+  // Legacy alias so nothing else breaks
+  const timerLimit=ctLimit;
+  const saveTimerLimit=saveCtLimit;
   // ── Shift End Alarm: shiftEndTime = "HH:MM" (24h), shiftWarnMins = minutes before end to alarm ──
   const [shiftStartTime,setShiftStartTime]=useState(()=>{
     if(typeof window!=="undefined") return localStorage.getItem("ch_shift_start")||"";
@@ -7200,6 +7258,7 @@ function App() {
   },[shiftEndTime,shiftWarnMins]);
 
   useEffect(()=>{document.body.classList.toggle("light",lightMode);if(typeof window!=="undefined") localStorage.setItem("ch_theme",lightMode?"light":"dark");},[lightMode]);
+  useEffect(()=>{ const h=e=>{const d=document.getElementById("fngen-dropdown");if(d&&!d.closest(".fngen-wrap")?.contains(e.target)) d.classList.remove("open");}; document.addEventListener("mousedown",h); return()=>document.removeEventListener("mousedown",h); },[]);
 
   // ── Alarm state: null | "warn" | "end" | "case" ──
   const [activeAlarm,setActiveAlarm]=useState(null);
@@ -7214,23 +7273,25 @@ function App() {
         const ctx=new (window.AudioContext||window.webkitAudioContext)();
         alarmCtxRef.current=ctx;
         const isWarn=type==="warn"||type==="shift_start"||type==="shift_end";
-        const beeps=isWarn?2:3;
-        const freq=isWarn?880:1046;
-        const gap=isWarn?0.45:0.35;
-        const totalDur=beeps*gap+0.6;
-        for(let i=0;i<beeps;i++){
+        const isCase=type==="case";
+        // Gentle chime: two-tone sine wave, soft attack/release, low gain
+        const notes=isCase?[523,659,784]:[523,659]; // C5-E5-G5 for case, C5-E5 for warn
+        const gap=0.55;
+        const gain=0.18; // quiet — not jarring
+        const totalDur=notes.length*gap+0.8;
+        notes.forEach((freq,i)=>{
           const o=ctx.createOscillator();
           const g=ctx.createGain();
           o.connect(g); g.connect(ctx.destination);
           o.frequency.value=freq;
-          o.type=isWarn?"triangle":"square";
-          g.gain.setValueAtTime(0,ctx.currentTime+i*gap);
-          g.gain.linearRampToValueAtTime(0.45,ctx.currentTime+i*gap+0.04);
-          g.gain.linearRampToValueAtTime(0.45,ctx.currentTime+i*gap+0.22);
-          g.gain.linearRampToValueAtTime(0,ctx.currentTime+i*gap+0.28);
-          o.start(ctx.currentTime+i*gap);
-          o.stop(ctx.currentTime+i*gap+0.3);
-        }
+          o.type="sine";
+          const t=ctx.currentTime+i*gap;
+          g.gain.setValueAtTime(0,t);
+          g.gain.linearRampToValueAtTime(gain,t+0.06);
+          g.gain.setValueAtTime(gain,t+0.35);
+          g.gain.linearRampToValueAtTime(0,t+0.55);
+          o.start(t); o.stop(t+0.6);
+        });
         // schedule next loop
         alarmLoopRef.current=setTimeout(()=>{ ctx.close(); loop(); },totalDur*1000);
       }catch(e){console.warn("Audio error",e);}
@@ -7912,20 +7973,20 @@ function App() {
           {!dataLoading&&page==="build"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="casebox" size={80} color="var(--muted)"/></div><div className="soon-title">Build</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&page==="prelive"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="prelive" size={80} color="var(--muted)"/></div><div className="soon-title">Pre-Live Amends</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&<div style={{display:page==="postlive"?"block":"none"}}>
-            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onUpdateDraft={updateDraft} onFormActive={setFormActivePersist} onFormInFields={setFormInFields} onMinimise={()=>{setPage("postlive"); if(typeof window!=="undefined") localStorage.setItem("ch_page","postlive");}} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} onArchiveDraft={archiveDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} globalTimeIn={globalTimeIn} timedIn={timedIn} breakActive={!!breakTimer||openHourActive} breakTimer={breakTimer||null} onTimeIn={doTimeIn} onTimeOut={doTimeOut} onTimerReset={doTimerReset} sessionDbId={sessionDbId} sessionLog={sessionLog} addSessionLog={addSessionLog} setSessionLog={setSessionLog} closeWithOutcome={closeWithOutcome} closeSessionLog={closeSessionLog} clearSessionLog={clearSessionLog} onStartBreak={startBreak} onStartBreakFull={(label,mins)=>startBreak(label,mins,true)} resumeTick={resumeFormTick}/>
+            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onUpdateDraft={updateDraft} onFormActive={setFormActivePersist} onFormInFields={setFormInFields} onMinimise={()=>{setPage("postlive"); if(typeof window!=="undefined") localStorage.setItem("ch_page","postlive");}} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} onArchiveDraft={archiveDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} qaAlarmMins={qaLimit} globalTimeIn={globalTimeIn} timedIn={timedIn} breakActive={!!breakTimer||openHourActive} breakTimer={breakTimer||null} onTimeIn={doTimeIn} onTimeOut={doTimeOut} onTimerReset={doTimerReset} sessionDbId={sessionDbId} sessionLog={sessionLog} addSessionLog={addSessionLog} setSessionLog={setSessionLog} closeWithOutcome={closeWithOutcome} closeSessionLog={closeSessionLog} clearSessionLog={clearSessionLog} onStartBreak={startBreak} onStartBreakFull={(label,mins)=>startBreak(label,mins,true)} onStopBreak={stopBreak} resumeTick={resumeFormTick}/>
           </div>}
           {!dataLoading&&page==="history"&&<CaseHistory cases={allCases} onUpdate={updateCase} onDelete={deleteCase}/>}
           {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} updateAnnouncement={updateAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
           {!dataLoading&&page==="links"&&<LinksPage links={links} setLinks={setLinks} addLink={addLink} updateLink={updateLink} removeLink={removeLink}/>}
-          {!dataLoading&&page==="profile"&&<ProfilePage user={user} setUser={setUser} onLogout={logout} timerLimit={timerLimit} saveTimerLimit={saveTimerLimit} shiftStartTime={shiftStartTime} saveShiftStartTime={saveShiftStartTime} shiftStartWarnMins={shiftStartWarnMins} saveShiftStartWarnMins={saveShiftStartWarnMins} shiftEndTime={shiftEndTime} saveShiftEndTime={saveShiftEndTime} shiftWarnMins={shiftWarnMins} saveShiftWarnMins={saveShiftWarnMins} specialRequestors={specialRequestors} addRequestor={addRequestor} removeRequestor={removeRequestor}/>}
+          {!dataLoading&&page==="profile"&&<ProfilePage user={user} setUser={setUser} onLogout={logout} timerLimit={timerLimit} saveTimerLimit={saveTimerLimit} qaLimit={qaLimit} saveQaLimit={saveQaLimit} shiftStartTime={shiftStartTime} saveShiftStartTime={saveShiftStartTime} shiftStartWarnMins={shiftStartWarnMins} saveShiftStartWarnMins={saveShiftStartWarnMins} shiftEndTime={shiftEndTime} saveShiftEndTime={saveShiftEndTime} shiftWarnMins={shiftWarnMins} saveShiftWarnMins={saveShiftWarnMins} specialRequestors={specialRequestors} addRequestor={addRequestor} removeRequestor={removeRequestor}/>}
           {!dataLoading&&page==="sessions"&&<SessionLogPage user={user} refreshKey={sessionRefreshKey}/>}
           {!dataLoading&&page==="archives"&&<ArchivePage archivedDrafts={archivedDrafts} onDelete={async(id)=>{try{await fetch(`/api/archived-drafts/${id}`,{method:"DELETE"});setArchivedDrafts(a=>a.filter(x=>x._id!==id));}catch(e){console.error(e);}}}/>}
           {!dataLoading&&page==="filenames"&&<FileNameGeneratorPage/>}
         </main>
       </div>
 
-      {/* ── Break Timer Bar ── */}
-      {breakTimer&&(()=>{
+      {/* ── Break Timer Bar — hidden when user is inside a form (TimerBar above already shows it) ── */}
+      {breakTimer&&!formInFields&&(()=>{
         const pct=breakTimer.ended?100:Math.round((1-(breakTimer.secsLeft/(breakTimer.mins*60)))*100);
         const st=breakTimer.ended?"ended":breakTimer.warned?"warn":"";
         const mm=Math.floor((breakTimer.secsLeft||0)/60);
