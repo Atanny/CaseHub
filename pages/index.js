@@ -3645,6 +3645,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
   });
   const [showTabPicker,setShowTabPicker]=useState(false);
   const [showAddTabPicker,setShowAddTabPicker]=useState(false);
+  const [showFnGen,setShowFnGen]=useState(false);
   const [prolongedMins,setProlongedMins]=useState(30);
   const [prolongedMode,setProlongedMode]=useState(false);
   const [prolongedWarnToast,setProlongedWarnToast]=useState(null);
@@ -4102,7 +4103,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
               );
             })}
             {/* Add new tab button — visible even when a form is minimised */}
-            {timedIn&&!breakActive&&(
+            {timedIn&&(
               <button onClick={()=>setShowAddTabPicker(true)} style={{display:"flex",alignItems:"center",justifyContent:"center",width:34,height:30,marginTop:4,borderRadius:"6px 6px 0 0",background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.1)",borderBottom:"none",color:"rgba(255,255,255,.7)",cursor:"pointer",fontSize:20,fontWeight:300,flexShrink:0,alignSelf:"flex-end",lineHeight:1}}>+</button>
             )}
             {/* Add-tab type picker modal */}
@@ -4147,38 +4148,11 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
               </>);
             })()}
           </div>
-          {/* ── File Name Generator: click a tab to auto-fill the active form ── */}
-          {activeLiveTabs.filter(t=>t.caseNum||t.label).length>0&&(
-            <div style={{position:"relative",flexShrink:0}} className="fngen-wrap">
-              <button style={{fontSize:11,padding:"6px 13px",borderRadius:8,border:"1px solid var(--accent)",background:"var(--accent)",color:"#fff",display:"flex",alignItems:"center",gap:6,cursor:"pointer",fontFamily:"'Poppins',sans-serif",fontWeight:600,letterSpacing:".2px"}}
-                onClick={e=>{e.stopPropagation();document.getElementById("fngen-dropdown")?.classList.toggle("open");}}>
-                <span style={{fontSize:13}}>📋</span> File Name Generator
-              </button>
-              <div id="fngen-dropdown" style={{display:"none",position:"absolute",top:"110%",right:0,zIndex:200,background:"var(--card)",border:"1px solid var(--glass-border)",borderRadius:10,padding:8,minWidth:270,boxShadow:"0 8px 32px rgba(0,0,0,.35)"}}>
-                <div style={{fontSize:11,color:"var(--muted)",padding:"2px 8px 8px",fontWeight:600,fontFamily:"Poppins,sans-serif",borderBottom:"1px solid var(--glass-border)",marginBottom:6}}>Click a tab to auto-fill this form</div>
-                {activeLiveTabs.map(t=>{
-                  const cx=t.complexity||"minor";
-                  const cxColor=cx==="complex"?"#f43f5e":cx==="major"?"#f59e0b":"#10b981";
-                  const cxLetter=cx==="complex"?"C":cx==="major"?"M":"m";
-                  const biz=(t.label||"").replace(/^(Inbound Email|Site Comment)\s*[-—]?\s*/i,"").replace(/\s*#\S*\s*$/,"").trim();
-                  return (
-                    <button key={t.id} style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"8px 10px",borderRadius:7,background:"none",border:"none",cursor:"pointer",textAlign:"left",fontFamily:"Poppins,sans-serif"}}
-                      onMouseEnter={e=>e.currentTarget.style.background="var(--card2)"}
-                      onMouseLeave={e=>e.currentTarget.style.background="none"}
-                      onClick={()=>{
-                        // Find the active PostLiveForm and dispatch a custom event with the tab data
-                        window.dispatchEvent(new CustomEvent("fngen_fill",{detail:{caseNum:t.caseNum||"",businessName:biz,complexity:cx}}));
-                        document.getElementById("fngen-dropdown")?.classList.remove("open");
-                      }}>
-                      <span style={{width:8,height:8,borderRadius:"50%",background:t.mode==="inbound"?"#8b5cf6":"#3b82f6",flexShrink:0,display:"inline-block"}}/>
-                      <span style={{fontSize:11,fontWeight:700,color:cxColor,flexShrink:0}}>{cxLetter}</span>
-                      <span style={{fontSize:12,color:"var(--text)",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:500}}>{t.caseNum?`#${t.caseNum}`:""}{biz?` — ${biz}`:""}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          {/* ── File Name Generator button ── */}
+          <button style={{fontSize:11,padding:"6px 13px",borderRadius:8,border:"1px solid var(--accent)",background:"var(--accent)",color:"#fff",display:"flex",alignItems:"center",gap:6,cursor:"pointer",fontFamily:"'Poppins',sans-serif",fontWeight:600,letterSpacing:".2px",flexShrink:0}}
+            onClick={()=>setShowFnGen(true)}>
+            <span style={{fontSize:13}}>📋</span> File Name Generator
+          </button>
           <TimerBar {...(()=>{
             const activeTab=activeLiveTabs.find(t=>t.id===activeFormTabId)||activeLiveTabs[0];
             if(activeTab&&activeTab.startTime===null) return zeroTimerState;
@@ -4409,6 +4383,56 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
           );
         })}
         
+        {/* ── File Name Generator modal — rendered at root level so it covers the full viewport ── */}
+        {showFnGen&&(
+          <div className="modal-bg" onClick={e=>{if(e.target===e.currentTarget)setShowFnGen(false);}}>
+            <div className="modal" style={{maxWidth:520,width:"95%",padding:28,maxHeight:"80vh",display:"flex",flexDirection:"column"}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexShrink:0}}>
+                <h3 style={{margin:0,fontSize:17,fontWeight:700}}>📋 File Name Generator</h3>
+                <button onClick={()=>setShowFnGen(false)} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:"var(--muted)",lineHeight:1}}>×</button>
+              </div>
+              <div style={{overflowY:"auto",flex:1}}>
+                {activeLiveTabs.length>1&&(
+                  <div style={{marginBottom:18}}>
+                    <div style={{fontSize:11,fontWeight:700,color:"var(--muted)",marginBottom:8,textTransform:"uppercase",letterSpacing:".5px"}}>Auto-fill from tab</div>
+                    <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                      {activeLiveTabs.map(t=>{
+                        const cx=t.complexity||"minor";
+                        const cxColor=cx==="complex"?"#f43f5e":cx==="major"?"#f59e0b":"#10b981";
+                        const tabBiz=(t.label||"").replace(/^(Inbound Email|Site Comment)\s*[-—]?\s*/i,"").replace(/\s*#\S*\s*$/,"").trim();
+                        return (
+                          <button key={t.id}
+                            style={{display:"flex",alignItems:"center",gap:6,padding:"6px 12px",borderRadius:8,border:`1px solid ${t.id===activeFormTabId?"var(--accent)":"var(--glass-border)"}`,background:t.id===activeFormTabId?"rgba(59,130,246,.1)":"var(--card2)",cursor:"pointer",fontFamily:"'Poppins',sans-serif"}}
+                            onClick={()=>{window.dispatchEvent(new CustomEvent("fngen_fill",{detail:{caseNum:t.caseNum||"",businessName:tabBiz,complexity:cx}}));setShowFnGen(false);}}>
+                            <span style={{width:8,height:8,borderRadius:"50%",background:t.mode==="inbound"?"#8b5cf6":"#3b82f6",display:"inline-block",flexShrink:0}}/>
+                            <span style={{fontSize:11,fontWeight:700,color:cxColor}}>{cx==="complex"?"C":cx==="major"?"M":"m"}</span>
+                            <span style={{fontSize:11,color:"var(--text)",fontWeight:500}}>{t.caseNum?`#${t.caseNum}`:""}{tabBiz?` — ${tabBiz}`:""}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                <div style={{fontSize:11,fontWeight:700,color:"var(--muted)",marginBottom:10,textTransform:"uppercase",letterSpacing:".5px"}}>File Names</div>
+                {[
+                  {label:"Before Screenshot",value:user?.beforeName||""},
+                  {label:"After Screenshot",value:user?.afterName||""},
+                  {label:"Screenshot",value:user?.screenshotName||""}
+                ].map(({label,value})=>(
+                  <div key={label} style={{marginBottom:14}}>
+                    <div style={{fontSize:11,color:"var(--muted)",marginBottom:5,fontWeight:600}}>{label}</div>
+                    <div className="copy-name">
+                      <span className="copy-name-text" style={{flex:1,fontSize:12}}>{value||"—"}</span>
+                      <button className="copy-btn" onClick={()=>navigator.clipboard?.writeText(value||"")}>Copy</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button className="btn btn-ghost" style={{width:"100%",marginTop:16,textAlign:"center",justifyContent:"center",flexShrink:0}} onClick={()=>setShowFnGen(false)}>Close</button>
+            </div>
+          </div>
+        )}
+
         {backConfirm && (
           <div className="modal-bg">
             <div className="modal">
