@@ -1508,6 +1508,9 @@ body.light .sidebar-divider{background:rgba(180,90,40,.1);}
 // HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
 const cls = (...a) => a.filter(Boolean).join(" ");
+// Collapse tabs and runs of multiple spaces down to a single space, and strip leading whitespace.
+// Used on text inputs to prevent accidental long gaps from repeated spacebar presses or pasted text.
+const cleanSpaces = (s) => (s||"").replace(/\t/g," ").replace(/ {2,}/g," ").replace(/^\s+/,"");
 
 // ── DB Connection Status Hook ──
 function useDbStatus() {
@@ -2184,25 +2187,14 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
     }
   }, []);
 
-  // Use footerElapsed from parent (same source as tab timer) — stays in sync with the header TimerBar
+  // Display-only sync — alarm firing now happens at the PostLivePage parent level
+  // (more reliable across mount/queue/activation cycles, since it's keyed off the same
+  // tabTimerStates that already drives the tab strip and TimerBar). This effect just
+  // keeps StickyPanel's own visual clock in sync; it does not fire any alarm itself.
   useEffect(()=>{
-    if(footerElapsed===0) { firedRef.current=false; }
     setElapsed(footerElapsed);
     setNow(new Date());
-    const limit=timerLimitSecs||1800;
-    if(!firedRef.current && limit>0 && footerElapsed>0 && footerElapsed>=limit){
-      firedRef.current=true; onTimerEnd&&onTimerEnd();
-    }
-  },[footerElapsed,timerLimitSecs,onTimerEnd]);
-
-  // QA Checklist alarm — fires when phase2Elapsed hits qaTimerLimitSecs
-  useEffect(()=>{
-    if(phase2Elapsed===null||phase2Elapsed===0){ qaFiredRef.current=false; return; }
-    const qaLimit=qaTimerLimitSecs||600;
-    if(!qaFiredRef.current && qaLimit>0 && phase2Elapsed>=qaLimit){
-      qaFiredRef.current=true; onQaTimerEnd&&onQaTimerEnd();
-    }
-  },[phase2Elapsed,qaTimerLimitSecs,onQaTimerEnd]);
+  },[footerElapsed]);
   // form is real React state — re-renders on every form change, images update instantly
   const f=form;
   const emailTypeLabel=f.emailType==="clarification"?"Clarification":"Completed";
@@ -2609,7 +2601,7 @@ function TocPanel({ openStep, setOpenStep, isSC, page, doneMap={}, specialReques
     </div>
   );
 }
-function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, onAutoSaveDraft, onStartBreak, draftData, user, onTimerEnd, onQaTimerEnd, specialRequestors, timerLimitSecs, qaTimerLimitSecs=600, globalTimeIn, isEditMode=false, isMinimisedResume=false, caseStartTime=null, externalFormRef=null, isResumingDraft=false, originalOutcome="", originalTotalSecs=0, containerStyle={}, onTimerTick=null, prolongedActive=false, onProlongedDismiss=null, onProceedWithNext=null, prolongedMinsForNext=30, tabStorageKey=null, onTabDataChange=null }) {
+function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, onAutoSaveDraft, onStartBreak, onStartOpenHour, onStopOpenHour, openHourActive=false, draftData, user, onTimerEnd, onQaTimerEnd, specialRequestors, timerLimitSecs, qaTimerLimitSecs=600, globalTimeIn, isEditMode=false, isMinimisedResume=false, caseStartTime=null, externalFormRef=null, isResumingDraft=false, originalOutcome="", originalTotalSecs=0, containerStyle={}, onTimerTick=null, prolongedActive=false, onProlongedDismiss=null, onProceedWithNext=null, prolongedMinsForNext=30, tabStorageKey=null, onTabDataChange=null }) {
   const isSC = mode==="siteComment";
   const entryLabel = isSC?"Site Comment":"Assumption";
   const rawName = user?.name || "User";
@@ -2909,10 +2901,10 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
       <div className="form-left">
 
         <StepCard num={1} title="Case Information" done={step1Done} locked={false} {...stepProps}>
-          <div className="field"><label>Case Number <span className="req">*</span></label><input className="inp" placeholder="e.g. 1234567" value={form.caseNum} onChange={e=>setF({caseNum:e.target.value})}/></div>
-          <div className="field"><label>Account Number <span className="req">*</span></label><input className="inp" placeholder="e.g. ACC-9876" value={form.accountNum} onChange={e=>setF({accountNum:e.target.value})}/></div>
-          {!isSC&&(<div className="field"><label>Inbound Number <span className="req">*</span></label><input className="inp" placeholder="Enter inbound number" value={form.inboundNum||""} onChange={e=>setF({inboundNum:e.target.value})}/></div>)}
-          <div className="field"><label>Amend Type <span className="req">*</span></label><input className="inp" placeholder="e.g. Content, Layout, Link..." value={form.amendType} onChange={e=>setF({amendType:e.target.value})}/></div>
+          <div className="field"><label>Case Number <span className="req">*</span></label><input className="inp" placeholder="e.g. 1234567" value={form.caseNum} onChange={e=>setF({caseNum:cleanSpaces(e.target.value)})}/></div>
+          <div className="field"><label>Account Number <span className="req">*</span></label><input className="inp" placeholder="e.g. ACC-9876" value={form.accountNum} onChange={e=>setF({accountNum:cleanSpaces(e.target.value)})}/></div>
+          {!isSC&&(<div className="field"><label>Inbound Number <span className="req">*</span></label><input className="inp" placeholder="Enter inbound number" value={form.inboundNum||""} onChange={e=>setF({inboundNum:cleanSpaces(e.target.value)})}/></div>)}
+          <div className="field"><label>Amend Type <span className="req">*</span></label><input className="inp" placeholder="e.g. Content, Layout, Link..." value={form.amendType} onChange={e=>setF({amendType:cleanSpaces(e.target.value)})}/></div>
           <div className="field">
             <label>Case Complexity</label>
             <select className="inp" value={form._caseComplexity||"minor"} onChange={e=>setF({_caseComplexity:e.target.value})} style={{cursor:"pointer"}}>
@@ -2921,13 +2913,13 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
               <option value="complex">Complex</option>
             </select>
           </div>
-          <div className="field"><label>Customer Name</label><input className="inp" placeholder="e.g. John Smith" value={form.customerName||""} onChange={e=>setF({customerName:e.target.value})}/></div>
-          <div className="field"><label>Customer Email</label><input className="inp" type="email" placeholder="e.g. client@email.com" value={form.customerEmail||""} onChange={e=>setF({customerEmail:e.target.value})}/></div>
+          <div className="field"><label>Customer Name</label><input className="inp" placeholder="e.g. John Smith" value={form.customerName||""} onChange={e=>setF({customerName:cleanSpaces(e.target.value)})}/></div>
+          <div className="field"><label>Customer Email</label><input className="inp" type="email" placeholder="e.g. client@email.com" value={form.customerEmail||""} onChange={e=>setF({customerEmail:cleanSpaces(e.target.value)})}/></div>
           <div className="field" style={{marginBottom:0}}>
             <label>Business Name</label>
             <div style={{display:"flex",gap:8}}>
-              <input className="inp" placeholder="e.g. Fire Force" style={{flex:2}} value={form.businessName||""} onChange={e=>setF({businessName:e.target.value})}/>
-              <input className="inp" placeholder="LLC / Corp / Inc…" style={{flex:1}} value={form.businessSuffix||""} onChange={e=>setF({businessSuffix:e.target.value})}/>
+              <input className="inp" placeholder="e.g. Fire Force" style={{flex:2}} value={form.businessName||""} onChange={e=>setF({businessName:cleanSpaces(e.target.value)})}/>
+              <input className="inp" placeholder="LLC / Corp / Inc…" style={{flex:1}} value={form.businessSuffix||""} onChange={e=>setF({businessSuffix:cleanSpaces(e.target.value)})}/>
             </div>
             <div style={{fontSize:10,color:"var(--muted)",marginTop:3}}>Business name · Suffix (optional)</div>
           </div>
@@ -3189,6 +3181,16 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
             {label}
           </button>
         ))}
+        {onStartOpenHour && (
+          <button className="btn btn-amber" style={{borderRadius:8,fontSize:12,padding:"8px 12px"}}
+            onClick={() => {
+              if(!form.caseNum){showToast("Enter a case number first","error");return;}
+              setBreakConfirmData({label:"🏢 Open Hour",mins:0,isOpenHour:true});
+              setModal("breakConfirm");
+            }}>
+            🏢 Open Hour
+          </button>
+        )}
       </div>
 
       <div className="action-group action-group-right">
@@ -3241,8 +3243,8 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
         </div></div>)}
         {modal==="breakConfirm"&&breakConfirmData&&(<div className="modal-bg"><div className="modal">
           <div style={{marginBottom:14,fontSize:36}}>{breakConfirmData.label.split(" ")[0]}</div>
-          <h3 style={{marginBottom:6}}>Starting {breakConfirmData.label} Break</h3>
-          <p style={{color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6}}>How would you like to save your current case before going on break?</p>
+          <h3 style={{marginBottom:6}}>{breakConfirmData.isOpenHour?"Starting Open Hour / Meeting":`Starting ${breakConfirmData.label} Break`}</h3>
+          <p style={{color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6}}>How would you like to save your current case before going {breakConfirmData.isOpenHour?"into Open Hour":"on break"}?</p>
           <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:18}}>
             {!isResumingDraft&&(<button
               className="btn btn-draft"
@@ -3255,7 +3257,11 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
                 setDraftSaving(true);
                 try{
                   await onSaveDraftDirect(getCleanForm());
-                  setTimeout(()=>onStartBreak&&onStartBreak(data.label.replace(/[☕🧘🍱]/g,"").trim()+" break",data.mins),80);
+                  if(data.isOpenHour){
+                    setTimeout(()=>onStartOpenHour&&onStartOpenHour(),80);
+                  } else {
+                    setTimeout(()=>onStartBreak&&onStartBreak(data.label.replace(/[☕🧘🍱]/g,"").trim()+" break",data.mins),80);
+                  }
                 }catch(e){
                   setDraftSaving(false);
                   showToast("❌ Failed to suspend case — check connection","error");
@@ -3279,7 +3285,11 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
                 setModal(null);
                 setBreakConfirmData(null);
                 onSave&&onSave({...formRef.current,trackerChecklistLink:formRef.current.trackerChecklistLink||"",_breakPending:true});
-                setTimeout(()=>onStartBreak&&onStartBreak(data.label.replace(/[☕🧘🍱]/g,"").trim()+" break",data.mins),80);
+                if(data.isOpenHour){
+                  setTimeout(()=>onStartOpenHour&&onStartOpenHour(),80);
+                } else {
+                  setTimeout(()=>onStartBreak&&onStartBreak(data.label.replace(/[☕🧘🍱]/g,"").trim()+" break",data.mins),80);
+                }
               }}
             >
               <span style={{fontSize:18}}>✅</span>
@@ -3614,7 +3624,7 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // POST LIVE PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, onFormInFields, onMinimise, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, onArchiveDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, qaAlarmMins=10, globalTimeIn, timedIn, breakActive=false, breakTimer=null, onTimeIn, onTimeOut, onTimerReset, sessionDbId, sessionLog=[], addSessionLog, setSessionLog, closeWithOutcome, closeSessionLog, clearSessionLog, onStartBreak, onStartBreakFull, onStopBreak, resumeTick=0 }) {
+function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, onFormInFields, onMinimise, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, onArchiveDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, qaAlarmMins=10, globalTimeIn, timedIn, breakActive=false, breakTimer=null, openHourActive=false, onTimeIn, onTimeOut, onTimerReset, sessionDbId, sessionLog=[], addSessionLog, setSessionLog, closeWithOutcome, closeSessionLog, clearSessionLog, onStartBreak, onStartBreakFull, onStopBreak, onStartOpenHour, onStopOpenHour, resumeTick=0 }) {
   const [mode,setMode]=useState(()=>{
     if(typeof window==="undefined") return null;
     // If live tabs are persisted, restore mode from the active tab
@@ -3732,6 +3742,33 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
   const zeroTimerState={footerElapsed:0,resumeElapsed:0,phase2Elapsed:null,isDraftResumed:false,isEditMode:false,prevElapsedSecs:0,originalTotalSecs:0,originalOutcome:""};
   // ── Browser tab title: always CaseHub ──
   useEffect(()=>{ document.title="CaseHub"; },[]);
+
+  // ── Alarm firing — moved to parent level so it works reliably for EVERY tab that becomes active,
+  // regardless of mount/unmount timing. Each tab id fires its own alarm exactly once per case. ──
+  const ctFiredRef=useRef(new Set());
+  const qaFiredRef2=useRef(new Set());
+  useEffect(()=>{
+    if(!activeFormTabId) return;
+    const activeTab=activeLiveTabs.find(t=>t.id===activeFormTabId);
+    if(!activeTab||activeTab.startTime===null) return; // queued tab — ignore
+    const tState=tabTimerStates[activeFormTabId];
+    if(!tState) return;
+    const fe=tState.footerElapsed||0;
+    const p2=tState.phase2Elapsed;
+    // Reset fired flags if the timer is back at 0 (tab id reused for a fresh case)
+    if(fe===0) ctFiredRef.current.delete(activeFormTabId);
+    if(p2===0||p2===null) qaFiredRef2.current.delete(activeFormTabId);
+    // Combined Tracker alarm — fires once per tab id when elapsed crosses the limit
+    if(alarmMins>0 && fe>0 && fe>=alarmMins*60 && !ctFiredRef.current.has(activeFormTabId)){
+      ctFiredRef.current.add(activeFormTabId);
+      onTimerEnd&&onTimerEnd();
+    }
+    // QA Checklist alarm — fires once per tab id when phase2 elapsed crosses the limit
+    if(qaAlarmMins>0 && p2!==null && p2>0 && p2>=qaAlarmMins*60 && !qaFiredRef2.current.has(activeFormTabId)){
+      qaFiredRef2.current.add(activeFormTabId);
+      onTimerEnd&&onTimerEnd();
+    }
+  },[tabTimerStates,activeFormTabId,activeLiveTabs,alarmMins,qaAlarmMins,onTimerEnd]);
   // Tracks when the current case was started — persists across Site Comment ↔ Inbound switches
   const caseStartTimeRef=useRef((()=>{
     if(typeof window==="undefined") return globalTimeIn||Date.now();
@@ -4081,7 +4118,35 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
                   <span style={{fontSize:11,fontWeight:isActive?700:400,color:isActive?"var(--text)":"rgba(255,255,255,.6)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",flex:1,minWidth:0,fontFamily:"'Poppins',sans-serif"}}>{tabDisplay}</span>
                   {hasTimer&&!isQueued&&<span style={{fontSize:9,fontWeight:700,fontFamily:"monospace",color:isActive?"var(--accent)":"rgba(255,255,255,.45)",flexShrink:0,letterSpacing:".3px"}}>{timerStr}</span>}
                   {isQueued&&<span style={{fontSize:9,fontWeight:700,color:"var(--amber)",background:"rgba(245,158,11,.15)",border:"1px solid rgba(245,158,11,.3)",borderRadius:4,padding:"1px 5px",flexShrink:0,fontFamily:"'Poppins',sans-serif",letterSpacing:".4px"}}>QUEUED</span>}
-                  {activeLiveTabs.length>1&&<button onClick={e=>{e.stopPropagation();setActiveLiveTabs(ts=>ts.filter(t=>t.id!==tab.id));if(isActive&&activeLiveTabs.length>1) setActiveFormTabId(activeLiveTabs.find(t=>t.id!==tab.id)?.id||null);}} style={{background:"none",border:"none",color:isActive?"var(--text)":"rgba(255,255,255,.5)",cursor:"pointer",fontSize:15,padding:"0 0 0 4px",marginLeft:2,lineHeight:1,flexShrink:0,opacity:.6}} onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=.6}>×</button>}
+                  {activeLiveTabs.length>1&&<button onClick={e=>{
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const closedTabId=tab.id;
+                      const wasActive=isActive;
+                      const remaining=activeLiveTabs.filter(t=>t.id!==closedTabId);
+                      if(!wasActive){
+                        // Closed an inactive (queued) tab — just remove it, nothing else changes
+                        setActiveLiveTabs(remaining);
+                        return;
+                      }
+                      const closedIdx=activeLiveTabs.findIndex(t=>t.id===closedTabId);
+                      const nextIdx=Math.min(closedIdx,remaining.length-1);
+                      const now=Date.now();
+                      // Carry the closed tab's elapsed time over to the next queued tab —
+                      // closing without Save/Suspend/Break shouldn't reset the clock to 0.
+                      const closedElapsedSecs=tabTimerStates[closedTabId]?.footerElapsed||0;
+                      const updated=remaining.map((t,i)=>{
+                        if(i===nextIdx && t.startTime===null && !breakActive){
+                          return {...t,startTime:now-(closedElapsedSecs*1000)};
+                        }
+                        return t;
+                      });
+                      const nextTab=updated[nextIdx];
+                      setActiveLiveTabs(updated);
+                      setActiveFormTabId(nextTab?.id||null);
+                      setTabTimerStates(prev=>{const n={...prev};delete n[closedTabId];return n;});
+                      if(nextTab) setMode(nextTab.mode||mode);
+                    }} style={{background:"none",border:"none",color:isActive?"var(--text)":"rgba(255,255,255,.5)",cursor:"pointer",fontSize:15,padding:"0 0 0 4px",marginLeft:2,lineHeight:1,flexShrink:0,opacity:.6}} onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=.6}>×</button>}
                 </div>
               );
             })}
@@ -4137,7 +4202,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
           </div>
         )}
 
-        <div className="page-header" style={{padding:"12px 32px 10px",flexShrink:0,borderBottom:"1px solid var(--glass-border)",margin:0,display:"flex",alignItems:"center",gap:0,justifyContent:"space-between"}}>
+        <div className="page-header" style={{padding:"12px 32px 10px",flexShrink:0,borderBottom:"1px solid var(--glass-border)",margin:0,display:"flex",alignItems:"center",gap:12,justifyContent:"space-between"}}>
           <div>
             {(()=>{
               const activeTabMode=(activeLiveTabs.find(t=>t.id===activeFormTabId)||activeLiveTabs[0])?.mode||mode;
@@ -4185,6 +4250,19 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
             </div>
           );
         })()}
+
+        {/* Open Hour / Meeting banner — same design as the break bar */}
+        {openHourActive&&(
+          <div className="break-bar" style={{position:"relative",flexShrink:0}}>
+            <span style={{fontSize:18}}>🏢</span>
+            <div>
+              <div className="break-label">Open Hour / Meeting</div>
+              <div style={{fontSize:10,color:"var(--muted)"}}>Active — session timer paused</div>
+            </div>
+            <div className="break-progress" style={{flex:1}}/>
+            <button className="break-stop" onClick={onStopOpenHour}>✕ End</button>
+          </div>
+        )}
 
         {/* Render one PostLiveForm per live tab; only show active */}
         {(activeLiveTabs.length>0?activeLiveTabs:[{id:'default',mode,key:`${mode}-${activeDraftId||"new"}-${isEditingFromLog?"edit":"new"}`,isFirstTab:true}]).map((tab,tabIdx)=>{
@@ -4378,6 +4456,9 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
           onBack={()=>setBackConfirm(true)}
           onCancelForm={cancelMode}
           onStartBreak={onStartBreakFull||onStartBreak}
+          onStartOpenHour={onStartOpenHour}
+          onStopOpenHour={onStopOpenHour}
+          openHourActive={openHourActive}
           setSessionLog={setSessionLog}/>
           </div>
           );
@@ -4386,49 +4467,22 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
         {/* ── File Name Generator modal — rendered at root level so it covers the full viewport ── */}
         {showFnGen&&(
           <div className="modal-bg" onClick={e=>{if(e.target===e.currentTarget)setShowFnGen(false);}}>
-            <div className="modal" style={{maxWidth:520,width:"95%",padding:28,maxHeight:"80vh",display:"flex",flexDirection:"column"}}>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexShrink:0}}>
-                <h3 style={{margin:0,fontSize:17,fontWeight:700}}>📋 File Name Generator</h3>
-                <button onClick={()=>setShowFnGen(false)} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:"var(--muted)",lineHeight:1}}>×</button>
+            <div style={{background:"var(--glass-bg)",border:"1px solid var(--glass-border)",backdropFilter:"var(--glass-blur)",WebkitBackdropFilter:"var(--glass-blur)",borderRadius:14,padding:"24px 28px",width:"95%",maxWidth:1100,maxHeight:"90vh",display:"flex",flexDirection:"column",boxShadow:"var(--glass-shadow)",overflowY:"auto"}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexShrink:0}}>
+                <h3 style={{margin:0,fontSize:18,fontWeight:700}}>📋 File Name Generator</h3>
+                <button onClick={()=>setShowFnGen(false)} style={{background:"none",border:"none",cursor:"pointer",fontSize:22,color:"var(--muted)",lineHeight:1}}>×</button>
               </div>
-              <div style={{overflowY:"auto",flex:1}}>
-                {activeLiveTabs.length>1&&(
-                  <div style={{marginBottom:18}}>
-                    <div style={{fontSize:11,fontWeight:700,color:"var(--muted)",marginBottom:8,textTransform:"uppercase",letterSpacing:".5px"}}>Auto-fill from tab</div>
-                    <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                      {activeLiveTabs.map(t=>{
-                        const cx=t.complexity||"minor";
-                        const cxColor=cx==="complex"?"#f43f5e":cx==="major"?"#f59e0b":"#10b981";
-                        const tabBiz=(t.label||"").replace(/^(Inbound Email|Site Comment)\s*[-—]?\s*/i,"").replace(/\s*#\S*\s*$/,"").trim();
-                        return (
-                          <button key={t.id}
-                            style={{display:"flex",alignItems:"center",gap:6,padding:"6px 12px",borderRadius:8,border:`1px solid ${t.id===activeFormTabId?"var(--accent)":"var(--glass-border)"}`,background:t.id===activeFormTabId?"rgba(59,130,246,.1)":"var(--card2)",cursor:"pointer",fontFamily:"'Poppins',sans-serif"}}
-                            onClick={()=>{window.dispatchEvent(new CustomEvent("fngen_fill",{detail:{caseNum:t.caseNum||"",businessName:tabBiz,complexity:cx}}));setShowFnGen(false);}}>
-                            <span style={{width:8,height:8,borderRadius:"50%",background:t.mode==="inbound"?"#8b5cf6":"#3b82f6",display:"inline-block",flexShrink:0}}/>
-                            <span style={{fontSize:11,fontWeight:700,color:cxColor}}>{cx==="complex"?"C":cx==="major"?"M":"m"}</span>
-                            <span style={{fontSize:11,color:"var(--text)",fontWeight:500}}>{t.caseNum?`#${t.caseNum}`:""}{tabBiz?` — ${tabBiz}`:""}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-                <div style={{fontSize:11,fontWeight:700,color:"var(--muted)",marginBottom:10,textTransform:"uppercase",letterSpacing:".5px"}}>File Names</div>
-                {[
-                  {label:"Before Screenshot",value:user?.beforeName||""},
-                  {label:"After Screenshot",value:user?.afterName||""},
-                  {label:"Screenshot",value:user?.screenshotName||""}
-                ].map(({label,value})=>(
-                  <div key={label} style={{marginBottom:14}}>
-                    <div style={{fontSize:11,color:"var(--muted)",marginBottom:5,fontWeight:600}}>{label}</div>
-                    <div className="copy-name">
-                      <span className="copy-name-text" style={{flex:1,fontSize:12}}>{value||"—"}</span>
-                      <button className="copy-btn" onClick={()=>navigator.clipboard?.writeText(value||"")}>Copy</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <button className="btn btn-ghost" style={{width:"100%",marginTop:16,textAlign:"center",justifyContent:"center",flexShrink:0}} onClick={()=>setShowFnGen(false)}>Close</button>
+              <FileNameGeneratorPage onFill={({bizFilename,bizAlt,accountNum})=>{
+                // Dispatch to active form — fills businessName + accountNum
+                const activeTab=activeLiveTabs.find(t=>t.id===activeFormTabId)||activeLiveTabs[0];
+                if(activeTab){
+                  window.dispatchEvent(new CustomEvent("fngen_fill",{detail:{
+                    businessName: bizFilename||bizAlt||"",
+                    caseNum: activeTab.caseNum||"",
+                    complexity: activeTab.complexity||"minor"
+                  }}));
+                }
+              }}/>
             </div>
           </div>
         )}
@@ -7378,6 +7432,7 @@ function App() {
 
   const [breakPending,setBreakPending]=useState(null); // {label,mins} waiting confirm
   const [cancelBreakConfirm,setCancelBreakConfirm]=useState(false);
+  const [cancelOpenHourConfirm,setCancelOpenHourConfirm]=useState(false);
   function startBreak(label,mins,fullDuration=false){
     const now=Date.now();
     // Sidebar break: subtract session elapsed so the countdown reflects remaining time
@@ -7997,7 +8052,7 @@ function App() {
           {!dataLoading&&page==="build"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="casebox" size={80} color="var(--muted)"/></div><div className="soon-title">Build</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&page==="prelive"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="prelive" size={80} color="var(--muted)"/></div><div className="soon-title">Pre-Live Amends</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&<div style={{display:page==="postlive"?"block":"none"}}>
-            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onUpdateDraft={updateDraft} onFormActive={setFormActivePersist} onFormInFields={setFormInFields} onMinimise={()=>{setPage("postlive"); if(typeof window!=="undefined") localStorage.setItem("ch_page","postlive");}} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} onArchiveDraft={archiveDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} qaAlarmMins={qaLimit} globalTimeIn={globalTimeIn} timedIn={timedIn} breakActive={!!breakTimer||openHourActive} breakTimer={breakTimer||null} onTimeIn={doTimeIn} onTimeOut={doTimeOut} onTimerReset={doTimerReset} sessionDbId={sessionDbId} sessionLog={sessionLog} addSessionLog={addSessionLog} setSessionLog={setSessionLog} closeWithOutcome={closeWithOutcome} closeSessionLog={closeSessionLog} clearSessionLog={clearSessionLog} onStartBreak={startBreak} onStartBreakFull={(label,mins)=>startBreak(label,mins,true)} onStopBreak={stopBreak} resumeTick={resumeFormTick}/>
+            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onUpdateDraft={updateDraft} onFormActive={setFormActivePersist} onFormInFields={setFormInFields} onMinimise={()=>{setPage("postlive"); if(typeof window!=="undefined") localStorage.setItem("ch_page","postlive");}} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} onArchiveDraft={archiveDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} qaAlarmMins={qaLimit} globalTimeIn={globalTimeIn} timedIn={timedIn} breakActive={!!breakTimer||openHourActive} breakTimer={breakTimer||null} openHourActive={openHourActive} onTimeIn={doTimeIn} onTimeOut={doTimeOut} onTimerReset={doTimerReset} sessionDbId={sessionDbId} sessionLog={sessionLog} addSessionLog={addSessionLog} setSessionLog={setSessionLog} closeWithOutcome={closeWithOutcome} closeSessionLog={closeSessionLog} clearSessionLog={clearSessionLog} onStartBreak={startBreak} onStartBreakFull={(label,mins)=>startBreak(label,mins,true)} onStopBreak={()=>setCancelBreakConfirm(true)} onStartOpenHour={startOpenHour} onStopOpenHour={()=>setCancelOpenHourConfirm(true)} resumeTick={resumeFormTick}/>
           </div>}
           {!dataLoading&&page==="history"&&<CaseHistory cases={allCases} onUpdate={updateCase} onDelete={deleteCase}/>}
           {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} updateAnnouncement={updateAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
@@ -8062,6 +8117,16 @@ function App() {
         </div>
       </div></div>)}
 
+      {cancelOpenHourConfirm&&(<div className="modal-bg"><div className="modal">
+        <div style={{marginBottom:14}}><Icon name="close" size={40} color="var(--red)"/></div>
+        <h3>End Open Hour?</h3>
+        <p style={{color:"var(--muted)",fontSize:13,marginBottom:20}}>Your session timer will reset and a fresh Ongoing entry will start. Are you sure?</p>
+        <div className="modal-btns">
+          <button className="btn btn-ghost" onClick={()=>setCancelOpenHourConfirm(false)}>Keep Going</button>
+          <button className="btn btn-danger" onClick={()=>{setCancelOpenHourConfirm(false);stopOpenHour();}}>End Open Hour</button>
+        </div>
+      </div></div>)}
+
       {/* ── Alarm Overlay ── */}
       {activeAlarm&&(
         <div className="alarm-overlay">
@@ -8098,7 +8163,7 @@ function App() {
             <div style={{fontSize:13,fontWeight:700,color:"#fff"}}>Open Hour Active</div>
             <div style={{fontSize:11,color:"rgba(255,255,255,.75)"}}>Helping a customer outside normal amends</div>
           </div>
-          <button onClick={stopOpenHour} style={{padding:"8px 18px",background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.3)",borderRadius:8,color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"'Poppins',sans-serif",backdropFilter:"blur(4px)"}}>End Open Hour</button>
+          <button onClick={()=>setCancelOpenHourConfirm(true)} style={{padding:"8px 18px",background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.3)",borderRadius:8,color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"'Poppins',sans-serif",backdropFilter:"blur(4px)"}}>End Open Hour</button>
         </div>
       )}
 
@@ -8507,7 +8572,7 @@ function ArchivePage({ archivedDrafts=[], onDelete }) {
   );
 }
 
-function FileNameGeneratorPage() {
+function FileNameGeneratorPage({ onFill=null }) {
   const san = (s) => (s||'').toLowerCase().replace(/[^a-z0-9\s-]/g,'').trim().replace(/\s+/g,'-');
   const nn  = (i) => String(i+1).padStart(2,'0');
 
@@ -8592,9 +8657,13 @@ function FileNameGeneratorPage() {
     localStorage.setItem("ch_fng_form",JSON.stringify(form));
   },[form]);
 
+  // Tracks the values WE last auto-filled, so we can tell whether the user has since
+  // customized a field manually (in which case we must not overwrite it on the next sync).
+  const lastAutoFillRef = useRef({ bizFilename:null, bizAlt:null, accountNum:null });
+
   // Auto-fill from active form OR last saved case.
-  // Always updates when the active case changes (different accountNum or businessName).
-  // Only leaves fields alone if the user manually edited them beyond the autofill value.
+  // Only updates a field if it's empty or still equals what we last auto-filled —
+  // i.e. never clobbers a value the user has manually typed into the generator.
   useEffect(()=>{
     if(typeof window==="undefined") return;
     const sync=()=>{
@@ -8627,13 +8696,15 @@ function FileNameGeneratorPage() {
         const newBizFn  = biz;
         const newBizAlt = bizFull||biz;
         const newAcc    = acc;
-        // Always update with latest active form data
-        setForm(f=>({
-          ...f,
-          bizFilename: newBizFn  || f.bizFilename,
-          bizAlt:      newBizAlt || f.bizAlt,
-          accountNum:  newAcc    || f.accountNum,
-        }));
+        const last=lastAutoFillRef.current;
+        setForm(f=>{
+          const next={...f};
+          if(newBizFn && (f.bizFilename===''||f.bizFilename===last.bizFilename)) next.bizFilename=newBizFn;
+          if(newBizAlt && (f.bizAlt===''||f.bizAlt===last.bizAlt)) next.bizAlt=newBizAlt;
+          if(newAcc && (f.accountNum===''||f.accountNum===last.accountNum)) next.accountNum=newAcc;
+          return next;
+        });
+        lastAutoFillRef.current={bizFilename:newBizFn,bizAlt:newBizAlt,accountNum:newAcc};
       }catch{}
     };
     sync();
@@ -8750,6 +8821,7 @@ function FileNameGeneratorPage() {
           </label>
           <button onClick={()=>{setDraftFmt({...format});setEditingFormat(true);}} style={{padding:'8px 14px',background:'var(--btn-ghost-bg)',border:'1.5px solid var(--btn-ghost-border)',color:'var(--btn-ghost-text)',borderRadius:8,fontSize:12,fontWeight:700,cursor:'pointer'}}>✏️ Edit Format</button>
           <button onClick={()=>{setForm(EMPTY);if(typeof window!=="undefined")localStorage.removeItem("ch_fng_form");}} style={{padding:'8px 14px',background:'var(--btn-cancel-bg)',border:'1.5px solid var(--btn-cancel-border)',color:'var(--btn-cancel-text)',borderRadius:8,fontSize:12,fontWeight:700,cursor:'pointer'}}>Clear All</button>
+          {onFill&&<button onClick={()=>onFill({bizFilename:form.bizFilename,bizAlt:form.bizAlt,accountNum:form.accountNum})} style={{padding:'8px 14px',background:'var(--accent)',border:'1.5px solid var(--accent)',color:'#fff',borderRadius:8,fontSize:12,fontWeight:700,cursor:'pointer'}}>⚡ Auto-fill Active Form</button>}
         </div>
       </div>
 
