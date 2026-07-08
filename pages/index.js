@@ -4000,8 +4000,8 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
               const isDragging=dragTabId===tab.id;
               // Build compact label from live tab data
               const tState=tabTimerStates[tab.id];
-              const hasTimer=tState&&tab.startTime!==null&&(tState.elapsed||0)>0;
-              const timerSecs=hasTimer?(tState.elapsed||0):0;
+              const hasTimer=tState&&tab.startTime!==null&&(tState.footerElapsed||0)>0;
+              const timerSecs=hasTimer?(tState.footerElapsed||0):0;
               const timerStr=hasTimer?` ${Math.floor(timerSecs/60)}:${String(timerSecs%60).padStart(2,"0")}`:'';
               const cnum=tab.caseNum?`#${tab.caseNum}`:'';
               const bizRaw=(tab.label||'').replace(/^(Inbound Email|Site Comment)\s*[-—]?\s*/i,'').replace(/\s*#\S*\s*$/,'').trim();
@@ -4025,7 +4025,9 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
                     // ACTIVE (running) tab: pass its elapsed startTime down to the next queued tab
                     //   so that tab picks up the timer exactly where this one left off.
                     // QUEUED tab: close silently — no timer change on any other tab.
-                    const closingRunning=isActive&&!isQueued;
+                    // Any tab with a running timer (startTime set) passes elapsed time to next tab.
+                    // Queued tabs (startTime===null) close silently. This loops for every active case.
+                    const closingRunning=tab.startTime!==null;
                     setActiveLiveTabs(ts=>{
                       const remaining=ts.filter(t=>t.id!==tab.id);
                       if(closingRunning&&remaining.length>0){
