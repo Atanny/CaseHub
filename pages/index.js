@@ -4022,20 +4022,27 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
                   {isQueued&&<span style={{fontSize:9,fontWeight:700,color:"var(--amber)",background:"rgba(245,158,11,.15)",border:"1px solid rgba(245,158,11,.3)",borderRadius:4,padding:"1px 5px",flexShrink:0,fontFamily:"'Poppins',sans-serif",letterSpacing:".4px"}}>QUEUED</span>}
                   {activeLiveTabs.length>1&&<button onClick={e=>{
                     e.stopPropagation();
-                    // Only switch activeFormTabId when closing the tab that is BOTH active-display AND has a running timer.
-                    // Closing a queued tab should never start the next tab's timer — just remove it silently.
+                    // ACTIVE (running) tab: pass its elapsed startTime down to the next queued tab
+                    //   so that tab picks up the timer exactly where this one left off.
+                    // QUEUED tab: close silently — no timer change on any other tab.
                     const closingRunning=isActive&&!isQueued;
                     setActiveLiveTabs(ts=>{
                       const remaining=ts.filter(t=>t.id!==tab.id);
                       if(closingRunning&&remaining.length>0){
-                        // Switch focus to adjacent tab but do NOT stamp startTime (queued stays queued)
                         const closedIdx=ts.findIndex(t=>t.id===tab.id);
-                        const nextTab=remaining[Math.min(closedIdx,remaining.length-1)];
-                        setActiveFormTabId(nextTab.id);
-                      } else if(!closingRunning){
-                        // Closing a queued tab — keep activeFormTabId unchanged (running tab stays active)
-                        // do nothing to activeFormTabId
+                        const nextIdx=Math.min(closedIdx,remaining.length-1);
+                        const inheritedStartTime=tab.startTime; // pass elapsed time to next tab
+                        const updated=remaining.map((t,i)=>{
+                          if(i===nextIdx){
+                            // Give next tab the same startTime so its timer continues seamlessly
+                            return {...t,startTime:inheritedStartTime,key:`${t.id}-inherited-${Date.now()}`};
+                          }
+                          return t;
+                        });
+                        setActiveFormTabId(updated[nextIdx].id);
+                        return updated;
                       }
+                      // Closing a queued tab — keep activeFormTabId unchanged, no timer changes
                       return remaining;
                     });
                   }} style={{background:"none",border:"none",color:isActive?"var(--text)":"rgba(255,255,255,.5)",cursor:"pointer",fontSize:15,padding:"0 0 0 4px",marginLeft:2,lineHeight:1,flexShrink:0,opacity:.6}} onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=.6}>×</button>}
