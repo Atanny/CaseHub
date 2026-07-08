@@ -3559,7 +3559,7 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // POST LIVE PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, onFormInFields, onMinimise, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, onArchiveDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, globalTimeIn, timedIn, breakActive=false, onTimeIn, onTimeOut, onTimerReset, sessionDbId, sessionLog=[], addSessionLog, setSessionLog, closeWithOutcome, closeSessionLog, clearSessionLog, onStartBreak, onStartBreakFull, resumeTick=0 }) {
+function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, onFormInFields, onMinimise, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, onArchiveDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, combinedTrackerLimit=30, globalTimeIn, timedIn, breakActive=false, onTimeIn, onTimeOut, onTimerReset, sessionDbId, sessionLog=[], addSessionLog, setSessionLog, closeWithOutcome, closeSessionLog, clearSessionLog, onStartBreak, onStartBreakFull, resumeTick=0 }) {
   const [mode,setMode]=useState(()=>{
     if(typeof window==="undefined") return null;
     // If live tabs are persisted, restore mode from the active tab
@@ -3591,7 +3591,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
   const [showTabPicker,setShowTabPicker]=useState(false);
   const [showAddTabPicker,setShowAddTabPicker]=useState(false);
   const [dragTabId,setDragTabId]=useState(null); // id of tab currently being dragged
-  const [prolongedMins,setProlongedMins]=useState(30);
+  const [prolongedMins,setProlongedMins]=useState(combinedTrackerLimit);
   const [prolongedMode,setProlongedMode]=useState(false);
   const [prolongedWarnToast,setProlongedWarnToast]=useState(null);
   const prolongedActive=formTabs.some(t=>t.status!=='done');
@@ -4037,7 +4037,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
                         const updated=remaining.map((t,i)=>{
                           if(i===nextIdx){
                             // Give next tab the same startTime so its timer continues seamlessly
-                            return {...t,startTime:inheritedStartTime,key:`${t.id}-inherited-${Date.now()}`};
+                            return {...t,startTime:inheritedStartTime}; // keep key so form stays mounted with its data
                           }
                           return t;
                         });
@@ -4115,11 +4115,13 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
               </>);
             })()}
           </div>
-          <TimerBar {...(()=>{
+          {(()=>{
             const activeTab=activeLiveTabs.find(t=>t.id===activeFormTabId)||activeLiveTabs[0];
-            if(activeTab&&activeTab.startTime===null) return zeroTimerState;
-            return tabTimerStates[activeFormTabId]||zeroTimerState;
-          })()} fmtElapsed={fmtElapsed}/>
+            // Hide the header timer entirely when the active tab is queued (not yet running)
+            if(activeTab&&activeTab.startTime===null) return null;
+            const ts=tabTimerStates[activeFormTabId]||zeroTimerState;
+            return <TimerBar {...ts} fmtElapsed={fmtElapsed}/>;
+          })()}
         </div>
 
         {/* Render one PostLiveForm per live tab; only show active */}
@@ -4262,8 +4264,9 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
           // so it won't start timing until the user returns from break and resumes.
           return {...t};
         }
-        // Normal save: activate this tab — stamp start time and remount fresh
-        return {...t,startTime:t2,key:`${t.id}-activated-${t2}`};
+        // Normal save: activate this tab — stamp startTime so its timer begins.
+        // Do NOT change the key — changing key unmounts the form and wipes all field data.
+        return {...t,startTime:t2};
       }
       return t;
     });
@@ -4313,7 +4316,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
               const nextIdx=Math.min(savedIdx,remaining.length-1);
               const t2=Date.now();
               const updated=remaining.map((t,i)=>{
-                if(i===nextIdx) return {...t,startTime:t2,key:`${t.id}-activated-${t2}`};
+                if(i===nextIdx) return {...t,startTime:t2}; // no key change — preserve form fields
                 return t;
               });
               setActiveFormTabId(updated[nextIdx].id);
@@ -6269,7 +6272,7 @@ function LinksPage({ links, setLinks, addLink, updateLink, removeLink }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // PROFILE PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, shiftStartTime="", saveShiftStartTime, shiftStartWarnMins=10, saveShiftStartWarnMins, shiftEndTime="", saveShiftEndTime, shiftWarnMins=10, saveShiftWarnMins, specialRequestors=[], addRequestor, removeRequestor }) {
+function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, combinedTrackerLimit, saveCombinedTrackerLimit, shiftStartTime="", saveShiftStartTime, shiftStartWarnMins=10, saveShiftStartWarnMins, shiftEndTime="", saveShiftEndTime, shiftWarnMins=10, saveShiftWarnMins, specialRequestors=[], addRequestor, removeRequestor }) {
   const [editing,setEditing]=useState(false);
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
@@ -6300,6 +6303,7 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, shif
   });
   const [pwForm,setPwForm]=useState({next:"",confirm:""});
   const [timerInput,setTimerInput]=useState(String(timerLimit||30));
+  const [ctInput,setCtInput]=useState(String(combinedTrackerLimit||30));
   const [shiftStartInput,setShiftStartInput]=useState(shiftStartTime||"");
   const [shiftStartWarnInput,setShiftStartWarnInput]=useState(String(shiftStartWarnMins||10));
   const [shiftEndInput,setShiftEndInput]=useState(shiftEndTime||"");
@@ -6582,6 +6586,25 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, shif
           </button>
         </div>
         <div style={{fontSize:11,color:"var(--muted)",marginTop:8}}>Currently: <strong style={{color:"var(--accent)"}}>{timerLimit} min</strong></div>
+      </div>
+
+      {/* ── Combined Tracker Timer card ── */}
+      <div className="profile-card">
+        <h3 style={{fontSize:16,fontWeight:700,marginBottom:4}}>⏳ Combined Tracker Timer</h3>
+        <p style={{fontSize:12,color:"var(--muted)",marginBottom:16}}>For prolonged cases — alarm fires after this many minutes, reminding you to complete the Combined Tracker step. Default is 30 minutes.</p>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <input className="inp" type="number" min="1" max="480" style={{width:90,textAlign:"center",fontWeight:700,fontSize:15}}
+            value={ctInput}
+            onChange={e=>setCtInput(e.target.value)}
+            onKeyDown={e=>{if(e.key==="Enter"){saveCombinedTrackerLimit(ctInput);showToast("Combined tracker timer updated ✅");}}}
+          />
+          <span style={{fontSize:13,color:"var(--muted)"}}>minutes</span>
+          <button className="btn btn-primary" style={{marginLeft:"auto",padding:"8px 18px",fontSize:12}}
+            onClick={()=>{saveCombinedTrackerLimit(ctInput);showToast("Combined tracker timer updated ✅");}}>
+            Save
+          </button>
+        </div>
+        <div style={{fontSize:11,color:"var(--muted)",marginTop:8}}>Currently: <strong style={{color:"var(--accent)"}}>{combinedTrackerLimit} min</strong></div>
       </div>
 
       {/* ── Shift Start Alarm card ── */}
@@ -7087,6 +7110,16 @@ function App() {
     const v=Math.max(1,Math.min(240,parseInt(mins)||30));
     setTimerLimit(v);
     if(typeof window!=="undefined") localStorage.setItem("ch_timer_limit",v);
+  };
+  // Combined tracker (prolonged case) timer — separate from the main case alarm
+  const [combinedTrackerLimit,setCombinedTrackerLimit]=useState(()=>{
+    if(typeof window!=="undefined"){const v=parseInt(localStorage.getItem("ch_ct_limit"));return isNaN(v)?30:v;}
+    return 30;
+  });
+  const saveCombinedTrackerLimit=(mins)=>{
+    const v=Math.max(1,Math.min(480,parseInt(mins)||30));
+    setCombinedTrackerLimit(v);
+    if(typeof window!=="undefined") localStorage.setItem("ch_ct_limit",v);
   };
   // ── Shift End Alarm: shiftEndTime = "HH:MM" (24h), shiftWarnMins = minutes before end to alarm ──
   const [shiftStartTime,setShiftStartTime]=useState(()=>{
@@ -7905,12 +7938,12 @@ function App() {
           {!dataLoading&&page==="build"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="casebox" size={80} color="var(--muted)"/></div><div className="soon-title">Build</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&page==="prelive"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="prelive" size={80} color="var(--muted)"/></div><div className="soon-title">Pre-Live Amends</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&<div style={{display:page==="postlive"?"block":"none"}}>
-            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onUpdateDraft={updateDraft} onFormActive={setFormActivePersist} onFormInFields={setFormInFields} onMinimise={()=>{setPage("postlive"); if(typeof window!=="undefined") localStorage.setItem("ch_page","postlive");}} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} onArchiveDraft={archiveDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} globalTimeIn={globalTimeIn} timedIn={timedIn} breakActive={!!breakTimer||openHourActive} onTimeIn={doTimeIn} onTimeOut={doTimeOut} onTimerReset={doTimerReset} sessionDbId={sessionDbId} sessionLog={sessionLog} addSessionLog={addSessionLog} setSessionLog={setSessionLog} closeWithOutcome={closeWithOutcome} closeSessionLog={closeSessionLog} clearSessionLog={clearSessionLog} onStartBreak={startBreak} onStartBreakFull={(label,mins)=>startBreak(label,mins,true)} resumeTick={resumeFormTick}/>
+            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onUpdateDraft={updateDraft} onFormActive={setFormActivePersist} onFormInFields={setFormInFields} onMinimise={()=>{setPage("postlive"); if(typeof window!=="undefined") localStorage.setItem("ch_page","postlive");}} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} onArchiveDraft={archiveDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} combinedTrackerLimit={combinedTrackerLimit} globalTimeIn={globalTimeIn} timedIn={timedIn} breakActive={!!breakTimer||openHourActive} onTimeIn={doTimeIn} onTimeOut={doTimeOut} onTimerReset={doTimerReset} sessionDbId={sessionDbId} sessionLog={sessionLog} addSessionLog={addSessionLog} setSessionLog={setSessionLog} closeWithOutcome={closeWithOutcome} closeSessionLog={closeSessionLog} clearSessionLog={clearSessionLog} onStartBreak={startBreak} onStartBreakFull={(label,mins)=>startBreak(label,mins,true)} resumeTick={resumeFormTick}/>
           </div>}
           {!dataLoading&&page==="history"&&<CaseHistory cases={allCases} onUpdate={updateCase} onDelete={deleteCase}/>}
           {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} updateAnnouncement={updateAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
           {!dataLoading&&page==="links"&&<LinksPage links={links} setLinks={setLinks} addLink={addLink} updateLink={updateLink} removeLink={removeLink}/>}
-          {!dataLoading&&page==="profile"&&<ProfilePage user={user} setUser={setUser} onLogout={logout} timerLimit={timerLimit} saveTimerLimit={saveTimerLimit} shiftStartTime={shiftStartTime} saveShiftStartTime={saveShiftStartTime} shiftStartWarnMins={shiftStartWarnMins} saveShiftStartWarnMins={saveShiftStartWarnMins} shiftEndTime={shiftEndTime} saveShiftEndTime={saveShiftEndTime} shiftWarnMins={shiftWarnMins} saveShiftWarnMins={saveShiftWarnMins} specialRequestors={specialRequestors} addRequestor={addRequestor} removeRequestor={removeRequestor}/>}
+          {!dataLoading&&page==="profile"&&<ProfilePage user={user} setUser={setUser} onLogout={logout} timerLimit={timerLimit} saveTimerLimit={saveTimerLimit} combinedTrackerLimit={combinedTrackerLimit} saveCombinedTrackerLimit={saveCombinedTrackerLimit} shiftStartTime={shiftStartTime} saveShiftStartTime={saveShiftStartTime} shiftStartWarnMins={shiftStartWarnMins} saveShiftStartWarnMins={saveShiftStartWarnMins} shiftEndTime={shiftEndTime} saveShiftEndTime={saveShiftEndTime} shiftWarnMins={shiftWarnMins} saveShiftWarnMins={saveShiftWarnMins} specialRequestors={specialRequestors} addRequestor={addRequestor} removeRequestor={removeRequestor}/>}
           {!dataLoading&&page==="sessions"&&<SessionLogPage user={user} refreshKey={sessionRefreshKey}/>}
           {!dataLoading&&page==="archives"&&<ArchivePage archivedDrafts={archivedDrafts} onDelete={async(id)=>{try{await fetch(`/api/archived-drafts/${id}`,{method:"DELETE"});setArchivedDrafts(a=>a.filter(x=>x._id!==id));}catch(e){console.error(e);}}}/>}
           {!dataLoading&&page==="filenames"&&<FileNameGeneratorPage/>}
