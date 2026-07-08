@@ -3631,7 +3631,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
       const rem=running.timerDeadline-Date.now();
       // 1-min warning
       if(!running.warnFired&&rem<=60000&&rem>0){
-        onTimerEnd&&onTimerEnd();
+        onTimerEnd&&onTimerEnd("__combined__"+(running.caseNum?`Case #${running.caseNum}`:"Prolonged Case"));
         return tabs.map(t=>t.id===running.id?{...t,warnFired:true}:t);
       }
       // Expired — mark overdue, update log, auto-start next
@@ -4125,7 +4125,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
           const tabUseDraft = isFirstTab && useDraft;
           return (
           <div key={tab.key||tab.id} style={{display:isActiveTab?"flex":"none",flexDirection:"column",flex:isActiveTab?1:undefined,overflow:"hidden",minHeight:isActiveTab?0:undefined}}>
-          <PostLiveForm key={tab.key||`${tabMode}-${activeDraftId||"new"}-${isEditingFromLog?"edit":"new"}`} mode={tabMode} draftData={tabDraftData} user={user} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={alarmMins*60} isEditMode={tabIsEdit} isMinimisedResume={tabIsResumingMin} caseStartTime={tab.startTime!==undefined?tab.startTime:caseStartTimeRef.current} externalFormRef={isFirstTab?sharedFormRef:null} isResumingDraft={tabUseDraft} onTimerTick={tab.startTime!==null?t=>setTabTimerStates(prev=>({...prev,[tab.id]:t})):null} prolongedActive={prolongedActive} onProlongedDismiss={()=>{setProlongedActive(false);setProlongedDeadline(null);}} onProceedWithNext={prolongedMode?handleProceedWithNextCase:null} prolongedMinsForNext={prolongedMins} tabStorageKey={tab.id||null} onTabDataChange={({caseNum,businessName})=>setActiveLiveTabs(ts=>ts.map(t=>t.id===tab.id?{...t,caseNum,label:(t.mode==='inbound'?'Inbound Email':'Site Comment')+(businessName?' — '+businessName:'')+(caseNum?' #'+caseNum:'')}:t))}
+          <PostLiveForm key={tab.key||`${tabMode}-${activeDraftId||"new"}-${isEditingFromLog?"edit":"new"}`} mode={tabMode} draftData={tabDraftData} user={user} onTimerEnd={()=>onTimerEnd&&onTimerEnd(tab.label||((tabMode==='inbound'?'Inbound Email':'Site Comment')+(tab.caseNum?' #'+tab.caseNum:'')))} specialRequestors={specialRequestors} timerLimitSecs={alarmMins*60} isEditMode={tabIsEdit} isMinimisedResume={tabIsResumingMin} caseStartTime={tab.startTime!==undefined?tab.startTime:caseStartTimeRef.current} externalFormRef={isFirstTab?sharedFormRef:null} isResumingDraft={tabUseDraft} onTimerTick={tab.startTime!==null?t=>setTabTimerStates(prev=>({...prev,[tab.id]:t})):null} prolongedActive={prolongedActive} onProlongedDismiss={()=>{setProlongedActive(false);setProlongedDeadline(null);}} onProceedWithNext={prolongedMode?handleProceedWithNextCase:null} prolongedMinsForNext={prolongedMins} tabStorageKey={tab.id||null} onTabDataChange={({caseNum,businessName})=>setActiveLiveTabs(ts=>ts.map(t=>t.id===tab.id?{...t,caseNum,label:(t.mode==='inbound'?'Inbound Email':'Site Comment')+(businessName?' — '+businessName:'')+(caseNum?' #'+caseNum:'')}:t))}
           originalOutcome={tabIsEdit?(editingCase.savedCase._saveOutcome||""):tabUseDraft?"Suspended":""}
           originalTotalSecs={(()=>{
             const targetCase = tabIsEdit ? editingCase.savedCase : tabDraftData;
@@ -6895,7 +6895,7 @@ function App() {
       return finalLog;
     });
     // Stop any active break/open hour when timing out
-    setBreakTimer(null); stopAlarmLoop(); setActiveAlarm(null);
+    setBreakTimer(null); stopAlarmLoop(); setActiveAlarm(null); activeAlarmRef.current=null;
     if(typeof window!=="undefined") localStorage.removeItem("ch_break");
     setOpenHourActive(false);
     if(typeof window!=="undefined") localStorage.removeItem("ch_openhour");
@@ -7173,13 +7173,14 @@ function App() {
 
   useEffect(()=>{document.body.classList.toggle("light",lightMode);if(typeof window!=="undefined") localStorage.setItem("ch_theme",lightMode?"light":"dark");},[lightMode]);
 
-  // ── Alarm state: null | "warn" | "end" | "case" ──
+  // ── Alarm state: null | {type, label} where type = "warn"|"end"|"case"|"shift_start"|"shift_end" ──
   const [activeAlarm,setActiveAlarm]=useState(null);
+  const activeAlarmRef=useRef(null); // mirrors activeAlarm for use in closures
   const alarmLoopRef=useRef(null);
   const alarmCtxRef=useRef(null);
 
   // ── Web Audio looping alarm ──
-  function startAlarmLoop(type){
+  function startAlarmLoop(type, alarmLabel=""){
     stopAlarmLoop();
     const loop=()=>{
       try{
@@ -7208,7 +7209,9 @@ function App() {
       }catch(e){console.warn("Audio error",e);}
     };
     loop();
-    setActiveAlarm(type);
+    const alarmObj={type, label: alarmLabel};
+    setActiveAlarm(alarmObj);
+    activeAlarmRef.current=alarmObj;
   }
 
   function stopAlarmLoop(){
@@ -7217,11 +7220,14 @@ function App() {
     alarmCtxRef.current=null;
   }
 
-  function dismissAlarm(){ stopAlarmLoop(); setActiveAlarm(null); }
+  function dismissAlarm(){ stopAlarmLoop(); setActiveAlarm(null); activeAlarmRef.current=null; }
   function snoozeAlarm(){
-    stopAlarmLoop(); setActiveAlarm(null);
-    // re-trigger in 5 minutes
-    setTimeout(()=>startAlarmLoop("end"),5*60*1000);
+    const prevAlarm = activeAlarmRef.current;
+    const prevType = prevAlarm?.type||"end";
+    const prevLabel = prevAlarm?.label||"";
+    stopAlarmLoop(); setActiveAlarm(null); activeAlarmRef.current=null;
+    // re-trigger in 5 minutes, preserving label and type so the modal shows the same context
+    setTimeout(()=>startAlarmLoop(prevType,prevLabel),5*60*1000);
   }
 
   // ── Break timer tick ──
@@ -7339,7 +7345,13 @@ function App() {
   }
 
   // ── Case 30-min alarm (passed as prop to PostLiveForm) ──
-  const playEndAlarm=useCallback(()=>startAlarmLoop("case"),[]);
+  const playEndAlarm=useCallback((alarmLabel="")=>{
+    if(typeof alarmLabel==="string"&&alarmLabel.startsWith("__combined__")){
+      startAlarmLoop("combined",alarmLabel.replace("__combined__",""));
+    } else {
+      startAlarmLoop("case",alarmLabel);
+    }
+  },[]);
 
   // ── On mount: restore session from localStorage ──
   useEffect(()=>{
@@ -7953,24 +7965,30 @@ function App() {
       {activeAlarm&&(
         <div className="alarm-overlay">
           <div className="alarm-modal">
-            <span className="alarm-icon">{<Icon name={activeAlarm==="case"?"timer":activeAlarm==="shift_start"?"clock":activeAlarm==="shift_end"?"bell":activeAlarm==="warn"?"timer":"bell"} size={56} color="var(--accent)"/>}</span>
+            <span className="alarm-icon">{<Icon name={activeAlarm?.type==="case"?"timer":activeAlarm?.type==="combined"?"checklist":activeAlarm?.type==="shift_start"?"clock":activeAlarm?.type==="shift_end"?"bell":activeAlarm?.type==="warn"?"timer":"bell"} size={56} color="var(--accent)"/>}</span>
             <div className="alarm-title">
-              {activeAlarm==="warn"?"5 Minutes Left!"
-               :activeAlarm==="case"?`${timerLimit} Minutes on Case!`
-               :activeAlarm==="shift_start"?"Shift Starting Soon!"
-               :activeAlarm==="shift_end"?"Shift Ending Soon!"
+              {activeAlarm?.type==="warn"?"5 Minutes Left!"
+               :activeAlarm?.type==="case"?`${timerLimit}-Min Case Timer!`
+               :activeAlarm?.type==="combined"?"Combined Tracker Reminder!"
+               :activeAlarm?.type==="shift_start"?"Shift Starting Soon!"
+               :activeAlarm?.type==="shift_end"?"Shift Ending Soon!"
                :"Break Over!"}
             </div>
+            {/* Show which case triggered this alarm */}
+            {(activeAlarm?.type==="case"||activeAlarm?.type==="combined")&&activeAlarm?.label&&(
+              <div style={{fontSize:12,fontWeight:700,color:"var(--accent)",marginBottom:4,fontFamily:"'Poppins',sans-serif",letterSpacing:".3px"}}>{activeAlarm.label}</div>
+            )}
             <div className="alarm-sub">
-              {activeAlarm==="warn"?"Your break is almost up — wrap it up!"
-               :activeAlarm==="case"?`You've been on this case for ${timerLimit} minutes.`
-               :activeAlarm==="shift_start"?`Your shift starts in ${shiftStartWarnMins} minute${shiftStartWarnMins!==1?"s":""} — get ready to clock in!`
-               :activeAlarm==="shift_end"?`Your shift ends in ${shiftWarnMins} minute${shiftWarnMins!==1?"s":""} — wrap up your current case!`
+              {activeAlarm?.type==="warn"?"Your break is almost up — wrap it up!"
+               :activeAlarm?.type==="case"?`This case has been open for ${timerLimit} minutes. Time to wrap up!`
+               :activeAlarm?.type==="combined"?"The prolonged case timer is up — time to complete the Combined Tracker step."
+               :activeAlarm?.type==="shift_start"?`Your shift starts in ${shiftStartWarnMins} minute${shiftStartWarnMins!==1?"s":""} — get ready to clock in!`
+               :activeAlarm?.type==="shift_end"?`Your shift ends in ${shiftWarnMins} minute${shiftWarnMins!==1?"s":""} — wrap up your current case!`
                :"Your break has ended. Time to get back to work!"}
             </div>
             <div className="alarm-btns">
-              {(activeAlarm==="case"||activeAlarm==="shift_start"||activeAlarm==="shift_end")&&<button className="alarm-snooze" onClick={snoozeAlarm}><Icon name="snooze" size={14} style={{marginRight:6}}/>Snooze 5 min</button>}
-              <button className="alarm-dismiss" onClick={dismissAlarm}>✅ {activeAlarm==="warn"?"Got it!":"I'm Aware"}</button>
+              {(activeAlarm?.type==="case"||activeAlarm?.type==="combined"||activeAlarm?.type==="shift_start"||activeAlarm?.type==="shift_end")&&<button className="alarm-snooze" onClick={snoozeAlarm}><Icon name="snooze" size={14} style={{marginRight:6}}/>Snooze 5 min</button>}
+              <button className="alarm-dismiss" onClick={dismissAlarm}>✅ {activeAlarm?.type==="warn"?"Got it!":"I'm Aware"}</button>
             </div>          </div>
         </div>
       )}
