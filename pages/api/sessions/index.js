@@ -1,7 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
-const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+const _url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const _key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+// Guard creation — createClient throws immediately if the URL is missing/invalid,
+// which would otherwise crash this entire module at import time.
+const sb = (_url && _key) ? createClient(_url, _key) : null;
 
 export default async function handler(req, res) {
+  if (!sb) {
+    return res.status(503).json({ error: 'Supabase client is not initialized — check NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY and restart the dev server.' });
+  }
   const { method } = req;
   if (method === 'GET') {
     const { email, date, action, session_id } = req.query;

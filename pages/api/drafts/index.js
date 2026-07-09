@@ -14,6 +14,9 @@ function mapDraft(r) {
 }
 
 export default async function handler(req, res) {
+  if (!supabase) {
+    return res.status(503).json({ error: 'Supabase client is not initialized — check NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY and restart the dev server.' })
+  }
   try {
     if (req.method === 'GET') {
       const { email } = req.query

@@ -3,6 +3,14 @@ import supabase from '../../../lib/supabase'
 export default async function handler(req, res) {
   const { action } = req.query
 
+  // Fail clearly instead of crashing with "Cannot read properties of null" if
+  // the Supabase client failed to initialize (missing/unloaded env vars).
+  if (!supabase) {
+    return res.status(503).json({
+      error: 'Supabase client is not initialized — NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY was not loaded. Stop the dev server, delete the .next folder, and restart npm run dev.'
+    })
+  }
+
   try {
     // ── SIGN IN ──
     if (action === 'signin' && req.method === 'POST') {

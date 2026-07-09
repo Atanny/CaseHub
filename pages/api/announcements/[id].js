@@ -1,5 +1,8 @@
 import supabase from '../../../lib/supabase'
 export default async function handler(req, res) {
+  if (!supabase) {
+    return res.status(503).json({ error: 'Supabase client is not initialized — check NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY and restart the dev server.' })
+  }
   const { id } = req.query
   try {
     if (req.method === 'PUT') {
