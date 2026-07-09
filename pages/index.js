@@ -2611,6 +2611,12 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
   const screenshotName= user?.screenshotName || `Post_Live_Amend_Screenshot_${userName}_Amends`;
 
   const [form,setForm] = useState(()=>{
+    // 1. Per-tab persistence — restores this specific tab's form after page refresh
+    if(tabStorageKey && typeof window!=="undefined"){
+      const tabSaved=localStorage.getItem(`ch_tab_form_${tabStorageKey}`);
+      if(tabSaved){ try{ return {...emptyBase(),...JSON.parse(tabSaved)}; }catch{} }
+    }
+    // 2. Draft / minimised form (first-tab restore path)
     if(draftData) return {...emptyBase(),...draftData};
     // Check for bundle prefill — data from the existing case chosen in the bundle modal
     if(typeof window!=="undefined"){
@@ -2660,6 +2666,8 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
     if(!isEditMode && typeof window!=="undefined"){
       const toSave={...form,_mode:mode,_startTime:startTimeRef.current,images:(form.images||[]).filter(i=>i._inDB),backupImages:(form.backupImages||[]).filter(i=>i._inDB)};
       localStorage.setItem("ch_minimised_form",JSON.stringify(toSave));
+      // Per-tab key so ALL tabs survive page refresh independently
+      if(tabStorageKey) localStorage.setItem(`ch_tab_form_${tabStorageKey}`,JSON.stringify(toSave));
       window.dispatchEvent(new Event("ch_case_saved"));
     }
     // Notify parent tab strip with latest caseNum + businessName + complexity for live label update
@@ -3670,7 +3678,7 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // POST LIVE PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, onFormInFields, onMinimise, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, onArchiveDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, qaAlarmMins=10, globalTimeIn, timedIn, breakActive=false, breakTimer=null, openHourActive=false, onTimeIn, onTimeOut, onTimerReset, sessionDbId, sessionLog=[], addSessionLog, setSessionLog, closeWithOutcome, closeSessionLog, clearSessionLog, onStartBreak, onStartBreakFull, onStopBreak, onStartOpenHour, onStopOpenHour, resumeTick=0 }) {
+function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, onFormInFields, onMinimise, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, onArchiveDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, qaAlarmMins=10, globalTimeIn, timedIn, breakActive=false, breakTimer=null, openHourActive=false, onTimeIn, onTimeOut, onTimerReset, sessionDbId, sessionLog=[], addSessionLog, setSessionLog, closeWithOutcome, closeSessionLog, clearSessionLog, onStartBreak, onStartBreakFull, onStopBreak, onStartOpenHour, onStopOpenHour, resumeTick=0, globalTabTimerRef=null, globalActiveLiveTabsRef=null, globalActiveFormTabIdRef=null }) {
   const [mode,setMode]=useState(()=>{
     if(typeof window==="undefined") return null;
     // If live tabs are persisted, restore mode from the active tab
@@ -3786,6 +3794,28 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
   const sharedFormRef=useRef(null); // shared ref so minimiseMode can access PostLiveForm's current fields
   const [tabTimerStates,setTabTimerStates]=useState({}); // {[tabId]: timerState}
   const zeroTimerState={footerElapsed:0,resumeElapsed:0,phase2Elapsed:null,isDraftResumed:false,isEditMode:false,prevElapsedSecs:0,originalTotalSecs:0,originalOutcome:""};
+  // ── Sync to App-level global refs so the App-level alarm interval can fire regardless of page ──
+  useEffect(()=>{ if(globalTabTimerRef) globalTabTimerRef.current=tabTimerStates; },[tabTimerStates]);
+  useEffect(()=>{ if(globalActiveLiveTabsRef) globalActiveLiveTabsRef.current=activeLiveTabs; },[activeLiveTabs]);
+  useEffect(()=>{ if(globalActiveFormTabIdRef) globalActiveFormTabIdRef.current=activeFormTabId; },[activeFormTabId]);
+  // ── Draggable tab state ──
+  const dragTabRef=useRef(null);
+  const handleTabDragStart=(e,tabId)=>{ dragTabRef.current=tabId; e.dataTransfer.effectAllowed="move"; };
+  const handleTabDrop=(e,targetTabId)=>{
+    e.preventDefault();
+    const dragId=dragTabRef.current;
+    if(!dragId||dragId===targetTabId) return;
+    setActiveLiveTabs(prev=>{
+      const from=prev.findIndex(t=>t.id===dragId);
+      const to=prev.findIndex(t=>t.id===targetTabId);
+      if(from===-1||to===-1) return prev;
+      const next=[...prev];
+      const [moved]=next.splice(from,1);
+      next.splice(to,0,moved);
+      return next;
+    });
+    dragTabRef.current=null;
+  };
   // ── Browser tab title: always CaseHub ──
   useEffect(()=>{ document.title="CaseHub"; },[]);
 
@@ -3944,6 +3974,8 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
       localStorage.removeItem("ch_bundle_prefill");
       localStorage.removeItem("ch_live_tabs");
       localStorage.removeItem("ch_live_tab_active");
+      // Clear all per-tab form persistence keys
+      Object.keys(localStorage).filter(k=>k.startsWith("ch_tab_form_")).forEach(k=>localStorage.removeItem(k));
     }
     idbClearImages("backup").catch(()=>{});
     idbClearImages("main").catch(()=>{});
@@ -4178,8 +4210,12 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
               const tabDisplay=[cnum,bizRaw].filter(Boolean).join(' — ')||(tab.mode==='inbound'?'Inbound Email':'Site Comment');
               return (
                 <div key={tab.id}
+                  draggable
+                  onDragStart={e=>handleTabDragStart(e,tab.id)}
+                  onDragOver={e=>e.preventDefault()}
+                  onDrop={e=>handleTabDrop(e,tab.id)}
                   onClick={()=>setActiveFormTabId(tab.id)}
-                  style={{display:"flex",alignItems:"center",gap:6,padding:"0 10px 0 12px",cursor:"pointer",minWidth:150,maxWidth:240,borderRadius:"6px 6px 0 0",marginTop:4,marginRight:2,background:isActive?"var(--card)":"rgba(255,255,255,.07)",borderTop:isActive?"2px solid var(--accent)":"2px solid transparent",position:"relative",flexShrink:0}}>
+                  style={{display:"flex",alignItems:"center",gap:6,padding:"0 10px 0 12px",cursor:"grab",minWidth:150,maxWidth:240,borderRadius:"6px 6px 0 0",marginTop:4,marginRight:2,background:isActive?"var(--card)":"rgba(255,255,255,.07)",borderTop:isActive?"2px solid var(--accent)":"2px solid transparent",position:"relative",flexShrink:0}}>
                   <span style={{width:8,height:8,borderRadius:"50%",flexShrink:0,background:tab.mode==='inbound'?"#8b5cf6":"#3b82f6",boxShadow:isActive?(tab.mode==='inbound'?"0 0 6px rgba(139,92,246,.7)":"0 0 6px rgba(59,130,246,.7)"):"none",display:"inline-block"}} title={tab.mode==='inbound'?"Inbound Email":"Site Comment"}/>
                   <span style={{fontSize:11,fontWeight:isActive?700:400,color:isActive?"var(--text)":"rgba(255,255,255,.6)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",flex:1,minWidth:0,fontFamily:"'Poppins',sans-serif"}}>{tabDisplay}</span>
                   {hasTimer&&!isQueued&&<span style={{fontSize:9,fontWeight:700,fontFamily:"monospace",color:isActive?"var(--accent)":"rgba(255,255,255,.45)",flexShrink:0,letterSpacing:".3px"}}>{timerStr}</span>}
@@ -4188,35 +4224,44 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
                       e.preventDefault();
                       e.stopPropagation();
                       const closedTabId=tab.id;
-                      const wasActive=isActive;
-                      const remaining=activeLiveTabs.filter(t=>t.id!==closedTabId);
-                      if(!wasActive){
-                        // Closed an inactive (queued) tab — just remove it.
-                        // No timer/queue-advance logic applies here at all.
-                        setActiveLiveTabs(remaining);
-                        return;
-                      }
-                      const closedIdx=activeLiveTabs.findIndex(t=>t.id===closedTabId);
-                      const nextIdx=Math.min(closedIdx,remaining.length-1);
-                      const now=Date.now();
-                      // Carry the closed (ACTIVE) tab's elapsed time over to the next queued tab —
-                      // closing without Save/Suspend/Break shouldn't reset the clock to 0.
-                      // Compute directly from startTime (always accurate) rather than relying
-                      // solely on the polled tabTimerStates, which can lag right after activation.
-                      const polledElapsed=tabTimerStates[closedTabId]?.footerElapsed||0;
-                      const liveElapsed=tab.startTime?Math.floor((now-tab.startTime)/1000):0;
-                      const closedElapsedSecs=Math.max(polledElapsed,liveElapsed);
-                      const updated=remaining.map((t,i)=>{
-                        if(i===nextIdx && t.startTime===null && !breakActive){
-                          return {...t,startTime:now-(closedElapsedSecs*1000)};
+                      // ── KEY RULE ──
+                      // A tab has a RUNNING timer only when tab.startTime !== null.
+                      // startTime===null means it is QUEUED (timer never started, elapsed=0).
+                      // Only a tab with a running timer (startTime!==null) may pass its
+                      // elapsed time to the next queued tab. Closing a queued tab is a
+                      // simple removal — no timer logic, no queue-advance, nothing else.
+                      const hasRunningTimer = tab.startTime !== null;
+                      // Use the live state snapshot to avoid closure staleness
+                      setActiveLiveTabs(current=>{
+                        const remaining=current.filter(t=>t.id!==closedTabId);
+                        if(!hasRunningTimer){
+                          // Queued tab (0 timer) — just remove it, no time transfer
+                          if(typeof window!=="undefined") localStorage.removeItem(`ch_tab_form_${closedTabId}`);
+                          return remaining;
                         }
-                        return t;
+                        // Running (active) tab — pass its elapsed time to the next queued tab
+                        if(remaining.length===0){ exitMode(); return []; }
+                        const closedIdx=current.findIndex(t=>t.id===closedTabId);
+                        const nextIdx=Math.min(closedIdx,remaining.length-1);
+                        const now=Date.now();
+                        const polledElapsed=tabTimerStates[closedTabId]?.footerElapsed||0;
+                        const liveElapsed=Math.floor((now-tab.startTime)/1000);
+                        const elapsedSecs=Math.max(polledElapsed,liveElapsed);
+                        const updated=remaining.map((t,i)=>{
+                          // Only activate the IMMEDIATELY NEXT tab; others stay queued at 0
+                          if(i===nextIdx && t.startTime===null && !breakActive){
+                            return {...t,startTime:now-(elapsedSecs*1000)};
+                          }
+                          return t;
+                        });
+                        const nextTab=updated[nextIdx];
+                        setActiveFormTabId(nextTab?.id||null);
+                        setTabTimerStates(prev=>{const n={...prev};delete n[closedTabId];return n;});
+                        if(nextTab) setMode(nextTab.mode||mode);
+                        // Clear the closed tab's persisted form data
+                        if(typeof window!=="undefined") localStorage.removeItem(`ch_tab_form_${closedTabId}`);
+                        return updated;
                       });
-                      const nextTab=updated[nextIdx];
-                      setActiveLiveTabs(updated);
-                      setActiveFormTabId(nextTab?.id||null);
-                      setTabTimerStates(prev=>{const n={...prev};delete n[closedTabId];return n;});
-                      if(nextTab) setMode(nextTab.mode||mode);
                     }} style={{background:"none",border:"none",color:isActive?"var(--text)":"rgba(255,255,255,.5)",cursor:"pointer",fontSize:15,padding:"0 0 0 4px",marginLeft:2,lineHeight:1,flexShrink:0,opacity:.6}} onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=.6}>×</button>}
                 </div>
               );
@@ -4345,7 +4390,13 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
           const isActiveTab=tab.id===activeFormTabId||(activeLiveTabs.length<=1&&!activeFormTabId)||activeLiveTabs.length===0;
           // Only the first tab gets draft/edit data; additional tabs are always fresh
           const isFirstTab = tabIdx===0 || tab.isFirstTab;
-          const tabDraftData = isFirstTab ? currentDraft : null;
+          // For non-first tabs: restore from per-tab localStorage key if available.
+          // PostLiveForm's own useState already checks this key first, so this is
+          // a belt-and-suspenders pass for the draftData prop path.
+          const tabPersistedData = (!isFirstTab && typeof window!=="undefined")
+            ? (()=>{ try{ const v=localStorage.getItem(`ch_tab_form_${tab.id}`); return v?JSON.parse(v):null; }catch{return null;} })()
+            : null;
+          const tabDraftData = isFirstTab ? currentDraft : tabPersistedData;
           const tabIsEdit = isFirstTab && isEditingFromLog;
           const tabIsResumingMin = isFirstTab && isResumingMinimised;
           const tabUseDraft = isFirstTab && useDraft;
@@ -4453,6 +4504,8 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
     // Clear per-tab IDB keys for this specific tab
     idbClearImages(`${tabId}-backup`).catch(()=>{});
     idbClearImages(`${tabId}-main`).catch(()=>{});
+    // Clear per-tab form persistence key
+    if(typeof window!=="undefined") localStorage.removeItem(`ch_tab_form_${tabId}`);
   if(prolongedMode){
     setProlongedMode(false);
     enqueueProlongedTimer(f.caseNum||"", tabMode, prolongedMins);
@@ -7590,6 +7643,40 @@ function App() {
   // ── Case 30-min alarm (passed as prop to PostLiveForm) ──
   const playEndAlarm=useCallback((type)=>startAlarmLoop(type==="qa"?"case_qa":"case"),[]);
 
+  // ── GLOBAL alarm: watch timer states from PostLivePage via shared ref.
+  //    Fires regardless of which page the user is currently viewing,
+  //    since the alarm overlay is fixed at App level (z-index 1100). ──
+  const globalTabTimerRef=useRef({});
+  const globalActiveLiveTabsRef=useRef([]);
+  const globalActiveFormTabIdRef=useRef(null);
+  const globalCtFiredRef=useRef(new Set());
+  const globalQaFiredRef=useRef(new Set());
+  useEffect(()=>{
+    const interval=setInterval(()=>{
+      const states=globalTabTimerRef.current;
+      const tabs=globalActiveLiveTabsRef.current;
+      const activeId=globalActiveFormTabIdRef.current;
+      if(!activeId||!tabs.length) return;
+      const activeTab=tabs.find(t=>t.id===activeId);
+      if(!activeTab||activeTab.startTime===null) return;
+      const tState=states[activeId];
+      if(!tState) return;
+      const fe=tState.footerElapsed||0;
+      const p2=tState.phase2Elapsed;
+      if(fe===0) globalCtFiredRef.current.delete(activeId);
+      if(p2===null||p2===0) globalQaFiredRef.current.delete(activeId);
+      if(alarmMins>0 && fe>0 && fe>=alarmMins*60 && !globalCtFiredRef.current.has(activeId)){
+        globalCtFiredRef.current.add(activeId);
+        startAlarmLoop("case");
+      }
+      if(qaLimit>0 && p2!==null && p2>0 && p2>=qaLimit*60 && !globalQaFiredRef.current.has(activeId)){
+        globalQaFiredRef.current.add(activeId);
+        startAlarmLoop("case_qa");
+      }
+    },1000);
+    return()=>clearInterval(interval);
+  },[alarmMins,qaLimit]);
+
   // ── On mount: restore session from localStorage ──
   useEffect(()=>{
     const tryRestore=async()=>{
@@ -8133,7 +8220,7 @@ function App() {
           {!dataLoading&&page==="build"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="casebox" size={80} color="var(--muted)"/></div><div className="soon-title">Build</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&page==="prelive"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="prelive" size={80} color="var(--muted)"/></div><div className="soon-title">Pre-Live Amends</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&<div style={{display:page==="postlive"?"block":"none"}}>
-            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onUpdateDraft={updateDraft} onFormActive={setFormActivePersist} onFormInFields={setFormInFields} onMinimise={()=>{setPage("postlive"); if(typeof window!=="undefined") localStorage.setItem("ch_page","postlive");}} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} onArchiveDraft={archiveDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} qaAlarmMins={qaLimit} globalTimeIn={globalTimeIn} timedIn={timedIn} breakActive={!!breakTimer||openHourActive} breakTimer={breakTimer||null} openHourActive={openHourActive} onTimeIn={doTimeIn} onTimeOut={doTimeOut} onTimerReset={doTimerReset} sessionDbId={sessionDbId} sessionLog={sessionLog} addSessionLog={addSessionLog} setSessionLog={setSessionLog} closeWithOutcome={closeWithOutcome} closeSessionLog={closeSessionLog} clearSessionLog={clearSessionLog} onStartBreak={startBreak} onStartBreakFull={(label,mins)=>startBreak(label,mins,true)} onStopBreak={()=>setCancelBreakConfirm(true)} onStartOpenHour={startOpenHour} onStopOpenHour={()=>setCancelOpenHourConfirm(true)} resumeTick={resumeFormTick}/>
+            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onUpdateDraft={updateDraft} onFormActive={setFormActivePersist} onFormInFields={setFormInFields} onMinimise={()=>{setPage("postlive"); if(typeof window!=="undefined") localStorage.setItem("ch_page","postlive");}} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} onArchiveDraft={archiveDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} qaAlarmMins={qaLimit} globalTimeIn={globalTimeIn} timedIn={timedIn} breakActive={!!breakTimer||openHourActive} breakTimer={breakTimer||null} openHourActive={openHourActive} onTimeIn={doTimeIn} onTimeOut={doTimeOut} onTimerReset={doTimerReset} sessionDbId={sessionDbId} sessionLog={sessionLog} addSessionLog={addSessionLog} setSessionLog={setSessionLog} closeWithOutcome={closeWithOutcome} closeSessionLog={closeSessionLog} clearSessionLog={clearSessionLog} onStartBreak={startBreak} onStartBreakFull={(label,mins)=>startBreak(label,mins,true)} onStopBreak={()=>setCancelBreakConfirm(true)} onStartOpenHour={startOpenHour} onStopOpenHour={()=>setCancelOpenHourConfirm(true)} resumeTick={resumeFormTick} globalTabTimerRef={globalTabTimerRef} globalActiveLiveTabsRef={globalActiveLiveTabsRef} globalActiveFormTabIdRef={globalActiveFormTabIdRef}/>
           </div>}
           {!dataLoading&&page==="history"&&<CaseHistory cases={allCases} onUpdate={updateCase} onDelete={deleteCase}/>}
           {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} updateAnnouncement={updateAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
