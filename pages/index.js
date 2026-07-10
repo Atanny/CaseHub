@@ -3678,7 +3678,7 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // POST LIVE PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, onFormInFields, onMinimise, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, onArchiveDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, qaAlarmMins=10, globalTimeIn, timedIn, breakActive=false, breakTimer=null, openHourActive=false, onTimeIn, onTimeOut, onTimerReset, sessionDbId, sessionLog=[], addSessionLog, setSessionLog, closeWithOutcome, closeSessionLog, clearSessionLog, onStartBreak, onStartBreakFull, onStopBreak, onStartOpenHour, onStopOpenHour, resumeTick=0, globalTabTimerRef=null, globalActiveLiveTabsRef=null, globalActiveFormTabIdRef=null }) {
+function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, onFormInFields, onMinimise, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, onArchiveDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, qaAlarmMins=10, globalTimeIn, timedIn, breakActive=false, breakTimer=null, openHourActive=false, onTimeIn, onTimeOut, onTimerReset, sessionDbId, sessionLog=[], addSessionLog, setSessionLog, closeWithOutcome, closeSessionLog, clearSessionLog, onStartBreak, onStartBreakFull, onStopBreak, onStartOpenHour, onStopOpenHour, resumeTick=0, globalActiveLiveTabsRef=null, globalActiveFormTabIdRef=null }) {
   const [mode,setMode]=useState(()=>{
     if(typeof window==="undefined") return null;
     // If live tabs are persisted, restore mode from the active tab
@@ -3794,8 +3794,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
   const sharedFormRef=useRef(null); // shared ref so minimiseMode can access PostLiveForm's current fields
   const [tabTimerStates,setTabTimerStates]=useState({}); // {[tabId]: timerState}
   const zeroTimerState={footerElapsed:0,resumeElapsed:0,phase2Elapsed:null,isDraftResumed:false,isEditMode:false,prevElapsedSecs:0,originalTotalSecs:0,originalOutcome:""};
-  // ── Sync to App-level global refs so the App-level alarm interval can fire regardless of page ──
-  useEffect(()=>{ if(globalTabTimerRef) globalTabTimerRef.current=tabTimerStates; },[tabTimerStates]);
+  // ── Sync activeLiveTabs and activeFormTabId to App-level global refs for the global alarm interval ──
   useEffect(()=>{ if(globalActiveLiveTabsRef) globalActiveLiveTabsRef.current=activeLiveTabs; },[activeLiveTabs]);
   useEffect(()=>{ if(globalActiveFormTabIdRef) globalActiveFormTabIdRef.current=activeFormTabId; },[activeFormTabId]);
   // ── Draggable tab state ──
@@ -3819,32 +3818,8 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
   // ── Browser tab title: always CaseHub ──
   useEffect(()=>{ document.title="CaseHub"; },[]);
 
-  // ── Alarm firing — moved to parent level so it works reliably for EVERY tab that becomes active,
-  // regardless of mount/unmount timing. Each tab id fires its own alarm exactly once per case. ──
-  const ctFiredRef=useRef(new Set());
-  const qaFiredRef2=useRef(new Set());
-  useEffect(()=>{
-    if(!activeFormTabId) return;
-    const activeTab=activeLiveTabs.find(t=>t.id===activeFormTabId);
-    if(!activeTab||activeTab.startTime===null) return; // queued tab — ignore
-    const tState=tabTimerStates[activeFormTabId];
-    if(!tState) return;
-    const fe=tState.footerElapsed||0;
-    const p2=tState.phase2Elapsed;
-    // Reset fired flags if the timer is back at 0 (tab id reused for a fresh case)
-    if(fe===0) ctFiredRef.current.delete(activeFormTabId);
-    if(p2===0||p2===null) qaFiredRef2.current.delete(activeFormTabId);
-    // Combined Tracker alarm — fires once per tab id when elapsed crosses the limit
-    if(alarmMins>0 && fe>0 && fe>=alarmMins*60 && !ctFiredRef.current.has(activeFormTabId)){
-      ctFiredRef.current.add(activeFormTabId);
-      onTimerEnd&&onTimerEnd("ct");
-    }
-    // QA Checklist alarm — fires once per tab id when phase2 elapsed crosses the limit
-    if(qaAlarmMins>0 && p2!==null && p2>0 && p2>=qaAlarmMins*60 && !qaFiredRef2.current.has(activeFormTabId)){
-      qaFiredRef2.current.add(activeFormTabId);
-      onTimerEnd&&onTimerEnd("qa");
-    }
-  },[tabTimerStates,activeFormTabId,activeLiveTabs,alarmMins,qaAlarmMins,onTimerEnd]);
+  // Alarm is now handled at App level (globalCtFiredRef/globalQaFiredRef interval)
+  // computing directly from tab.startTime and localStorage p2 keys — no React state deps.
   // Tracks when the current case was started — persists across Site Comment ↔ Inbound switches
   const caseStartTimeRef=useRef((()=>{
     if(typeof window==="undefined") return globalTimeIn||Date.now();
@@ -4606,17 +4581,30 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
                 <h3 style={{margin:0,fontSize:18,fontWeight:700}}>📋 File Name Generator</h3>
                 <button onClick={()=>setShowFnGen(false)} style={{background:"none",border:"none",cursor:"pointer",fontSize:22,color:"var(--muted)",lineHeight:1}}>×</button>
               </div>
-              <FileNameGeneratorPage onFill={({bizFilename,bizAlt,accountNum})=>{
-                // Dispatch to active form — fills businessName + accountNum
+              {(()=>{
+                // Compute active tab's current form data from per-tab localStorage key
                 const activeTab=activeLiveTabs.find(t=>t.id===activeFormTabId)||activeLiveTabs[0];
-                if(activeTab){
-                  window.dispatchEvent(new CustomEvent("fngen_fill",{detail:{
-                    businessName: bizFilename||bizAlt||"",
-                    caseNum: activeTab.caseNum||"",
-                    complexity: activeTab.complexity||"minor"
-                  }}));
+                let liveTabData=null;
+                if(activeTab&&typeof window!=="undefined"){
+                  try{
+                    const raw=localStorage.getItem(`ch_tab_form_${activeTab.id}`)||localStorage.getItem("ch_minimised_form");
+                    if(raw){const fd=JSON.parse(raw);liveTabData={businessName:fd.businessName||"",businessSuffix:fd.businessSuffix||"",accountNum:fd.accountNum||"",caseNum:fd.caseNum||""};}
+                  }catch{}
                 }
-              }}/>
+                return (
+                  <FileNameGeneratorPage
+                    activeTabData={liveTabData}
+                    onFill={({bizFilename,bizAlt,accountNum})=>{
+                      if(activeTab){
+                        window.dispatchEvent(new CustomEvent("fngen_fill",{detail:{
+                          businessName: bizFilename||bizAlt||"",
+                          caseNum: activeTab.caseNum||"",
+                          complexity: activeTab.complexity||"minor"
+                        }}));
+                      }
+                    }}/>
+                );
+              })()}
             </div>
           </div>
         )}
@@ -7643,39 +7631,52 @@ function App() {
   // ── Case 30-min alarm (passed as prop to PostLiveForm) ──
   const playEndAlarm=useCallback((type)=>startAlarmLoop(type==="qa"?"case_qa":"case"),[]);
 
-  // ── GLOBAL alarm: watch timer states from PostLivePage via shared ref.
-  //    Fires regardless of which page the user is currently viewing,
-  //    since the alarm overlay is fixed at App level (z-index 1100). ──
-  const globalTabTimerRef=useRef({});
+  // ── GLOBAL alarm — computes elapsed directly from raw timestamps, not React state.
+  //    Works on ANY page because PostLivePage is always mounted (display:none when off-page).
+  //    Uses refs only (no state reads) so it is immune to React render/effect lag. ──
   const globalActiveLiveTabsRef=useRef([]);
   const globalActiveFormTabIdRef=useRef(null);
   const globalCtFiredRef=useRef(new Set());
   const globalQaFiredRef=useRef(new Set());
+  // Keep alarmMins/qaLimit current in refs so the interval closure always has fresh values
+  const alarmMinsRef=useRef(alarmMins);
+  const qaLimitRef=useRef(qaLimit);
+  useEffect(()=>{ alarmMinsRef.current=alarmMins; },[alarmMins]);
+  useEffect(()=>{ qaLimitRef.current=qaLimit; },[qaLimit]);
   useEffect(()=>{
     const interval=setInterval(()=>{
-      const states=globalTabTimerRef.current;
       const tabs=globalActiveLiveTabsRef.current;
       const activeId=globalActiveFormTabIdRef.current;
       if(!activeId||!tabs.length) return;
-      const activeTab=tabs.find(t=>t.id===activeId);
-      if(!activeTab||activeTab.startTime===null) return;
-      const tState=states[activeId];
-      if(!tState) return;
-      const fe=tState.footerElapsed||0;
-      const p2=tState.phase2Elapsed;
-      if(fe===0) globalCtFiredRef.current.delete(activeId);
-      if(p2===null||p2===0) globalQaFiredRef.current.delete(activeId);
-      if(alarmMins>0 && fe>0 && fe>=alarmMins*60 && !globalCtFiredRef.current.has(activeId)){
-        globalCtFiredRef.current.add(activeId);
+      // Only fire for the FIRST running tab (the active timer per the queue spec)
+      const activeTab=tabs.find(t=>t.id===activeId)||tabs[0];
+      if(!activeTab||activeTab.startTime===null) return; // queued tab — no alarm
+      const now=Date.now();
+      const fe=Math.floor((now-activeTab.startTime)/1000);
+      // QA: read phase2 start directly from localStorage (written every tick by PostLiveForm)
+      let p2=null;
+      if(typeof window!=="undefined"){
+        const p2Raw=localStorage.getItem(`ch_phase2_start_${activeTab.id}`);
+        if(p2Raw) p2=Math.floor((now-Number(p2Raw))/1000);
+      }
+      // Reset fired flags when timer resets (new case)
+      if(fe===0) globalCtFiredRef.current.delete(activeTab.id);
+      if(p2===null||p2===0) globalQaFiredRef.current.delete(activeTab.id);
+      // Combined Tracker alarm
+      const ctLimit=alarmMinsRef.current*60;
+      if(ctLimit>0 && fe>0 && fe>=ctLimit && !globalCtFiredRef.current.has(activeTab.id)){
+        globalCtFiredRef.current.add(activeTab.id);
         startAlarmLoop("case");
       }
-      if(qaLimit>0 && p2!==null && p2>0 && p2>=qaLimit*60 && !globalQaFiredRef.current.has(activeId)){
-        globalQaFiredRef.current.add(activeId);
+      // QA Checklist alarm
+      const qaLimit2=qaLimitRef.current*60;
+      if(qaLimit2>0 && p2!==null && p2>0 && p2>=qaLimit2 && !globalQaFiredRef.current.has(activeTab.id)){
+        globalQaFiredRef.current.add(activeTab.id);
         startAlarmLoop("case_qa");
       }
     },1000);
     return()=>clearInterval(interval);
-  },[alarmMins,qaLimit]);
+  },[]); // empty deps — refs and localStorage handle freshness
 
   // ── On mount: restore session from localStorage ──
   useEffect(()=>{
@@ -8220,7 +8221,7 @@ function App() {
           {!dataLoading&&page==="build"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="casebox" size={80} color="var(--muted)"/></div><div className="soon-title">Build</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&page==="prelive"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="prelive" size={80} color="var(--muted)"/></div><div className="soon-title">Pre-Live Amends</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&<div style={{display:page==="postlive"?"block":"none"}}>
-            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onUpdateDraft={updateDraft} onFormActive={setFormActivePersist} onFormInFields={setFormInFields} onMinimise={()=>{setPage("postlive"); if(typeof window!=="undefined") localStorage.setItem("ch_page","postlive");}} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} onArchiveDraft={archiveDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} qaAlarmMins={qaLimit} globalTimeIn={globalTimeIn} timedIn={timedIn} breakActive={!!breakTimer||openHourActive} breakTimer={breakTimer||null} openHourActive={openHourActive} onTimeIn={doTimeIn} onTimeOut={doTimeOut} onTimerReset={doTimerReset} sessionDbId={sessionDbId} sessionLog={sessionLog} addSessionLog={addSessionLog} setSessionLog={setSessionLog} closeWithOutcome={closeWithOutcome} closeSessionLog={closeSessionLog} clearSessionLog={clearSessionLog} onStartBreak={startBreak} onStartBreakFull={(label,mins)=>startBreak(label,mins,true)} onStopBreak={()=>setCancelBreakConfirm(true)} onStartOpenHour={startOpenHour} onStopOpenHour={()=>setCancelOpenHourConfirm(true)} resumeTick={resumeFormTick} globalTabTimerRef={globalTabTimerRef} globalActiveLiveTabsRef={globalActiveLiveTabsRef} globalActiveFormTabIdRef={globalActiveFormTabIdRef}/>
+            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onUpdateDraft={updateDraft} onFormActive={setFormActivePersist} onFormInFields={setFormInFields} onMinimise={()=>{setPage("postlive"); if(typeof window!=="undefined") localStorage.setItem("ch_page","postlive");}} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} onArchiveDraft={archiveDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} qaAlarmMins={qaLimit} globalTimeIn={globalTimeIn} timedIn={timedIn} breakActive={!!breakTimer||openHourActive} breakTimer={breakTimer||null} openHourActive={openHourActive} onTimeIn={doTimeIn} onTimeOut={doTimeOut} onTimerReset={doTimerReset} sessionDbId={sessionDbId} sessionLog={sessionLog} addSessionLog={addSessionLog} setSessionLog={setSessionLog} closeWithOutcome={closeWithOutcome} closeSessionLog={closeSessionLog} clearSessionLog={clearSessionLog} onStartBreak={startBreak} onStartBreakFull={(label,mins)=>startBreak(label,mins,true)} onStopBreak={()=>setCancelBreakConfirm(true)} onStartOpenHour={startOpenHour} onStopOpenHour={()=>setCancelOpenHourConfirm(true)} resumeTick={resumeFormTick} globalActiveLiveTabsRef={globalActiveLiveTabsRef} globalActiveFormTabIdRef={globalActiveFormTabIdRef}/>
           </div>}
           {!dataLoading&&page==="history"&&<CaseHistory cases={allCases} onUpdate={updateCase} onDelete={deleteCase}/>}
           {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} updateAnnouncement={updateAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
@@ -8742,7 +8743,7 @@ function ArchivePage({ archivedDrafts=[], onDelete }) {
   );
 }
 
-function FileNameGeneratorPage({ onFill=null }) {
+function FileNameGeneratorPage({ onFill=null, activeTabData=null }) {
   const san = (s) => (s||'').toLowerCase().replace(/[^a-z0-9\s-]/g,'').trim().replace(/\s+/g,'-');
   const nn  = (i) => String(i+1).padStart(2,'0');
 
@@ -8796,6 +8797,26 @@ function FileNameGeneratorPage({ onFill=null }) {
       return base;
     }catch{ return EMPTY; }
   });
+  // ── When opened from the form header, apply the current tab's data immediately.
+  //    activeTabData = { businessName, businessSuffix, accountNum, caseNum } from the active tab.
+  //    This overwrites only the auto-fillable fields, never the user's manually-typed values.
+  const activeTabDataRef = useRef(null);
+  useEffect(()=>{
+    if(!activeTabData) return;
+    const {businessName="",businessSuffix="",accountNum=""} = activeTabData;
+    const bizFull=businessName+(businessSuffix?' '+businessSuffix:'');
+    const prev=activeTabDataRef.current;
+    // Only apply if the source actually changed (different case/business)
+    if(prev&&prev.businessName===businessName&&prev.accountNum===accountNum) return;
+    activeTabDataRef.current=activeTabData;
+    setForm(f=>({
+      ...f,
+      bizFilename: businessName||f.bizFilename,
+      bizAlt:      (bizFull||businessName)||f.bizAlt,
+      accountNum:  accountNum||f.accountNum,
+    }));
+  },[activeTabData]);
+
   const [tab,setTab]               = useState('logo');
   const [copied,setCopied]         = useState(null);
   const [copiedAll,setCopiedAll]   = useState(null);
