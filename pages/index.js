@@ -7639,18 +7639,35 @@ function App() {
   const startAlarmLoopRef=useRef(null);
   useEffect(()=>{ alarmMinsRef.current=alarmMins; },[alarmMins]);
   useEffect(()=>{ qaLimitRef.current=qaLimit; },[qaLimit]);
-  // Keep startAlarmLoopRef current on every render so the interval always calls the latest version
   useEffect(()=>{ startAlarmLoopRef.current=startAlarmLoop; });
+
+  // Poll ch_alarm_signal from localStorage every 500ms as a guaranteed fallback.
+  // The interval below writes this key; this poller reads it and calls setActiveAlarm
+  // directly in the App render cycle — bypassing any closure/stale-state issue.
+  useEffect(()=>{
+    const poller=setInterval(()=>{
+      if(typeof window==="undefined") return;
+      const sig=localStorage.getItem("ch_alarm_signal");
+      if(!sig) return;
+      try{
+        const {type,ts}=JSON.parse(sig);
+        // Only act if the signal is fresh (within the last 3 seconds)
+        if(Date.now()-ts>3000){ localStorage.removeItem("ch_alarm_signal"); return; }
+        localStorage.removeItem("ch_alarm_signal");
+        if(startAlarmLoopRef.current) startAlarmLoopRef.current(type);
+      }catch{ localStorage.removeItem("ch_alarm_signal"); }
+    },500);
+    return()=>clearInterval(poller);
+  },[]);
+
   useEffect(()=>{
     const interval=setInterval(()=>{
       if(typeof window==="undefined"||!startAlarmLoopRef.current) return;
-      // Read live data from localStorage — always current, never stale, works on any page
       let tabs=[]; let activeId=null;
       try{
         const raw=localStorage.getItem("ch_live_tabs");
         if(raw) tabs=JSON.parse(raw);
         activeId=localStorage.getItem("ch_live_tab_active");
-        // Fallback: if no active tab id recorded, use the first tab with a startTime
         if(!activeId && tabs.length){
           const firstRunning=tabs.find(t=>t.startTime);
           if(firstRunning) activeId=firstRunning.id;
@@ -7661,29 +7678,28 @@ function App() {
       if(!activeTab||!activeTab.startTime) return;
       const now=Date.now();
       const fe=Math.floor((now-Number(activeTab.startTime))/1000);
-      if(fe<0) return; // clock skew — skip
-      // QA phase2 elapsed
+      if(fe<0) return;
       let p2=null;
       const p2Raw=localStorage.getItem(`ch_phase2_start_${activeTab.id}`);
-      if(p2Raw){ const p2Secs=Math.floor((now-Number(p2Raw))/1000); if(p2Secs>0) p2=p2Secs; }
-      // Reset fired flags when the case timer resets
+      if(p2Raw){ const v=Math.floor((now-Number(p2Raw))/1000); if(v>0) p2=v; }
       if(fe<=0) globalCtFiredRef.current.delete(activeTab.id);
       if(!p2||p2<=0) globalQaFiredRef.current.delete(activeTab.id);
-      // ── Combined Tracker alarm ──
       const ctLimit=alarmMinsRef.current*60;
       if(ctLimit>0 && fe>0 && fe>=ctLimit && !globalCtFiredRef.current.has(activeTab.id)){
         globalCtFiredRef.current.add(activeTab.id);
+        // Write signal to localStorage AND call directly — belt and suspenders
+        localStorage.setItem("ch_alarm_signal",JSON.stringify({type:"case",ts:Date.now()}));
         startAlarmLoopRef.current("case");
       }
-      // ── QA Checklist alarm ──
       const qaLimit2=qaLimitRef.current*60;
       if(qaLimit2>0 && p2!==null && p2>0 && p2>=qaLimit2 && !globalQaFiredRef.current.has(activeTab.id)){
         globalQaFiredRef.current.add(activeTab.id);
+        localStorage.setItem("ch_alarm_signal",JSON.stringify({type:"case_qa",ts:Date.now()}));
         startAlarmLoopRef.current("case_qa");
       }
     },1000);
     return()=>clearInterval(interval);
-  },[]); // empty deps — all values accessed via refs or localStorage
+  },[]);
 
   // ── On mount: restore session from localStorage ──
   useEffect(()=>{
