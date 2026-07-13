@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, createContext, useContext } from 'react'
+import { createPortal } from 'react-dom'
 import Head from 'next/head'
 import dynamic from 'next/dynamic'
 
@@ -8319,8 +8320,9 @@ function App() {
         </div>
       </div></div>)}
 
-      {/* ── Alarm Overlay ── */}
-      {activeAlarm&&(
+      {/* ── Alarm Overlay — portal to document.body so it renders OUTSIDE all CSS
+           stacking contexts and shows on EVERY page, tab, and screen ── */}
+      {activeAlarm&&typeof document!=="undefined"&&createPortal(
         <div className="alarm-overlay">
           <div className="alarm-modal">
             <span className="alarm-icon">{<Icon name={activeAlarm==="case"?"timer":activeAlarm==="shift_start"?"clock":activeAlarm==="shift_end"?"bell":activeAlarm==="warn"?"timer":"bell"} size={56} color="var(--accent)"/>}</span>
@@ -8343,8 +8345,10 @@ function App() {
             <div className="alarm-btns">
               {(activeAlarm==="case"||activeAlarm==="case_qa"||activeAlarm==="shift_start"||activeAlarm==="shift_end")&&<button className="alarm-snooze" onClick={snoozeAlarm}><Icon name="snooze" size={14} style={{marginRight:6}}/>Snooze 5 min</button>}
               <button className="alarm-dismiss" onClick={dismissAlarm}>✅ {activeAlarm==="warn"?"Got it!":"I'm Aware"}</button>
-            </div>          </div>
-        </div>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* Nav no longer shows discard warning — form state preserved on page switch */}
