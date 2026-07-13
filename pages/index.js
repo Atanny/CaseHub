@@ -7631,55 +7631,59 @@ function App() {
   const playEndAlarm=useCallback((type)=>startAlarmLoop(type==="qa"?"case_qa":"case"),[]);
 
   // ── GLOBAL alarm — reads ONLY from localStorage, zero React dependency.
-  //    localStorage is written by PostLivePage/PostLiveForm on every change:
-  //      ch_live_tabs         → activeLiveTabs (includes startTime per tab)
-  //      ch_live_tab_active   → activeFormTabId
-  //      ch_phase2_start_{id} → QA phase2 start timestamp
-  //    This fires correctly on ANY page/screen/navigation state. ──
+  //    startAlarmLoop is captured via ref to avoid any stale closure issues. ──
   const globalCtFiredRef=useRef(new Set());
   const globalQaFiredRef=useRef(new Set());
   const alarmMinsRef=useRef(alarmMins);
   const qaLimitRef=useRef(qaLimit);
+  const startAlarmLoopRef=useRef(null);
   useEffect(()=>{ alarmMinsRef.current=alarmMins; },[alarmMins]);
   useEffect(()=>{ qaLimitRef.current=qaLimit; },[qaLimit]);
+  // Keep startAlarmLoopRef current on every render so the interval always calls the latest version
+  useEffect(()=>{ startAlarmLoopRef.current=startAlarmLoop; });
   useEffect(()=>{
     const interval=setInterval(()=>{
-      if(typeof window==="undefined") return;
-      // Read live data from localStorage — always current, never stale
+      if(typeof window==="undefined"||!startAlarmLoopRef.current) return;
+      // Read live data from localStorage — always current, never stale, works on any page
       let tabs=[]; let activeId=null;
       try{
         const raw=localStorage.getItem("ch_live_tabs");
         if(raw) tabs=JSON.parse(raw);
         activeId=localStorage.getItem("ch_live_tab_active");
+        // Fallback: if no active tab id recorded, use the first tab with a startTime
+        if(!activeId && tabs.length){
+          const firstRunning=tabs.find(t=>t.startTime);
+          if(firstRunning) activeId=firstRunning.id;
+        }
       }catch{ return; }
       if(!activeId||!tabs.length) return;
-      // First running tab: the one matching activeId that has a startTime
-      const activeTab=tabs.find(t=>t.id===activeId);
-      if(!activeTab||!activeTab.startTime) return; // queued (startTime===null) — no alarm
+      const activeTab=tabs.find(t=>t.id===activeId)||(tabs.find(t=>t.startTime));
+      if(!activeTab||!activeTab.startTime) return;
       const now=Date.now();
       const fe=Math.floor((now-Number(activeTab.startTime))/1000);
+      if(fe<0) return; // clock skew — skip
       // QA phase2 elapsed
       let p2=null;
       const p2Raw=localStorage.getItem(`ch_phase2_start_${activeTab.id}`);
-      if(p2Raw) p2=Math.floor((now-Number(p2Raw))/1000);
-      // Reset fired flags when the case timer resets (new case started on same tab id)
+      if(p2Raw){ const p2Secs=Math.floor((now-Number(p2Raw))/1000); if(p2Secs>0) p2=p2Secs; }
+      // Reset fired flags when the case timer resets
       if(fe<=0) globalCtFiredRef.current.delete(activeTab.id);
       if(!p2||p2<=0) globalQaFiredRef.current.delete(activeTab.id);
       // ── Combined Tracker alarm ──
       const ctLimit=alarmMinsRef.current*60;
       if(ctLimit>0 && fe>0 && fe>=ctLimit && !globalCtFiredRef.current.has(activeTab.id)){
         globalCtFiredRef.current.add(activeTab.id);
-        startAlarmLoop("case");
+        startAlarmLoopRef.current("case");
       }
       // ── QA Checklist alarm ──
       const qaLimit2=qaLimitRef.current*60;
       if(qaLimit2>0 && p2!==null && p2>0 && p2>=qaLimit2 && !globalQaFiredRef.current.has(activeTab.id)){
         globalQaFiredRef.current.add(activeTab.id);
-        startAlarmLoop("case_qa");
+        startAlarmLoopRef.current("case_qa");
       }
     },1000);
     return()=>clearInterval(interval);
-  },[]); // empty deps — reads localStorage fresh every tick
+  },[]); // empty deps — all values accessed via refs or localStorage
 
   // ── On mount: restore session from localStorage ──
   useEffect(()=>{
