@@ -3678,7 +3678,7 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // POST LIVE PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, onFormInFields, onMinimise, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, onArchiveDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, qaAlarmMins=10, globalTimeIn, timedIn, breakActive=false, breakTimer=null, openHourActive=false, onTimeIn, onTimeOut, onTimerReset, sessionDbId, sessionLog=[], addSessionLog, setSessionLog, closeWithOutcome, closeSessionLog, clearSessionLog, onStartBreak, onStartBreakFull, onStopBreak, onStartOpenHour, onStopOpenHour, resumeTick=0, globalActiveLiveTabsRef=null, globalActiveFormTabIdRef=null }) {
+function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, onFormInFields, onMinimise, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, onArchiveDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, qaAlarmMins=10, globalTimeIn, timedIn, breakActive=false, breakTimer=null, openHourActive=false, onTimeIn, onTimeOut, onTimerReset, sessionDbId, sessionLog=[], addSessionLog, setSessionLog, closeWithOutcome, closeSessionLog, clearSessionLog, onStartBreak, onStartBreakFull, onStopBreak, onStartOpenHour, onStopOpenHour, resumeTick=0 }) {
   const [mode,setMode]=useState(()=>{
     if(typeof window==="undefined") return null;
     // If live tabs are persisted, restore mode from the active tab
@@ -3795,8 +3795,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
   const [tabTimerStates,setTabTimerStates]=useState({}); // {[tabId]: timerState}
   const zeroTimerState={footerElapsed:0,resumeElapsed:0,phase2Elapsed:null,isDraftResumed:false,isEditMode:false,prevElapsedSecs:0,originalTotalSecs:0,originalOutcome:""};
   // ── Sync activeLiveTabs and activeFormTabId to App-level global refs for the global alarm interval ──
-  useEffect(()=>{ if(globalActiveLiveTabsRef) globalActiveLiveTabsRef.current=activeLiveTabs; },[activeLiveTabs]);
-  useEffect(()=>{ if(globalActiveFormTabIdRef) globalActiveFormTabIdRef.current=activeFormTabId; },[activeFormTabId]);
+  // Global alarm reads directly from localStorage — no ref syncing needed here
   // ── Draggable tab state ──
   const dragTabRef=useRef(null);
   const handleTabDragStart=(e,tabId)=>{ dragTabRef.current=tabId; e.dataTransfer.effectAllowed="move"; };
@@ -7631,44 +7630,48 @@ function App() {
   // ── Case 30-min alarm (passed as prop to PostLiveForm) ──
   const playEndAlarm=useCallback((type)=>startAlarmLoop(type==="qa"?"case_qa":"case"),[]);
 
-  // ── GLOBAL alarm — computes elapsed directly from raw timestamps, not React state.
-  //    Works on ANY page because PostLivePage is always mounted (display:none when off-page).
-  //    Uses refs only (no state reads) so it is immune to React render/effect lag. ──
-  const globalActiveLiveTabsRef=useRef([]);
-  const globalActiveFormTabIdRef=useRef(null);
+  // ── GLOBAL alarm — reads ONLY from localStorage, zero React dependency.
+  //    localStorage is written by PostLivePage/PostLiveForm on every change:
+  //      ch_live_tabs         → activeLiveTabs (includes startTime per tab)
+  //      ch_live_tab_active   → activeFormTabId
+  //      ch_phase2_start_{id} → QA phase2 start timestamp
+  //    This fires correctly on ANY page/screen/navigation state. ──
   const globalCtFiredRef=useRef(new Set());
   const globalQaFiredRef=useRef(new Set());
-  // Keep alarmMins/qaLimit current in refs so the interval closure always has fresh values
   const alarmMinsRef=useRef(alarmMins);
   const qaLimitRef=useRef(qaLimit);
   useEffect(()=>{ alarmMinsRef.current=alarmMins; },[alarmMins]);
   useEffect(()=>{ qaLimitRef.current=qaLimit; },[qaLimit]);
   useEffect(()=>{
     const interval=setInterval(()=>{
-      const tabs=globalActiveLiveTabsRef.current;
-      const activeId=globalActiveFormTabIdRef.current;
+      if(typeof window==="undefined") return;
+      // Read live data from localStorage — always current, never stale
+      let tabs=[]; let activeId=null;
+      try{
+        const raw=localStorage.getItem("ch_live_tabs");
+        if(raw) tabs=JSON.parse(raw);
+        activeId=localStorage.getItem("ch_live_tab_active");
+      }catch{ return; }
       if(!activeId||!tabs.length) return;
-      // Only fire for the FIRST running tab (the active timer per the queue spec)
-      const activeTab=tabs.find(t=>t.id===activeId)||tabs[0];
-      if(!activeTab||activeTab.startTime===null) return; // queued tab — no alarm
+      // First running tab: the one matching activeId that has a startTime
+      const activeTab=tabs.find(t=>t.id===activeId);
+      if(!activeTab||!activeTab.startTime) return; // queued (startTime===null) — no alarm
       const now=Date.now();
-      const fe=Math.floor((now-activeTab.startTime)/1000);
-      // QA: read phase2 start directly from localStorage (written every tick by PostLiveForm)
+      const fe=Math.floor((now-Number(activeTab.startTime))/1000);
+      // QA phase2 elapsed
       let p2=null;
-      if(typeof window!=="undefined"){
-        const p2Raw=localStorage.getItem(`ch_phase2_start_${activeTab.id}`);
-        if(p2Raw) p2=Math.floor((now-Number(p2Raw))/1000);
-      }
-      // Reset fired flags when timer resets (new case)
-      if(fe===0) globalCtFiredRef.current.delete(activeTab.id);
-      if(p2===null||p2===0) globalQaFiredRef.current.delete(activeTab.id);
-      // Combined Tracker alarm
+      const p2Raw=localStorage.getItem(`ch_phase2_start_${activeTab.id}`);
+      if(p2Raw) p2=Math.floor((now-Number(p2Raw))/1000);
+      // Reset fired flags when the case timer resets (new case started on same tab id)
+      if(fe<=0) globalCtFiredRef.current.delete(activeTab.id);
+      if(!p2||p2<=0) globalQaFiredRef.current.delete(activeTab.id);
+      // ── Combined Tracker alarm ──
       const ctLimit=alarmMinsRef.current*60;
       if(ctLimit>0 && fe>0 && fe>=ctLimit && !globalCtFiredRef.current.has(activeTab.id)){
         globalCtFiredRef.current.add(activeTab.id);
         startAlarmLoop("case");
       }
-      // QA Checklist alarm
+      // ── QA Checklist alarm ──
       const qaLimit2=qaLimitRef.current*60;
       if(qaLimit2>0 && p2!==null && p2>0 && p2>=qaLimit2 && !globalQaFiredRef.current.has(activeTab.id)){
         globalQaFiredRef.current.add(activeTab.id);
@@ -7676,7 +7679,7 @@ function App() {
       }
     },1000);
     return()=>clearInterval(interval);
-  },[]); // empty deps — refs and localStorage handle freshness
+  },[]); // empty deps — reads localStorage fresh every tick
 
   // ── On mount: restore session from localStorage ──
   useEffect(()=>{
@@ -8221,7 +8224,7 @@ function App() {
           {!dataLoading&&page==="build"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="casebox" size={80} color="var(--muted)"/></div><div className="soon-title">Build</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&page==="prelive"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="prelive" size={80} color="var(--muted)"/></div><div className="soon-title">Pre-Live Amends</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&<div style={{display:page==="postlive"?"block":"none"}}>
-            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onUpdateDraft={updateDraft} onFormActive={setFormActivePersist} onFormInFields={setFormInFields} onMinimise={()=>{setPage("postlive"); if(typeof window!=="undefined") localStorage.setItem("ch_page","postlive");}} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} onArchiveDraft={archiveDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} qaAlarmMins={qaLimit} globalTimeIn={globalTimeIn} timedIn={timedIn} breakActive={!!breakTimer||openHourActive} breakTimer={breakTimer||null} openHourActive={openHourActive} onTimeIn={doTimeIn} onTimeOut={doTimeOut} onTimerReset={doTimerReset} sessionDbId={sessionDbId} sessionLog={sessionLog} addSessionLog={addSessionLog} setSessionLog={setSessionLog} closeWithOutcome={closeWithOutcome} closeSessionLog={closeSessionLog} clearSessionLog={clearSessionLog} onStartBreak={startBreak} onStartBreakFull={(label,mins)=>startBreak(label,mins,true)} onStopBreak={()=>setCancelBreakConfirm(true)} onStartOpenHour={startOpenHour} onStopOpenHour={()=>setCancelOpenHourConfirm(true)} resumeTick={resumeFormTick} globalActiveLiveTabsRef={globalActiveLiveTabsRef} globalActiveFormTabIdRef={globalActiveFormTabIdRef}/>
+            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onUpdateDraft={updateDraft} onFormActive={setFormActivePersist} onFormInFields={setFormInFields} onMinimise={()=>{setPage("postlive"); if(typeof window!=="undefined") localStorage.setItem("ch_page","postlive");}} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} onArchiveDraft={archiveDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} qaAlarmMins={qaLimit} globalTimeIn={globalTimeIn} timedIn={timedIn} breakActive={!!breakTimer||openHourActive} breakTimer={breakTimer||null} openHourActive={openHourActive} onTimeIn={doTimeIn} onTimeOut={doTimeOut} onTimerReset={doTimerReset} sessionDbId={sessionDbId} sessionLog={sessionLog} addSessionLog={addSessionLog} setSessionLog={setSessionLog} closeWithOutcome={closeWithOutcome} closeSessionLog={closeSessionLog} clearSessionLog={clearSessionLog} onStartBreak={startBreak} onStartBreakFull={(label,mins)=>startBreak(label,mins,true)} onStopBreak={()=>setCancelBreakConfirm(true)} onStartOpenHour={startOpenHour} onStopOpenHour={()=>setCancelOpenHourConfirm(true)} resumeTick={resumeFormTick}/>
           </div>}
           {!dataLoading&&page==="history"&&<CaseHistory cases={allCases} onUpdate={updateCase} onDelete={deleteCase}/>}
           {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} updateAnnouncement={updateAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
