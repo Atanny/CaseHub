@@ -7669,30 +7669,44 @@ function App() {
     const ct = alarmMinsRef.current;
     const qa = qaLimitRef.current;
     const title = type === "case"
-      ? `⏱ Combined Tracker: ${ct} min reached!`
-      : `✅ QA Checklist: ${qa} min reached!`;
+      ? `Combined Tracker: ${ct} min reached!`
+      : `QA Checklist: ${qa} min reached!`;
     const sub = type === "case"
-      ? `You have been on this case for ${ct} minutes. Check if it needs to escalate or wrap up.`
+      ? `You've been on this case for ${ct} minutes. Check if it needs to escalate or wrap up.`
       : `QA Checklist has been running for ${qa} minutes. Time to review and finalize.`;
+    const icon = type === "case" ? "⏱" : "✅";
     const el = document.createElement("div");
     el.id = "ch-dom-alarm";
-    el.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:999999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(12px);font-family:'Poppins',sans-serif;animation:fadeIn .2s ease;";
+    // Match original .alarm-overlay exactly: 50% dark bg, centered
+    el.className = "alarm-overlay";
+    el.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999999;display:flex;align-items:center;justify-content:center;animation:fadeIn .2s ease;backdrop-filter:blur(6px);";
     el.innerHTML = `
-      <div style="background:var(--card,#1a1f2e);border-radius:20px;padding:40px 36px;max-width:420px;width:90%;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.08);">
-        <div style="font-size:52px;margin-bottom:16px">${type === "case" ? "⏱" : "✅"}</div>
-        <div style="font-size:22px;font-weight:800;color:var(--accent,#3b82f6);margin-bottom:10px;letter-spacing:-.3px">${title}</div>
-        <div style="font-size:14px;color:var(--muted,#94a3b8);margin-bottom:28px;line-height:1.6">${sub}</div>
-        <button id="ch-dom-alarm-dismiss" style="background:var(--accent,#3b82f6);color:#fff;border:none;border-radius:12px;padding:14px 32px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Poppins',sans-serif;width:100%">✅ I'm Aware</button>
+      <div class="alarm-modal" style="animation:popIn .25s ease,alarmPulse 1.4s ease-in-out infinite;">
+        <span class="alarm-icon">${icon}</span>
+        <div class="alarm-title">${title}</div>
+        <div class="alarm-sub">${sub}</div>
+        <div class="alarm-btns">
+          <button id="ch-dom-alarm-snooze" class="alarm-snooze">⏰ Snooze 30 min</button>
+          <button id="ch-dom-alarm-dismiss" class="alarm-dismiss">✅ I'm Aware</button>
+        </div>
       </div>`;
     document.body.appendChild(el);
+    const remove = () => document.getElementById("ch-dom-alarm")?.remove();
     document.getElementById("ch-dom-alarm-dismiss")?.addEventListener("click", () => {
-      document.getElementById("ch-dom-alarm")?.remove();
-      // Also dismiss the React alarm state for consistency
-      if (startAlarmLoopRef.current) stopAlarmLoop();
-      setActiveAlarm(null);
+      remove(); stopAlarmLoop(); setActiveAlarm(null);
     });
-    // Also fire sound via React alarm loop
+    document.getElementById("ch-dom-alarm-snooze")?.addEventListener("click", () => {
+      remove(); stopAlarmLoop(); setActiveAlarm(null);
+      // Re-fire after 30 minutes by removing the fired flag after delay
+      const tabId = el.dataset?.tabId;
+      setTimeout(() => {
+        globalCtFiredRef.current.delete(tabId||"");
+        globalQaFiredRef.current.delete(tabId||"");
+      }, 30 * 60 * 1000);
+    });
+    // Also fire sound
     if (startAlarmLoopRef.current) startAlarmLoopRef.current(type);
+    return el;
   }, []);
 
   useEffect(()=>{
@@ -7720,12 +7734,14 @@ function App() {
       const ctLimit=alarmMinsRef.current*60;
       if(ctLimit>0 && fe>0 && fe>=ctLimit && !globalCtFiredRef.current.has(activeTab.id)){
         globalCtFiredRef.current.add(activeTab.id);
-        showDomAlarm("case");
+        const domEl = showDomAlarm("case");
+        if(domEl) domEl.dataset.tabId = activeTab.id;
       }
       const qaLimit2=qaLimitRef.current*60;
       if(qaLimit2>0 && p2!==null && p2>0 && p2>=qaLimit2 && !globalQaFiredRef.current.has(activeTab.id)){
         globalQaFiredRef.current.add(activeTab.id);
-        showDomAlarm("case_qa");
+        const domElQa = showDomAlarm("case_qa");
+        if(domElQa) domElQa.dataset.tabId = activeTab.id;
       }
     },1000);
     return()=>clearInterval(interval);
