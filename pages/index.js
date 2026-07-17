@@ -7698,16 +7698,17 @@ function App() {
   useEffect(()=>{
     const interval=setInterval(()=>{
       if(typeof window==="undefined") return;
-      let tabs=[]; let activeId=null;
+      let tabs=[];
       try{
         const raw=localStorage.getItem("ch_live_tabs");
         if(raw) tabs=JSON.parse(raw);
-        activeId=localStorage.getItem("ch_live_tab_active");
-        if(!activeId && tabs.length){ const fr=tabs.find(t=>t.startTime); if(fr) activeId=fr.id; }
       }catch{ return; }
-      if(!activeId||!tabs.length) return;
-      const activeTab=tabs.find(t=>t.id===activeId)||(tabs.find(t=>t.startTime));
-      if(!activeTab||!activeTab.startTime) return;
+      if(!tabs.length) return;
+      // ── CRITICAL: alarm is ALWAYS based on the FIRST RUNNING tab (startTime!==null),
+      //    NOT the currently displayed tab (ch_live_tab_active may point to a queued tab
+      //    with startTime===null when user switches view, which was causing early exit). ──
+      const activeTab=tabs.find(t=>t.startTime!==null&&t.startTime!==undefined);
+      if(!activeTab||!activeTab.startTime) return; // no running tab
       const now=Date.now();
       const fe=Math.floor((now-Number(activeTab.startTime))/1000);
       if(fe<0) return;
