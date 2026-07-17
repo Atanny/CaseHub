@@ -4156,7 +4156,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
 
   const amendTypesDisabled=!timedIn||isMinimised; // break no longer blocks adding new tabs
 
-  if(mode==="siteComment"||mode==="inbound"||isMinimised){
+  if(mode==="siteComment"||mode==="inbound"){
     // Determine active live tab label for display
     const activeLiveTab=activeLiveTabs.find(t=>t.id===activeFormTabId)||activeLiveTabs[0];
     return (
@@ -4376,7 +4376,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onUpdateDraft, onFormActive, o
           const tabIsResumingMin = isFirstTab && isResumingMinimised;
           const tabUseDraft = isFirstTab && useDraft;
           return (
-          <div key={tab.key||tab.id} style={{display:(isActiveTab&&!isMinimised)?"flex":"none",flexDirection:"column",flex:(isActiveTab&&!isMinimised)?1:undefined,overflow:"hidden",minHeight:(isActiveTab&&!isMinimised)?0:undefined}}>
+          <div key={tab.key||tab.id} style={{display:isActiveTab?"flex":"none",flexDirection:"column",flex:isActiveTab?1:undefined,overflow:"hidden",minHeight:isActiveTab?0:undefined}}>
           <PostLiveForm key={tab.key||`${tabMode}-${activeDraftId||"new"}-${isEditingFromLog?"edit":"new"}`} mode={tabMode} draftData={tabDraftData} user={user} onTimerEnd={isActiveTab&&(alarmMins>0)?onTimerEnd:null} onQaTimerEnd={isActiveTab&&(qaAlarmMins>0)?onTimerEnd:null} specialRequestors={specialRequestors} timerLimitSecs={alarmMins*60} qaTimerLimitSecs={qaAlarmMins*60} isEditMode={tabIsEdit} isMinimisedResume={tabIsResumingMin} caseStartTime={tab.startTime!==undefined?tab.startTime:caseStartTimeRef.current} externalFormRef={isFirstTab?sharedFormRef:null} isResumingDraft={tabUseDraft} onTimerTick={tab.startTime!==null?t=>setTabTimerStates(prev=>({...prev,[tab.id]:t})):null} prolongedActive={prolongedActive} onProlongedDismiss={()=>{setProlongedActive(false);setProlongedDeadline(null);}} onProceedWithNext={prolongedMode?handleProceedWithNextCase:null} prolongedMinsForNext={prolongedMins} tabStorageKey={tab.id||null} onTabDataChange={({caseNum,businessName,complexity})=>setActiveLiveTabs(ts=>ts.map(t=>t.id===tab.id?{...t,caseNum,complexity:complexity||'minor',label:(t.mode==='inbound'?'Inbound Email':'Site Comment')+(businessName?' — '+businessName:'')+(caseNum?' #'+caseNum:'')}:t))}
           originalOutcome={tabIsEdit?(editingCase.savedCase._saveOutcome||""):tabUseDraft?"Suspended":""}
           originalTotalSecs={(()=>{
@@ -7661,18 +7661,49 @@ function App() {
     return()=>clearInterval(poller);
   },[]);
 
+  // showDomAlarm / dismissDomAlarm — directly create/remove alarm DOM node.
+  // This BYPASSES React state and render scheduling entirely, so the alarm
+  // shows immediately on any page regardless of React's batching or concurrency.
+  const showDomAlarm = useCallback((type) => {
+    if (document.getElementById("ch-dom-alarm")) return; // already showing
+    const ct = alarmMinsRef.current;
+    const qa = qaLimitRef.current;
+    const title = type === "case"
+      ? `⏱ Combined Tracker: ${ct} min reached!`
+      : `✅ QA Checklist: ${qa} min reached!`;
+    const sub = type === "case"
+      ? `You have been on this case for ${ct} minutes. Check if it needs to escalate or wrap up.`
+      : `QA Checklist has been running for ${qa} minutes. Time to review and finalize.`;
+    const el = document.createElement("div");
+    el.id = "ch-dom-alarm";
+    el.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:999999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(12px);font-family:'Poppins',sans-serif;animation:fadeIn .2s ease;";
+    el.innerHTML = `
+      <div style="background:var(--card,#1a1f2e);border-radius:20px;padding:40px 36px;max-width:420px;width:90%;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.08);">
+        <div style="font-size:52px;margin-bottom:16px">${type === "case" ? "⏱" : "✅"}</div>
+        <div style="font-size:22px;font-weight:800;color:var(--accent,#3b82f6);margin-bottom:10px;letter-spacing:-.3px">${title}</div>
+        <div style="font-size:14px;color:var(--muted,#94a3b8);margin-bottom:28px;line-height:1.6">${sub}</div>
+        <button id="ch-dom-alarm-dismiss" style="background:var(--accent,#3b82f6);color:#fff;border:none;border-radius:12px;padding:14px 32px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Poppins',sans-serif;width:100%">✅ I'm Aware</button>
+      </div>`;
+    document.body.appendChild(el);
+    document.getElementById("ch-dom-alarm-dismiss")?.addEventListener("click", () => {
+      document.getElementById("ch-dom-alarm")?.remove();
+      // Also dismiss the React alarm state for consistency
+      if (startAlarmLoopRef.current) stopAlarmLoop();
+      setActiveAlarm(null);
+    });
+    // Also fire sound via React alarm loop
+    if (startAlarmLoopRef.current) startAlarmLoopRef.current(type);
+  }, []);
+
   useEffect(()=>{
     const interval=setInterval(()=>{
-      if(typeof window==="undefined"||!startAlarmLoopRef.current) return;
+      if(typeof window==="undefined") return;
       let tabs=[]; let activeId=null;
       try{
         const raw=localStorage.getItem("ch_live_tabs");
         if(raw) tabs=JSON.parse(raw);
         activeId=localStorage.getItem("ch_live_tab_active");
-        if(!activeId && tabs.length){
-          const firstRunning=tabs.find(t=>t.startTime);
-          if(firstRunning) activeId=firstRunning.id;
-        }
+        if(!activeId && tabs.length){ const fr=tabs.find(t=>t.startTime); if(fr) activeId=fr.id; }
       }catch{ return; }
       if(!activeId||!tabs.length) return;
       const activeTab=tabs.find(t=>t.id===activeId)||(tabs.find(t=>t.startTime));
@@ -7688,19 +7719,16 @@ function App() {
       const ctLimit=alarmMinsRef.current*60;
       if(ctLimit>0 && fe>0 && fe>=ctLimit && !globalCtFiredRef.current.has(activeTab.id)){
         globalCtFiredRef.current.add(activeTab.id);
-        // Write signal to localStorage AND call directly — belt and suspenders
-        localStorage.setItem("ch_alarm_signal",JSON.stringify({type:"case",ts:Date.now()}));
-        startAlarmLoopRef.current("case");
+        showDomAlarm("case");
       }
       const qaLimit2=qaLimitRef.current*60;
       if(qaLimit2>0 && p2!==null && p2>0 && p2>=qaLimit2 && !globalQaFiredRef.current.has(activeTab.id)){
         globalQaFiredRef.current.add(activeTab.id);
-        localStorage.setItem("ch_alarm_signal",JSON.stringify({type:"case_qa",ts:Date.now()}));
-        startAlarmLoopRef.current("case_qa");
+        showDomAlarm("case_qa");
       }
     },1000);
     return()=>clearInterval(interval);
-  },[]);
+  },[showDomAlarm]);
 
   // ── On mount: restore session from localStorage ──
   useEffect(()=>{
